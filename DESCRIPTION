@@ -2,19 +2,12 @@ Package: sensortowerR
 Title: R Interface to Sensor Tower API
 Version: 0.1.0
 Authors@R: 
-    person("Peter", "Black", , "pblack@gameeconomistconsulting.com", role = c("aut", "cre"))
-Description: Provides a clean interface to the Sensor Tower API for mobile app analytics.
-    Fetches and processes key performance indicators (KPIs) including revenue, downloads,
-    and active users at different time granularities.
+    person("Your", "Name", , "your.email@example.com", role = c("aut", "cre"))
+Description: Provides functions to interact with the Sensor Tower API for mobile app analytics.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Imports: 
-    dplyr,
     httr,
-    jsonlite,
-    lubridate
-Suggests: 
-    testthat (>= 3.0.0)
-Config/testthat/edition: 3
+    jsonlite
