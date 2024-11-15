@@ -2,22 +2,22 @@
 % Please edit documentation in R/search_entities.R
 \name{search_entities}
 \alias{search_entities}
-\title{Search for apps or publishers}
+\title{Search for apps or publishers in Sensor Tower}
 \usage{
 search_entities(
+  term,
   os = "unified",
   entity_type = "app",
-  term,
   limit = 100,
-  auth_token = Sys.getenv("SENSORTOWER_AUTH")
+  auth_token = Sys.getenv("sensortower_auth")
 )
 }
 \arguments{
+\item{term}{Search term (min 3 Latin chars or 2 non-Latin chars)}
+
 \item{os}{Platform (unified)}
 
 \item{entity_type}{Type of entity to search for (app or publisher)}
-
-\item{term}{Search term (min 3 Latin chars or 2 non-Latin chars)}
 
 \item{limit}{Number of results to return (max 250)}
 
@@ -27,10 +27,10 @@ search_entities(
 List containing search results
 }
 \description{
-Search for apps or publishers
+Search for apps or publishers in Sensor Tower
 }
 \examples{
 \dontrun{
-search_entities(os = "unified", entity_type = "app", term = "Lyft", limit = 100)
+search_entities(term = "Spotify")
 }
 }

@@ -1,5 +1,5 @@
 
-#' Search for apps or publishers
+#' Search for apps or publishers in Sensor Tower
 #'
 #' @param os Platform (unified)
 #' @param entity_type Type of entity to search for (app or publisher)
@@ -12,52 +12,43 @@
 #'
 #' @examples
 #' \dontrun{
-#' search_entities(os = "unified", entity_type = "app", term = "Lyft", limit = 100)
+#' search_entities(term = "Spotify")
 #' }
-search_entities <- function(os = "unified", 
-                          entity_type = "app", 
-                          term, 
-                          limit = 100, 
-                          auth_token = Sys.getenv("SENSORTOWER_AUTH")) {
+search_entities <- function(term,
+                          os = "unified",
+                          entity_type = "app",
+                          limit = 100,
+                          auth_token = Sys.getenv("sensortower_auth")) {
   
-  base_url <- "https://api.sensortower.com"
-  endpoint <- sprintf("/v1/%s/search_entities", os)
-  
-  # Parameter validation
-  if (nchar(term) < 3) {
-    stop("Search term must be at least 3 characters long for Latin characters")
+  if (is.null(auth_token) || auth_token == "") {
+    stop("Authentication token is required. Set SENSORTOWER_AUTH environment variable.")
   }
   
-  if (limit > 250) {
-    warning("Limit cannot exceed 250. Setting limit to 250")
-    limit <- 250
-  }
+  base_url <- "https://api.sensortower.com/v1"
+  endpoint <- file.path(base_url, os, "search_entities")
   
-  # Construct query parameters
-  params <- list(
-    entity_type = entity_type,
-    term = term,
-    limit = limit
-  )
-  
-  # Make the API request
   response <- httr::GET(
-    url = paste0(base_url, endpoint),
-    query = params,
-    httr::add_headers(Authorization = paste("Bearer", auth_token))
+    url = endpoint,
+    query = list(
+      entity_type = entity_type,
+      term = term,
+      limit = min(limit, 250)
+    ),
+    httr::add_headers(
+      Authorization = sprintf("Bearer %s", auth_token)
+    )
   )
   
-  # Check for errors
+  # Print response for debugging
+  print(httr::http_status(response))
+  print(httr::headers(response))
+  
   if (httr::http_error(response)) {
-    stop(
-      sprintf(
-        "API request failed [%s]: %s",
-        httr::status_code(response),
-        httr::content(response)$error
-      )
-    )
+    content <- httr::content(response, "parsed")
+    stop(sprintf("API request failed [%s]: %s", 
+                httr::status_code(response),
+                if (!is.null(content$error)) content$error else "Unknown error"))
   }
   
-  # Parse and return the response
   httr::content(response)
 }
