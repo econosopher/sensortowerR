@@ -1,40 +1,38 @@
 # sensortowerR
 
-## Overview
-R package providing interface to Sensor Tower API with flexible time granularity options.
+R package for accessing Sensor Tower API data
 
 ## Installation
-```r
+
+```R
 devtools::install_github("peterparkerspicklepatch/sensortowerR")
 ```
 
-## Usage
-```r
-library(sensortowerR)
+## Available Functions
 
-# Fetch daily metrics
-data <- fetch_sensor_tower_metrics(
-  auth_token = "your_token",
-  app_id = "123",
-  start_date = "2024-01-01",
-  end_date = "2024-01-31",
-  app_name = "GameName",
-  grain = "daily"
-)
+### search_entities
+Search for apps or publishers in Sensor Tower. Supports both single searches and batch processing of multiple terms.
+
+```R
+search_entities(term = "Spotify")
+# or with multiple terms
+terms <- c("Spotify", "Netflix")
+results <- lapply(terms, function(x) search_entities(term = x))
 ```
-## Functions
 
 ### fetch_sensor_tower_metrics
+Fetch metrics from Sensor Tower API.
 
-Fetch Sensor Tower Metrics using Unified App ID
+### get_unified_app_id
+Get unified app ID for use with other Sensor Tower API functions.
 
-#### Parameters
-- `auth_token`: Sensor Tower API authentication token
-- `unified_app_id`: Unified App ID from Sensor Tower
-- `start_date`: Start date for data collection (YYYY-MM-DD)
-- `end_date`: End date for data collection (YYYY-MM-DD)
-- `grain`: Granularity of data (daily, weekly, or monthly)
+## Authentication
 
-#### Returns
-A data frame containing the metrics
+Set your Sensor Tower API token as an environment variable:
+```R
+Sys.setenv(SENSORTOWER_AUTH="your_token_here")
+```
 
+## Examples
+
+See function documentation for detailed examples and usage.
