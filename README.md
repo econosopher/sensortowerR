@@ -191,3 +191,31 @@ MIT License - see LICENSE file for details
 
 ---
 Made with ❤️ by [Julius AI](https://julius.ai)
+
+### fetch_sensor_tower_metrics()
+
+Retrieve detailed metrics for apps.
+
+#### Parameters:
+- `app_id`: Unified app ID (e.g., "55c5022c02ac64f9c0001f83" for Spotify)
+- `metrics`: Vector of desired metrics (e.g., c("downloads", "revenue", "dau"))
+- `date_range`: Time period for data (e.g., "last_30_days", "last_90_days")
+- `auth_token`: Optional if set in environment
+
+#### Examples:
+
+```R
+# Get metrics for Spotify
+spotify_metrics <- fetch_sensor_tower_metrics(
+  app_id = "55c5022c02ac64f9c0001f83",
+  metrics = c("downloads", "revenue", "dau"),
+  date_range = "last_30_days"
+)
+
+# Get metrics for Netflix
+netflix_metrics <- fetch_sensor_tower_metrics(
+  app_id = "55c500dc02ac64f9c0001f01",
+  metrics = c("downloads", "revenue"),
+  date_range = "last_30_days"
+)
+```
