@@ -9,7 +9,7 @@ search_entities(
   os = "unified",
   entity_type = "app",
   limit = 100,
-  auth_token = Sys.getenv("sensortower_auth")
+  auth_token = Sys.getenv("SENSORTOWER_AUTH")
 )
 }
 \arguments{
@@ -31,6 +31,19 @@ Search for apps or publishers in Sensor Tower
 }
 \examples{
 \dontrun{
+# Single search
 search_entities(term = "Spotify")
+
+# Search multiple terms
+terms <- c("Spotify", "Netflix", "TikTok")
+results <- lapply(terms, function(x) {
+  search_entities(term = x, limit = 5)
+})
+
+# Process multiple results
+names(results) <- terms
+app_names <- lapply(results, function(x) {
+  sapply(x, function(app) app$name)
+})
 }
 }
