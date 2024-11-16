@@ -108,27 +108,6 @@ netflix_metrics <- fetch_sensor_tower_metrics(
   grain = "monthly"
 )
 ```
-#### Parameters:
-- `app_id`: Unified app ID
-- `metrics`: Vector of desired metrics
-- `date_range`: Time period for data
-
-#### Examples:
-
-```R
-# Get basic metrics
-metrics <- fetch_sensor_tower_metrics(
-  app_id = "com.spotify.music",
-  metrics = c("downloads", "revenue")
-)
-
-# Advanced metrics with date range
-detailed_metrics <- fetch_sensor_tower_metrics(
-  app_id = "com.netflix.mediaclient",
-  metrics = c("downloads", "revenue", "dau"),
-  date_range = "last_30_days"
-)
-```
 
 ### get_unified_app_id()
 
