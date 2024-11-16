@@ -33,7 +33,7 @@ Fetch unified metrics for apps including revenue, downloads, and active users.
 
 #### Parameters:
 - `auth_token`: API authentication token
-- `app_id`: Unique identifier for the app
+- `app_id`: Unique identifier for the app (e.g., "55c5022c02ac64f9c0001f83" for Spotify)
 - `start_date`: Start date for data collection (YYYY-MM-DD)
 - `end_date`: End date for data collection (YYYY-MM-DD)
 - `app_name`: Name of the app
@@ -51,23 +51,23 @@ A tibble containing:
 #### Examples:
 
 ```R
-# Fetch daily metrics for an app
-metrics <- fetch_sensor_tower_metrics(
+# Fetch daily metrics for Spotify
+spotify_metrics <- fetch_sensor_tower_metrics(
   auth_token = Sys.getenv("SENSORTOWER_AUTH"),
-  app_id = "com.example.app",
+  app_id = "55c5022c02ac64f9c0001f83",
   start_date = "2024-01-01",
   end_date = "2024-01-31",
-  app_name = "Example App",
+  app_name = "Spotify",
   grain = "daily"
 )
 
-# Fetch monthly metrics
-monthly_metrics <- fetch_sensor_tower_metrics(
+# Fetch monthly metrics for Netflix
+netflix_metrics <- fetch_sensor_tower_metrics(
   auth_token = Sys.getenv("SENSORTOWER_AUTH"),
-  app_id = "com.example.app",
+  app_id = "55c500dc02ac64f9c0001f01",
   start_date = "2024-01-01",
   end_date = "2024-03-31",
-  app_name = "Example App",
+  app_name = "Netflix",
   grain = "monthly"
 )
 ```
