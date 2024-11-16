@@ -27,7 +27,7 @@
 #'   sapply(x, function(app) app$name)
 #' })
 #' }
-search_entities <- function(term,
+app_search <- function(term,
                           os = "unified",
                           entity_type = "app",
                           limit = 100,
