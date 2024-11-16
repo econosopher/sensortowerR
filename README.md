@@ -42,7 +42,7 @@ Search for apps or publishers across app stores.
 
 ```R
 # Basic search
-spotify_apps <- search_entities(term = "Spotify")
+spotify_apps <- app_id_seach(term = "Spotify")
 
 # Advanced search with parameters
 netflix_apps <- search_entities(
@@ -103,9 +103,28 @@ Convert store-specific app IDs to unified Sensor Tower IDs.
 ```R
 # Get unified ID for Spotify
 spotify_id <- get_unified_app_id(
-  app_id = "com.spotify.music",
+  app_id = "506627515", (Hayday)
   store = "android"
 )
+```
+
+### get_publisher_games()
+
+Convert store-specific app IDs to unified Sensor Tower IDs.
+
+#### Parameters:
+- `auth_token`: You know the drill.
+- `publisher_id`: Unique Sensor Tower ID
+
+#### Examples:
+
+```R
+# Get pubisher IDs for Spotify
+games_df <- get_publisher_games(
+    auth_token = auth_token,
+    publisher_id = "560c48b48ac350643900b82d"  # Example publisher ID (Supercell)
+)
+
 ```
 
 ## Data Processing Tips 💡
