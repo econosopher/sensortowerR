@@ -24,6 +24,12 @@ metrics <- fetch_sensor_tower_metrics(
   end_date = ymd("2021-09-22")
 )
 
+source("R/get_publisher_games.R")
+get_publisher_games(
+  auth_token = auth_token,
+  publisher_id = "560c48b48ac350643900b82d"
+)
+
 top_pokemon_games <-
   mutate(top_pokemon_games, launch_date = case_when(
     unified_app_name == "Pokémon GO" ~ ymd("2016-07-06"),
