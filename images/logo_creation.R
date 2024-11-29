@@ -34,14 +34,14 @@ p <- ggplot() +
 # Create the sticker
 sticker(
   p,
-  package = "sensortowerR 📱📊",
+  package = "sensortowerR",
   p_size = 20,
   p_color = "#2C3E50",
   p_family = "roboto",
   p_fontface = "bold",
   h_color = "#2C3E50",
   h_fill = "#ECF0F1",
-  url = "github.com/peterparkerspicklepatch/sensortowerR",
+  url = "github.com/peterparkerspicklepatch/",
   u_size = 4,
   u_color = "#2C3E50",
   u_family = "roboto",

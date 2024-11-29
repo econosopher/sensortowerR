@@ -50,7 +50,7 @@ fetch_metrics <- function(unified_app_id, app_name, launch_date, auth_token) {
     auth_token = auth_token,
     unified_app_id = unified_app_id,
     start_date = launch_date,
-    end_date = launch_date + days(15)
+    end_date = launch_date + days(60)
   ) %>%
     mutate(
       unified_app_id = unified_app_id,
@@ -63,7 +63,18 @@ fetch_metrics <- function(unified_app_id, app_name, launch_date, auth_token) {
 combined_metrics <- top_pokemon_games %>%
   pmap_dfr(~ fetch_metrics(..1, ..2, ..3, auth_token))
 
-combined_metrics %>%
+# Update the combined_metrics data with the correct launch dates
+combined_metrics_jpus <- combined_metrics %>%
+  mutate(
+    launch_date = case_when(
+      country == "US" & unified_app_name == "Pokémon GO" ~ as.Date("2016-07-06"),
+      country == "JP" & unified_app_name == "Pokémon GO" ~ as.Date("2016-07-22"),
+      TRUE ~ as.Date(launch_date)  # Handle other countries if necessary
+    )
+  )
+
+# Create the plot with the updated launch dates and formatted y-axis labels
+combined_metrics_jpus %>%
   mutate(
     date = as.Date(date),
     days_since_launch = as.numeric(date - launch_date),
@@ -72,8 +83,8 @@ combined_metrics %>%
   filter(country %in% c("US", "JP")) %>%  # Filter for US and Japan
   group_by(unified_app_name, country, days_since_launch) %>%
   summarize(
-    downloads = sum(unified_units),
-    revenue = sum(unified_revenue),
+    downloads = sum(as.integer(unified_units), na.rm = TRUE),
+    revenue = sum(as.integer(unified_revenue), na.rm = TRUE),
     .groups = "drop"
   ) %>%
   group_by(unified_app_name, country) %>%
@@ -89,7 +100,11 @@ combined_metrics %>%
   ) %>%
   ggplot(aes(x = fct_reorder(unified_app_name, value), y = value, fill = metric)) +
   geom_bar(stat = "identity", position = "dodge") +
-  facet_grid(metric~country, scales = "free") +
+  facet_grid(metric ~ country, scales = "free") +
+  scale_y_continuous(
+    labels = scales::label_number(scale_cut = scales::cut_short_scale()),  # Abbreviate with K, M, etc.
+    expand = expansion(mult = c(0, 0.05))  # Add a little space above the tallest bar
+  ) +
   labs(
     title = "Cumulative Metrics on the 15th Day",
     x = "Game",
