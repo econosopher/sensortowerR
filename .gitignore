@@ -9,6 +9,10 @@
 .Rproj.user/
 *.Rproj
 
+# Personal Test Files
+tests/
+
+
 # Temporary files created by R
 .Ruserdata
 .RDS
