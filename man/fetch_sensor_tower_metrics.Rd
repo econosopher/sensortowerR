@@ -2,43 +2,65 @@
 % Please edit documentation in R/fetch_sensor_tower_metrics.R
 \name{fetch_sensor_tower_metrics}
 \alias{fetch_sensor_tower_metrics}
-\title{Fetch Sensor Tower Metrics}
+\title{Fetch Sensor Tower Metrics for a Unified App}
 \usage{
-fetch_sensor_tower_metrics(auth_token, unified_app_id, start_date, end_date)
+fetch_sensor_tower_metrics(
+  unified_app_id,
+  start_date,
+  end_date,
+  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
+)
 }
 \arguments{
-\item{auth_token}{Character. Your Sensor Tower API authentication token.}
+\item{unified_app_id}{Character string. The unified app ID for which to fetch
+metrics (required).}
 
-\item{unified_app_id}{Character. The unified app ID for which to fetch metrics.}
+\item{start_date}{Date object or character string (YYYY-MM-DD). The start date
+for data collection (required).}
 
-\item{start_date}{Date. The start date for data collection (YYYY-MM-DD).}
+\item{end_date}{Date object or character string (YYYY-MM-DD). The end date for
+data collection (required).}
 
-\item{end_date}{Date. The end date for data collection (YYYY-MM-DD).}
+\item{auth_token}{Character string. Your Sensor Tower API authentication token.
+Defaults to the value stored in the \code{SENSORTOWER_AUTH_TOKEN} environment
+variable.}
 }
 \value{
-A tibble containing combined sales and usage metrics for the app, date, and country. The tibble includes columns: date, unified_app_id, country, revenue, downloads, active_users.
+A \link[tibble:tibble]{tibble} containing combined sales and usage metrics.
+Columns are: \code{unified_app_id}, \code{date} (Date object), \code{country}
+(character), \code{revenue} (numeric, from unified_revenue), \code{downloads}
+(numeric, from unified_units), \code{active_users} (numeric, sum of platform users).
+Returns an empty tibble with the correct structure if no data is found or an
+unrecoverable error occurs.
 }
 \description{
-This function retrieves sales and usage metrics for a specified application from the Sensor Tower API. It fetches data within a specified date range for the provided unified app ID and combines the data into a unified tibble for analysis.
+Retrieves daily sales estimates and active user metrics for a specified
+unified application ID from the Sensor Tower API over a given date range.
+It combines these metrics into a single tibble.
 }
+\section{API Endpoints Used}{
+
+\itemize{
+\item \code{GET /v1/unified/sales_report_estimates}
+\item \code{GET /v1/unified/usage/active_users}
+\emph{(Verification needed for exact parameters used by these endpoints)}
+}
+}
+
 \examples{
 \dontrun{
-# Load necessary libraries
-library(lubridate)
+# Ensure SENSORTOWER_AUTH_TOKEN is set in your environment
+# Sys.setenv(SENSORTOWER_AUTH_TOKEN = "your_secure_auth_token_here")
 
-# Define your authentication token
-auth_token <- "your_secure_auth_token_here"
-
-# Define the unified app ID
-unified_app_id <- "602c795c912b51622f233ffe"  # Example: Pokémon GO
+# Define the unified app ID (use a real, valid ID)
+unified_app_id <- "YOUR_VALID_UNIFIED_APP_ID" # e.g., "55c5025102ac64f9c0001f96"
 
 # Define the date range
-start_date <- as.Date("2021-09-22")
-end_date <- as.Date("2021-09-22")
+start_date <- Sys.Date() - 30
+end_date <- Sys.Date() - 1
 
 # Fetch the metrics
 metrics <- fetch_sensor_tower_metrics(
-  auth_token = auth_token,
   unified_app_id = unified_app_id,
   start_date = start_date,
   end_date = end_date
@@ -46,6 +68,7 @@ metrics <- fetch_sensor_tower_metrics(
 
 # View the metrics
 print(metrics)
+head(metrics)
 }
 
 }

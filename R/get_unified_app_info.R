@@ -1,37 +1,39 @@
 #' Fetch Unified App Information from Sensor Tower
 #'
 #' This function retrieves information about apps from the Sensor Tower API
-#' based on a search term. It fetches app IDs and names for unified app entities.
+#' based on a search term. It targets the `/v1/{app_store}/search_entities`
+#' endpoint and fetches app IDs and names for unified app entities.
 #'
-#' @param term Character. The search term to query apps.
-#' @param app_store Character. The app store to query, default is "unified".
-#' @param entity_type Character. The type of entity to search, default is "app".
-#' @param limit Integer. The maximum number of results to return. Default is 100, with a hard limit of 250.
-#' @param auth_token Character. The API authentication token. Default is fetched from the environment variable `SENSORTOWER_AUTH`.
-#'
-#' @return A tibble with the following columns:
-#' - `unified_app_id`: Unified app ID
-#' - `unified_app_name`: Name of the unified app
+# ... (rest of the description parameters etc.) ...
 #'
 #' @examples
 #' \dontrun{
-#' # Ensure the SENSORTOWER_AUTH environment variable is set
-#' Sys.setenv(SENSORTOWER_AUTH = "your_auth_token_here")
+#' # Ensure the SENSORTOWER_AUTH_TOKEN environment variable is set
+#' # Sys.setenv(SENSORTOWER_AUTH_TOKEN = "your_auth_token_here")
 #'
-#' # Fetch unified app info
+#' # Fetch unified app info for "Clash of Clans"
 #' app_info <- get_unified_app_info(term = "Clash of Clans")
 #' print(app_info)
+#'
+#' # Fetch publisher info
+#' # publisher_info <- get_unified_app_info(term = "Supercell", entity_type = "publisher")
+#' # print(publisher_info) # Note: returned columns might differ based on entity_type
 #' }
+#'
+#' @import dplyr
+#' @importFrom httr GET add_headers http_error status_code content
+#' @importFrom jsonlite fromJSON
+#' @importFrom tibble tibble
 #' @export
 get_unified_app_info <- function(term,
                                  app_store = "unified",
                                  entity_type = "app",
                                  limit = 100,
-                                 auth_token = Sys.getenv("SENSORTOWER_AUTH")) {
+                                 auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
 
   # Ensure the auth_token is provided
   if (is.null(auth_token) || auth_token == "") {
-    stop("Authentication token is required. Set SENSORTOWER_AUTH environment variable.")
+    stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
 
   # Define the API endpoint
