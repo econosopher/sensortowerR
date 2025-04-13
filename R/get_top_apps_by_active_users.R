@@ -6,8 +6,7 @@
 #' `/v1/{os}/top_and_trending/active_users` endpoint.
 #'
 #' @param os Required. Character string. Operating System. Must be one of
-#'   "ios" or "android". Note: "unified" does not appear supported by this
-#'   specific endpoint based on provided documentation.
+#'   "ios", "android", or "unified".
 #' @param comparison_attribute Required. Character string. Comparison attribute
 #'   type. Must be one of "absolute", "delta", or "transformed_delta".
 #' @param time_range Required. Character string. Time granularity (e.g., "month",
@@ -23,16 +22,22 @@
 #'   parameter is typically mandatory for this endpoint.
 #' @param category Optional. Character string or numeric. The ID of the category
 #'   to filter by (e.g., 6016 for iOS Social Networking). If NULL (default),
-#'   results for all categories are typically returned.
+#'   results for all categories are typically returned. Use `get_categories()`
+#'   to find valid IDs.
 #' @param limit Optional. Integer. Maximum number of apps to return per call.
 #'   Defaults to 25.
 #' @param offset Optional. Integer. Number of apps to skip for pagination.
 #'   Useful for retrieving results beyond the `limit`. Defaults to NULL (meaning 0).
-#' @param device_type Optional. Character string. For `os = "ios"` only:
-#'   "iphone", "ipad", or "total". Defaults to `"total"` if `os` is "ios" and
-#'   this argument is not provided. Leave blank/NULL for `os = "android"`.
+#' @param device_type Optional. Character string. For `os = "ios"` or `os = "unified"`:
+#'   "iphone", "ipad", or "total". Defaults to `"total"` if `os` is "ios" or
+#'   "unified" and this argument is not provided. Leave blank/NULL for
+#'   `os = "android"`.
 #' @param custom_fields_filter_id Optional. Character string. ID of a Sensor Tower
-#'   custom field filter to apply. Defaults to NULL.
+#'   custom field filter to apply. Requires `custom_tags_mode` if `os` is 'unified'.
+#'   Defaults to NULL.
+#' @param custom_tags_mode Optional. Character string. Required if `os` is
+#'   'unified' and `custom_fields_filter_id` is provided. Typically set to
+#'   "include_unified_apps". Defaults to NULL.
 #' @param auth_token Optional. Character string. Your Sensor Tower API
 #'   authentication token. It is strongly recommended to set the
 #'   `SENSORTOWER_AUTH_TOKEN` environment variable instead of passing this
@@ -42,22 +47,20 @@
 #'
 #' @return A [tibble][tibble::tibble] (data frame) where each row represents an
 #'   app and columns correspond to the fields returned by the API JSON response
-#'   (e.g., `app_id`, `date`, `country`, `users_absolute`, `users_delta`,
-#'   `users_transformed_delta`, `users_market_share`, custom tags, etc.). Returns
-#'   an empty tibble if the API call is successful but returns no data or if an
-#'   error occurs.
+#'   (e.g., `app_id`, `date`, `country`, `users_absolute`, `users_delta`, etc.).
+#'   Returns an empty tibble if the API call is successful but returns no data
+#'   or if an error occurs.
 #'
 #' @section API Endpoint Used:
 #'   `GET /v1/{os}/top_and_trending/active_users`
+#'   *(Support for os="unified" depends on the Sensor Tower API)*
 #'
 #' @section Common Issues (HTTP 422 Error):
-#'   An HTTP 422 "Unprocessable Entity" error often indicates a problem with the
-#'   combination or format of parameters provided (e.g., invalid `category` ID
-#'   for the specified `os`, invalid `regions` code, unsupported combination of
-#'   `time_range` and `measure`, missing required `device_type` for iOS).
-#'   Consult the Sensor Tower API documentation for valid parameter values and
-#'   combinations. Check the R console for the raw API response body if a 422
-#'   error occurs.
+#'   An HTTP 422 "Unprocessable Entity" error often indicates invalid parameters
+#'   or combinations (e.g., invalid `category` ID, `regions` code, unsupported
+#'   `time_range`/`measure` combo, missing `device_type` for iOS/Unified, missing
+#'   `custom_tags_mode` when using filters with Unified OS). Consult API docs
+#'   and check console warnings for the response body.
 #'
 #' @importFrom httr2 request req_user_agent req_url_path_append req_url_query
 #'   req_error req_perform resp_status resp_body_raw resp_check_status resp_body_string
@@ -73,34 +76,57 @@
 #' # Ensure SENSORTOWER_AUTH_TOKEN environment variable is set
 #' # Sys.setenv(SENSORTOWER_AUTH_TOKEN = "YOUR_TOKEN_HERE")
 #'
-#' # Example 1: Get top 10 iOS Social apps by absolute MAU for Jan 2023 in US & GB
+#' # Example 1: Top iOS Social apps by MAU
 #' top_ios_social_mau <- get_top_apps_by_active_users(
 #'   os = "ios",
 #'   comparison_attribute = "absolute",
 #'   time_range = "month",
 #'   measure = "MAU",
-#'   date = "2023-01-01",
-#'   category = 6016, # Example: iOS Social Networking ID
-#'   regions = c("US", "GB"), # Region is required
+#'   date = "2023-10-01",
+#'   category = 6016,
+#'   regions = c("US", "GB"),
 #'   limit = 10
-#'   # device_type defaults to "total" for iOS
 #' )
-#'
 #' print(top_ios_social_mau)
 #'
-#' # Example 2: Get top 5 Android apps (all categories) by DAU delta
-#' # for month starting 2023-03-01 worldwide.
+#' # Example 2: Top Android apps (all categories) by DAU delta worldwide
 #' top_android_dau_delta <- get_top_apps_by_active_users(
 #'   os = "android",
 #'   comparison_attribute = "delta",
 #'   time_range = "month", # Verify if 'day' is allowed by API for DAU
 #'   measure = "DAU",
-#'   date = "2023-03-01",
-#'   # category = NULL, # Default: All categories
-#'   regions = "WW",    # Worldwide is required
+#'   date = "2023-10-01",
+#'   regions = "WW",
 #'   limit = 5
 #' )
 #' print(top_android_dau_delta)
+#'
+#' # Example 3: Using Unified OS (if supported by API)
+#' # top_unified_apps <- get_top_apps_by_active_users(
+#' #   os = "unified",
+#' #   comparison_attribute = "absolute",
+#' #   time_range = "week",
+#' #   measure = "WAU",
+#' #   date = "2023-10-09",
+#' #   regions = "US",
+#' #   limit = 10
+#' #   # device_type defaults to "total"
+#' # )
+#' # print(top_unified_apps)
+#'
+#' # Example 4: Unified OS with Custom Filter (if supported by API)
+#' # top_unified_filtered <- get_top_apps_by_active_users(
+#' #   os = "unified",
+#' #   comparison_attribute = "absolute",
+#' #   time_range = "month",
+#' #   measure = "MAU",
+#' #   date = "2023-10-01",
+#' #   regions = "WW",
+#' #   limit = 20,
+#' #   custom_fields_filter_id = "YOUR_FILTER_ID",
+#' #   custom_tags_mode = "include_unified_apps" # Required with filter + unified
+#' # )
+#' # print(top_unified_filtered)
 #' }
 get_top_apps_by_active_users <- function(os,
                                          comparison_attribute,
@@ -113,31 +139,38 @@ get_top_apps_by_active_users <- function(os,
                                          offset = NULL,
                                          device_type = NULL,
                                          custom_fields_filter_id = NULL,
+                                         custom_tags_mode = NULL, # Added argument
                                          auth_token = NULL,
                                          base_url = "https://api.sensortower.com") {
 
   # --- Input Validation ---
    stopifnot(
-    "`os` must be 'ios' or 'android'" =
-        is.character(os) && length(os) == 1 && os %in% c("ios", "android"),
+    # Updated os validation
+    "`os` must be 'ios', 'android', or 'unified'" =
+        is.character(os) && length(os) == 1 && os %in% c("ios", "android", "unified"),
     "`comparison_attribute` must be 'absolute', 'delta', or 'transformed_delta'" =
         is.character(comparison_attribute) && length(comparison_attribute) == 1 && comparison_attribute %in% c("absolute", "delta", "transformed_delta"),
     "`time_range` must be a single character string" =
-        is.character(time_range) && length(time_range) == 1, # Specific validation below
+        is.character(time_range) && length(time_range) == 1,
     "`measure` must be 'DAU', 'WAU', or 'MAU'" =
         is.character(measure) && length(measure) == 1 && measure %in% c("DAU", "WAU", "MAU"),
     "`date` must be provided" = !missing(date),
-    "`regions` must be provided" = !missing(regions) && !is.null(regions) && length(regions) > 0 && nzchar(regions[[1]]),
+    "`regions` must be provided and non-empty" =
+        !missing(regions) && !is.null(regions) && length(regions) > 0 && nzchar(paste(regions, collapse="")),
     "`category` must be NULL or a single string/number" =
         is.null(category) || ((is.character(category) || is.numeric(category)) && length(category) == 1),
     "`limit` must be a positive integer" =
         is.numeric(limit) && length(limit) == 1 && limit > 0 && floor(limit) == limit,
     "`offset` must be NULL or a non-negative integer" =
         is.null(offset) || (is.numeric(offset) && length(offset) == 1 && offset >= 0 && floor(offset) == offset),
+    # Updated device_type validation
     "`device_type` must be NULL or one of 'iphone', 'ipad', 'total'" =
         is.null(device_type) || (is.character(device_type) && length(device_type) == 1 && device_type %in% c("iphone", "ipad", "total")),
     "`custom_fields_filter_id` must be NULL or a character string" =
-        is.null(custom_fields_filter_id) || (is.character(custom_fields_filter_id) && length(custom_fields_filter_id) == 1)
+        is.null(custom_fields_filter_id) || (is.character(custom_fields_filter_id) && length(custom_fields_filter_id) == 1),
+    # Added custom_tags_mode validation
+    "`custom_tags_mode` must be NULL or a character string" =
+        is.null(custom_tags_mode) || (is.character(custom_tags_mode) && length(custom_tags_mode) == 1)
   )
 
   # Validate date format
@@ -147,10 +180,14 @@ get_top_apps_by_active_users <- function(os,
   if (measure == "MAU" && time_range == "week") {
       rlang::abort("Sensor Tower API documentation indicates time_range='week' is not supported when measure='MAU'.")
   }
-  # Optional warnings based on observed API behavior/docs
-  # if (!time_range %in% c("month", "quarter")) {
-  #      rlang::warn(paste0("Using time_range='", time_range, "'. API examples only showed 'month'/'quarter'. Ensure validity."))
-  # }
+  # Check for custom_tags_mode requirement
+  if (os == "unified" && !is.null(custom_fields_filter_id) && is.null(custom_tags_mode)) {
+      rlang::abort("When 'os' is 'unified' and 'custom_fields_filter_id' is provided, 'custom_tags_mode' must also be specified (e.g., 'include_unified_apps').")
+  }
+  if (os != "unified" && !is.null(custom_tags_mode) && is.null(custom_fields_filter_id)) {
+      rlang::warn("'custom_tags_mode' provided without 'custom_fields_filter_id' or when os is not 'unified'. It might be ignored.")
+  }
+
 
   # --- Authentication ---
   auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
@@ -159,6 +196,13 @@ get_top_apps_by_active_users <- function(os,
   }
 
   # --- Prepare Query Parameters ---
+  # Handle device_type: default to 'total' for ios/unified if NULL, else NULL for android
+  effective_device_type <- if (os %in% c("ios", "unified")) {
+                               device_type %||% "total"
+                           } else {
+                               NULL # Not applicable for android
+                           }
+
   query_params <- list(
     auth_token = auth_token_val,
     comparison_attribute = comparison_attribute,
@@ -169,9 +213,9 @@ get_top_apps_by_active_users <- function(os,
     regions = paste(regions, collapse = ","),
     limit = limit,
     offset = offset,
-    # Handle device_type: default to 'total' for ios if NULL, else NULL for android
-    device_type = if (os == "ios") { device_type %||% "total" } else { NULL },
-    custom_fields_filter_id = custom_fields_filter_id
+    device_type = effective_device_type, # Use calculated value
+    custom_fields_filter_id = custom_fields_filter_id,
+    custom_tags_mode = custom_tags_mode # Add the new parameter
   )
 
   # Remove parameters that are NULL
@@ -230,7 +274,7 @@ get_top_apps_by_active_users <- function(os,
      }
 
      if (status_code == 422) {
-         rlang::warn(paste("Received HTTP 422 (Unprocessable Entity). Check parameters/combinations (esp. device_type for iOS). Response body:", body_text))
+         rlang::warn(paste("Received HTTP 422 (Unprocessable Entity). Check parameters/combinations (esp. device_type for iOS/Unified, custom_tags_mode). Response body:", body_text))
      }
 
      httr2::resp_check_status(resp, info = api_error_message)

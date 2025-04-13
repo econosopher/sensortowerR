@@ -1,6 +1,6 @@
 Okay, here is the complete updated README content formatted as a single block of Markdown text. You can copy this entire block and paste it directly into your `README.md` file, replacing the old content.
 
-```markdown
+``` markdown
 # sensortowerR
 
 <div align="center">
@@ -26,17 +26,9 @@ The functions in this package will automatically look for an environment variabl
 
 **Recommended Setup:**
 
-1.  Use the `usethis` package to edit your R environment file:
-    ```r
-    # Run this in your R console
-    usethis::edit_r_environ()
-    ```
-    *(This usually opens the file `~/.Renviron` in your home directory. You can also use `usethis::edit_r_environ(scope = "project")` to create one specific to your current project, but be sure to add `.Renviron` to your `.gitignore` file if you do!)*
+1.  Use the `usethis` package to edit your R environment file: `r     # Run this in your R console     usethis::edit_r_environ()` *(This usually opens the file `~/.Renviron` in your home directory. You can also use `usethis::edit_r_environ(scope = "project")` to create one specific to your current project, but be sure to add `.Renviron` to your `.gitignore` file if you do!)*
 
-2.  Add the following line to the `.Renviron` file that opens, replacing `"YOUR_SECRET_TOKEN_HERE"` with your actual Sensor Tower API token:
-    ```
-    SENSORTOWER_AUTH_TOKEN="YOUR_SECRET_TOKEN_HERE"
-    ```
+2.  Add the following line to the `.Renviron` file that opens, replacing `"YOUR_SECRET_TOKEN_HERE"` with your actual Sensor Tower API token: `SENSORTOWER_AUTH_TOKEN="YOUR_SECRET_TOKEN_HERE"`
 
 3.  Save the `.Renviron` file and **restart your R session** for the changes to take effect.
 
@@ -56,7 +48,7 @@ The package provides the following main functions:
 
 Make sure you have set the `SENSORTOWER_AUTH_TOKEN` environment variable and restarted R before running these examples.
 
-```r
+``` r
 library(sensortowerR)
 library(lubridate) # For easy date creation
 
@@ -110,14 +102,13 @@ top_mau <- get_top_apps_by_active_users(
   limit = 3
 )
 print(top_mau)
-
 ```
 
 ## Example Workflow: Comparing Pokemon Game Launches
 
 This workflow demonstrates fetching data for multiple apps, combining it, and plotting launch performance.
 
-```r
+``` r
 # Load required packages
 library(sensortowerR)
 library(dplyr)
@@ -278,7 +269,6 @@ if (nrow(combined_metrics) > 0) {
 } else {
   message("No combined metrics data was fetched successfully.")
 }
-
 ```
 
 ## Dependencies
@@ -302,4 +292,4 @@ Workflow dependencies (install separately if running the workflow):
 -   tidyr (for `pivot_longer`)
 -   scales (for plot labels)
 
-```
+\`\`\`

@@ -18,10 +18,11 @@
 #'   beginning of the specified `time_range`.
 #' @param category Required. Character string or numeric. The ID of the category
 #'   to filter by (e.g., iOS Games is 6000 or "6000", Android Finance might be
-#'   "FINANCE"). Consult Sensor Tower documentation for valid IDs.
+#'   "FINANCE"). Use `get_categories()` to find valid IDs.
 #' @param regions Required. Character vector or comma-separated string. Region
 #'   codes (e.g., `"US"`, `c("US", "GB")`, `"WW"`) to filter results. This
-#'   parameter is typically mandatory for this endpoint.
+#'   parameter is typically mandatory for this endpoint. Use `get_countries()`
+#'   to find valid codes.
 #' @param end_date Optional. Character string or Date object. End date for the
 #'   query in "YYYY-MM-DD" format, inclusive. If provided, allows aggregation
 #'   over multiple periods defined by `time_range`. Auto-adjusts to the end of
@@ -35,8 +36,8 @@
 #'   "unified" and this argument is not provided. Leave blank/NULL for
 #'   `os = "android"`.
 #' @param custom_fields_filter_id Optional. Character string. ID of a Sensor Tower
-#'   custom field filter to apply. Requires `custom_tags_mode` parameter if
-#'   `os` is 'unified'. Defaults to NULL.
+#'   custom field filter to apply. Requires `custom_tags_mode` if `os` is 'unified'.
+#'   Defaults to NULL.
 #' @param custom_tags_mode Optional. Character string. Required if `os` is
 #'   'unified' and `custom_fields_filter_id` is provided. Typically set to
 #'   "include_unified_apps". Defaults to NULL.
@@ -49,9 +50,7 @@
 #'
 #' @return A [tibble][tibble::tibble] (data frame) containing the requested top
 #'   app estimates. Columns correspond to the fields in the API JSON response
-#'   (e.g., `app_id`, `date`, `country`, `current_units_value`,
-#'   `comparison_units_value`, `units_absolute`, `units_delta`,
-#'   `units_transformed_delta`, revenue equivalents, custom tags, etc.). Returns
+#'   (e.g., `app_id`, `date`, `country`, `current_units_value`, etc.). Returns
 #'   an empty tibble if the API call is successful but returns no data or if an
 #'   error occurs.
 #'
@@ -59,12 +58,11 @@
 #'   `GET /v1/{os}/sales_report_estimates_comparison_attributes`
 #'
 #' @section Common Issues (HTTP 422 Error):
-#'   An HTTP 422 "Unprocessable Entity" error often indicates a problem with the
-#'   combination or format of parameters provided (e.g., invalid `category` ID
-#'   for the specified `os`, invalid `regions` code, unsupported combination of
-#'   `time_range` and `measure`). Consult the Sensor Tower API documentation for
-#'   valid parameter values and combinations. Check the R console for the raw
-#'   API response body if a 422 error occurs, as it might contain specific details.
+#'   An HTTP 422 "Unprocessable Entity" error often indicates invalid parameters
+#'   or combinations (e.g., invalid `category` ID, `regions` code, missing
+#'   `device_type` for iOS/Unified, missing `custom_tags_mode` when using filters
+#'   with Unified OS). Consult API docs and check console warnings for the
+#'   response body.
 #'
 #' @importFrom httr2 request req_user_agent req_url_path_append req_url_query
 #'   req_error req_perform resp_status resp_body_raw resp_check_status resp_body_string
@@ -90,6 +88,7 @@
 #'   category = 6000,      # iOS Games category ID
 #'   regions = "US",       # Region is required
 #'   limit = 10
+#'   # device_type defaults to "total"
 #' )
 #'
 #' print(top_ios_games_dl)
@@ -101,12 +100,26 @@
 #'   time_range = "quarter",
 #'   measure = "revenue",
 #'   date = "2023-10-01",
-#'   # end_date = "2023-12-31", # Optional for quarter if start date is correct
 #'   category = "FINANCE",    # Android Category ID might be a string
-#'   regions = "WW",          # Worldwide region code
+#'   regions = "WW",          # Worldwide region code is required
 #'   limit = 5
 #' )
 #' print(top_android_finance_rev)
+#'
+#' # Get top Unified apps using a filter (if supported by API)
+#' # top_unified_filtered <- get_top_apps_by_revenue_and_downloads(
+#' #   os = "unified",
+#' #   comparison_attribute = "absolute",
+#' #   time_range = "month",
+#' #   measure = "revenue",
+#' #   date = "2023-10-01",
+#' #   category = "OVERALL", # Example category
+#' #   regions = "WW",
+#' #   limit = 10,
+#' #   custom_fields_filter_id = "YOUR_FILTER_ID",
+#' #   custom_tags_mode = "include_unified_apps" # Required
+#' # )
+#' # print(top_unified_filtered)
 #' }
 get_top_apps_by_revenue_and_downloads <- function(os,
                                                   comparison_attribute,
@@ -114,18 +127,17 @@ get_top_apps_by_revenue_and_downloads <- function(os,
                                                   measure,
                                                   date,
                                                   category,
-                                                  regions, # Made mandatory in signature
+                                                  regions, # Made mandatory
                                                   end_date = NULL,
                                                   limit = 25,
                                                   offset = NULL,
                                                   device_type = NULL,
                                                   custom_fields_filter_id = NULL,
-                                                  custom_tags_mode = NULL,
+                                                  custom_tags_mode = NULL, # Added argument
                                                   auth_token = NULL,
                                                   base_url = "https://api.sensortower.com") {
 
   # --- Input Validation ---
-  # Check mandatory arguments first
    stopifnot(
     "`os` must be 'ios', 'android', or 'unified'" =
         is.character(os) && length(os) == 1 && os %in% c("ios", "android", "unified"),
@@ -137,51 +149,62 @@ get_top_apps_by_revenue_and_downloads <- function(os,
         is.character(measure) && length(measure) == 1 && measure %in% c("units", "revenue"),
     "`date` must be provided" = !missing(date),
     "`category` must be provided" = !missing(category),
-    "`regions` must be provided" = !missing(regions) && !is.null(regions) && length(regions) > 0 && nzchar(regions[[1]]) # Basic check
-  )
-
-  # Validate date formats
-  start_date_str <- tryCatch({ format(as.Date(date), "%Y-%m-%d") }, error = function(e) rlang::abort("Invalid format for 'date'. Please use Date object or 'YYYY-MM-DD' string."))
-  end_date_str   <- if (!is.null(end_date)) tryCatch({ format(as.Date(end_date), "%Y-%m-%d") }, error = function(e) rlang::abort("Invalid format for 'end_date'. Please use Date object or 'YYYY-MM-DD' string.")) else NULL
-
-  # Validate other optional args
-  stopifnot(
+    "`regions` must be provided and non-empty" =
+        !missing(regions) && !is.null(regions) && length(regions) > 0 && nzchar(paste(regions, collapse="")),
     "`limit` must be a positive integer <= 2000" =
         is.numeric(limit) && length(limit) == 1 && limit > 0 && limit <= 2000 && floor(limit) == limit,
     "`offset` must be NULL or a non-negative integer" =
         is.null(offset) || (is.numeric(offset) && length(offset) == 1 && offset >= 0 && floor(offset) == offset),
-    "`device_type` must be NULL or a character string" =
-        is.null(device_type) || (is.character(device_type) && length(device_type) == 1),
+    "`end_date` can be NULL, Date, or YYYY-MM-DD string" =
+        is.null(end_date) || inherits(end_date, "Date") || (is.character(end_date) && grepl("^\\d{4}-\\d{2}-\\d{2}$", end_date)),
+    "`device_type` must be NULL or one of 'iphone', 'ipad', 'total'" =
+        is.null(device_type) || (is.character(device_type) && length(device_type) == 1 && device_type %in% c("iphone", "ipad", "total")),
     "`custom_fields_filter_id` must be NULL or a character string" =
         is.null(custom_fields_filter_id) || (is.character(custom_fields_filter_id) && length(custom_fields_filter_id) == 1),
     "`custom_tags_mode` must be NULL or a character string" =
         is.null(custom_tags_mode) || (is.character(custom_tags_mode) && length(custom_tags_mode) == 1)
   )
 
+  # Validate date formats
+  start_date_str <- tryCatch({ format(as.Date(date), "%Y-%m-%d") }, error = function(e) rlang::abort("Invalid format for 'date'. Please use Date object or 'YYYY-MM-DD' string."))
+  end_date_str   <- if (!is.null(end_date)) tryCatch({ format(as.Date(end_date), "%Y-%m-%d") }, error = function(e) rlang::abort("Invalid format for 'end_date'. Please use Date object or 'YYYY-MM-DD' string.")) else NULL
+
+  # Specific logical checks
+  if (os == "unified" && !is.null(custom_fields_filter_id) && is.null(custom_tags_mode)) {
+      rlang::abort("When 'os' is 'unified' and 'custom_fields_filter_id' is provided, 'custom_tags_mode' must also be specified (e.g., 'include_unified_apps').")
+  }
+   if (os != "unified" && !is.null(custom_tags_mode) && is.null(custom_fields_filter_id)) {
+      rlang::warn("'custom_tags_mode' provided without 'custom_fields_filter_id' or when os is not 'unified'. It might be ignored.")
+  }
+
   # --- Authentication ---
   auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
   if (auth_token_val == "") {
-    rlang::abort("Sensor Tower authentication token not found. Set the SENSORTOWER_AUTH_TOKEN environment variable or pass via the auth_token argument.")
+    rlang::abort("Sensor Tower authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable or pass via the auth_token argument.")
   }
 
   # --- Prepare Query Parameters ---
+  # Handle device_type: default to 'total' for ios/unified if NULL, else NULL for android
+  effective_device_type <- if (os %in% c("ios", "unified")) {
+                               device_type %||% "total"
+                           } else {
+                               NULL # Not applicable for android
+                           }
+
   query_params <- list(
     auth_token = auth_token_val,
     comparison_attribute = comparison_attribute,
     time_range = time_range,
     measure = measure,
     date = start_date_str,
-    # Convert category to character as API likely expects string
-    category = as.character(category),
+    category = as.character(category), # Ensure category is character
     end_date = end_date_str,
-    # Collapse regions vector/list into comma-separated string
-    regions = paste(regions, collapse = ","),
+    regions = paste(regions, collapse = ","), # Collapse regions vector/list
     limit = limit,
     offset = offset,
-    # Only include device_type if os is ios/unified and device_type is not NULL
-    device_type = if (os %in% c("ios", "unified")) { device_type %||% "total" } else { NULL },
+    device_type = effective_device_type, # Use calculated value
     custom_fields_filter_id = custom_fields_filter_id,
-    custom_tags_mode = custom_tags_mode
+    custom_tags_mode = custom_tags_mode # Add the new parameter
   )
 
   # Remove parameters that are NULL
@@ -194,36 +217,30 @@ get_top_apps_by_revenue_and_downloads <- function(os,
     httr2::req_user_agent("sensortowerR R Package (https://github.com/peterparkerspicklepatch/sensortowerR)") |>
     httr2::req_url_path_append(api_path) |>
     httr2::req_url_query(!!!query_params) |>
-    # Allow manual error checking based on status code and body content
-    httr2::req_error(is_error = function(resp) FALSE)
+    httr2::req_error(is_error = function(resp) FALSE) # Manual error checking
 
   # --- Perform Request ---
   resp <- tryCatch({
       httr2::req_perform(req)
   }, error = function(e) {
-      # Handle low-level connection errors
       rlang::abort(paste("HTTP request failed:", e$message), parent = e, class = "sensortower_http_error")
   })
 
   # --- Process Response ---
   status_code <- httr2::resp_status(resp)
-  body_raw <- httr2::resp_body_raw(resp) # Get raw body first for robust parsing/error reporting
-  body_text <- rawToChar(body_raw)      # Convert to text for messages/parsing
+  body_raw <- httr2::resp_body_raw(resp)
+  body_text <- rawToChar(body_raw) # Need utils::rawToChar if not base
 
-  # Handle potential empty body
   if (length(body_raw) == 0) {
      if (status_code >= 200 && status_code < 300) {
        rlang::warn(paste("API returned status", status_code, "with an empty response body. Returning an empty tibble."))
        return(dplyr::tibble())
      } else {
-       # Use resp_check_status for standard errors, add info
        httr2::resp_check_status(resp, info = "API returned an error status with an empty response body.")
-       # Fallback abort if resp_check_status doesn't error
        rlang::abort(paste("API Error: Status", status_code, "with empty response."), class = "sensortower_api_error")
      }
   }
 
-  # Try parsing JSON
   parsed_body <- tryCatch({
     jsonlite::fromJSON(body_text, flatten = TRUE)
   }, error = function(e) {
@@ -235,10 +252,8 @@ get_top_apps_by_revenue_and_downloads <- function(os,
       )
   })
 
-  # Check for API-level errors indicated by status code (esp. 422)
   if (status_code >= 400) {
-     api_error_message <- "Unknown API error reason." # Default
-     # Try extracting common error formats
+     api_error_message <- "Unknown API error reason."
      if(is.list(parsed_body) && !is.null(parsed_body$error)) {
        api_error_message <- paste("Reason:", parsed_body$error)
      } else if (is.list(parsed_body) && !is.null(parsed_body$errors) && is.list(parsed_body$errors) && length(parsed_body$errors) > 0 && !is.null(parsed_body$errors[[1]]$title)) {
@@ -247,30 +262,25 @@ get_top_apps_by_revenue_and_downloads <- function(os,
        api_error_message <- paste("Response:", parsed_body)
      }
 
-     # Specifically print body for 422 errors to help debugging
      if (status_code == 422) {
-         rlang::warn(paste("Received HTTP 422 (Unprocessable Entity). This often indicates invalid parameters or combinations. Check API documentation. Response body:", body_text))
+         rlang::warn(paste("Received HTTP 422 (Unprocessable Entity). Check parameters/combinations (esp. device_type for iOS/Unified, custom_tags_mode). Response body:", body_text))
      }
 
-     # Use httr2's standard error mechanism but add the extracted API message
      httr2::resp_check_status(resp, info = api_error_message)
-     # Fallback abort if resp_check_status doesn't error
-      rlang::abort(paste("API Error:", status_code, "-", api_error_message), class = "sensortower_api_error")
+     rlang::abort(paste("API Error:", status_code, "-", api_error_message), class = "sensortower_api_error")
   }
 
   # --- Format Output ---
-  # Expecting a list of records (apps)
-  if (is.list(parsed_body) && length(parsed_body) > 0 && !is.data.frame(parsed_body)) {
-      result_df <- tryCatch({ dplyr::bind_rows(parsed_body) }, error = function(e) {
+  if (is.data.frame(parsed_body)) {
+    result_df <- parsed_body
+  } else if (is.list(parsed_body) && length(parsed_body) > 0 && all(sapply(parsed_body, is.list))) {
+    result_df <- tryCatch({ dplyr::bind_rows(parsed_body) }, error = function(e) {
           rlang::warn(paste("Could not automatically bind rows from parsed JSON. Check API response structure. Error:", e$message))
-          return(dplyr::tibble()) # Return empty tibble on binding failure
+          return(dplyr::tibble())
       })
-  } else if (is.data.frame(parsed_body)) {
-      result_df <- parsed_body
   } else {
-      # Handle empty list `[]` or unexpected structure
-      rlang::warn("API response was parsed but not in the expected data frame or list-of-records format. Returning empty tibble.")
-      return(dplyr::tibble())
+    rlang::warn("API response was parsed but not in the expected data frame or list-of-records format. Returning empty tibble.")
+    return(dplyr::tibble())
   }
 
   return(tibble::as_tibble(result_df))
