@@ -1,5 +1,3 @@
-Okay, here is the complete updated README content formatted as a single block of Markdown text. You can copy this entire block and paste it directly into your `README.md` file, replacing the old content.
-
 ``` markdown
 # sensortowerR
 
