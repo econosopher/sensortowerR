@@ -1,9 +1,4 @@
-``` markdown
 # sensortowerR
-
-<div align="center">
-  <img src="images/sensortowerR_sticker.png" alt="sensortowerR Sticker" style="width:50%; height:auto;"/>
-</div>
 
 An R package for interfacing with the Sensor Tower API to fetch mobile app analytics data, including app info, publisher details, revenue/download estimates, and active user metrics.
 
@@ -24,11 +19,19 @@ The functions in this package will automatically look for an environment variabl
 
 **Recommended Setup:**
 
-1.  Use the `usethis` package to edit your R environment file: `r     # Run this in your R console     usethis::edit_r_environ()` *(This usually opens the file `~/.Renviron` in your home directory. You can also use `usethis::edit_r_environ(scope = "project")` to create one specific to your current project, but be sure to add `.Renviron` to your `.gitignore` file if you do!)*
+1. Use the `usethis` package to edit your R environment file:
+   ```r
+   # Run this in your R console
+   usethis::edit_r_environ()
+   ```
+   *(This usually opens the file `~/.Renviron` in your home directory. You can also use `usethis::edit_r_environ(scope = "project")` to create one specific to your current project, but be sure to add `.Renviron` to your `.gitignore` file if you do!)*
 
-2.  Add the following line to the `.Renviron` file that opens, replacing `"YOUR_SECRET_TOKEN_HERE"` with your actual Sensor Tower API token: `SENSORTOWER_AUTH_TOKEN="YOUR_SECRET_TOKEN_HERE"`
+2. Add the following line to the `.Renviron` file that opens, replacing `"YOUR_SECRET_TOKEN_HERE"` with your actual Sensor Tower API token:
+   ```
+   SENSORTOWER_AUTH_TOKEN="YOUR_SECRET_TOKEN_HERE"
+   ```
 
-3.  Save the `.Renviron` file and **restart your R session** for the changes to take effect.
+3. Save the `.Renviron` file and **restart your R session** for the changes to take effect.
 
 Once set up, you generally won't need to pass the `auth_token` argument to the functions.
 
@@ -36,17 +39,17 @@ Once set up, you generally won't need to pass the `auth_token` argument to the f
 
 The package provides the following main functions:
 
--   `get_unified_app_info()`: Search for apps or publishers and retrieve basic information (like unified IDs).
--   `get_publisher_games()`: Fetch metadata for all apps associated with a specific publisher ID.
--   `fetch_sensor_tower_metrics()`: Fetch detailed daily metrics (revenue, downloads, active users) for a specific unified app ID over a date range.
--   `get_top_apps_by_revenue_and_downloads()`: Retrieve ranked lists of top apps based on revenue or downloads ("units") for specific criteria (OS, category, region, time period, etc.). Replaces `st_get_sales_estimates`.
--   `get_top_apps_by_active_users()`: Retrieve ranked lists of top apps based on DAU, WAU, or MAU for specific criteria (OS, category, region, time period, etc.). Replaces `st_get_active_users`.
+- `get_unified_app_info()`: Search for apps or publishers and retrieve basic information (like unified IDs).
+- `get_publisher_games()`: Fetch metadata for all apps associated with a specific publisher ID.
+- `fetch_sensor_tower_metrics()`: Fetch detailed daily metrics (revenue, downloads, active users) for a specific unified app ID over a date range.
+- `get_top_apps_by_revenue_and_downloads()`: Retrieve ranked lists of top apps based on revenue or downloads ("units") for specific criteria (OS, category, region, time period, etc.). Replaces `st_get_sales_estimates`.
+- `get_top_apps_by_active_users()`: Retrieve ranked lists of top apps based on DAU, WAU, or MAU for specific criteria (OS, category, region, time period, etc.). Replaces `st_get_active_users`.
 
 ## Example Usage
 
 Make sure you have set the `SENSORTOWER_AUTH_TOKEN` environment variable and restarted R before running these examples.
 
-``` r
+```r
 library(sensortowerR)
 library(lubridate) # For easy date creation
 
@@ -106,7 +109,7 @@ print(top_mau)
 
 This workflow demonstrates fetching data for multiple apps, combining it, and plotting launch performance.
 
-``` r
+```r
 # Load required packages
 library(sensortowerR)
 library(dplyr)
@@ -156,7 +159,6 @@ top_pokemon_games <- top_pokemon_games %>%
 
 print("Games with Launch Dates:")
 print(top_pokemon_games)
-
 
 # --- 3. Fetch Metrics Around Launch ---
 # Define how many days post-launch to fetch
@@ -273,21 +275,19 @@ if (nrow(combined_metrics) > 0) {
 
 Core package dependencies (managed via `DESCRIPTION`):
 
--   httr (`get_unified_app_info`, `get_publisher_games`)
--   httr2 (`get_top_apps_...` functions)
--   jsonlite
--   dplyr
--   tibble
--   rlang
--   utils (implicitly used, e.g., `str`, `head`)
+- httr (`get_unified_app_info`, `get_publisher_games`)
+- httr2 (`get_top_apps_...` functions)
+- jsonlite
+- dplyr
+- tibble
+- rlang
+- utils (implicitly used, e.g., `str`, `head`)
 
 Workflow dependencies (install separately if running the workflow):
 
--   purrr
--   lubridate
--   ggplot2
--   forcats
--   tidyr (for `pivot_longer`)
--   scales (for plot labels)
-
-\`\`\`
+- purrr
+- lubridate
+- ggplot2
+- forcats
+- tidyr (for `pivot_longer`)
+- scales (for plot labels)
