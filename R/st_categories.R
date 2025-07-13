@@ -15,19 +15,19 @@
 #' @examples
 #' \dontrun{
 #' # Get all categories
-#' all_cats <- get_categories() # Updated example call
+#' all_cats <- st_categories() # Updated example call
 #' print(head(all_cats))
 #'
 #' # Get only iOS categories
-#' ios_cats <- get_categories(platform = "ios") # Updated example call
+#' ios_cats <- st_categories(platform = "ios") # Updated example call
 #' print(head(ios_cats))
 #'
 #' # Find the ID for Android "Music & Audio"
-#' subset(get_categories("android"), category_name == "Music & Audio") # Updated example call
+#' subset(st_categories("android"), category_name == "Music & Audio") # Updated example call
 #' }
-get_categories <- function(platform = NULL) { # Renamed function
+st_categories <- function(platform = NULL) { # Renamed function
   # Access the internal data object st_category_data
-  data <- sensortowerR:::st_category_data
+  data <- st_category_data
 
   if (!is.null(platform)) {
     platform <- tolower(platform)
@@ -38,4 +38,4 @@ get_categories <- function(platform = NULL) { # Renamed function
     }
   }
   return(data)
-}
+} 

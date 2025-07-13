@@ -26,7 +26,7 @@
 #' publisher_id <- "YOUR_PUBLISHER_ID_HERE"
 #'
 #' # Fetch the publisher's apps
-#' apps_list <- get_publisher_games(publisher_id = publisher_id)
+#' apps_list <- st_publisher_apps(publisher_id = publisher_id)
 #'
 #' # View the results
 #' print(apps_list)
@@ -38,7 +38,7 @@
 #' @importFrom tibble tibble as_tibble
 #' @importFrom rlang abort warn %||%
 #' @export
-get_publisher_games <- function(publisher_id,
+st_publisher_apps <- function(publisher_id,
                                 auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
 
   # --- Input Validation & Setup ---

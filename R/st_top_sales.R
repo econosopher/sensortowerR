@@ -1,31 +1,34 @@
-#' Fetch Top Apps by Active User Estimates
+#' Fetch Top Apps by Downloads and Revenue Estimates
 #'
-#' Retrieves top apps from Sensor Tower based on Daily Active Users (DAU),
-#' Weekly Active Users (WAU), or Monthly Active Users (MAU). Allows comparison
-#' using absolute values, delta, or transformed delta. Targets the
-#' `/v1/{os}/top_and_trending/active_users` endpoint.
+#' Retrieves top apps from Sensor Tower based on download ("units") or revenue
+#' estimates for a specific OS, category, region, and time period. Allows
+#' comparison using absolute values, delta, or transformed delta. Targets the
+#' `/v1/{os}/sales_report_estimates_comparison_attributes` endpoint.
 #'
 #' @param os Required. Character string. Operating System. Must be one of
 #'   "ios", "android", or "unified".
 #' @param comparison_attribute Required. Character string. Comparison attribute
 #'   type. Must be one of "absolute", "delta", or "transformed_delta".
-#' @param time_range Required. Character string. Time granularity (e.g., "month",
-#'   "quarter"). Note: API docs state "week" is *not* available when `measure`
-#'   is "MAU". Verify allowed values for DAU/WAU if needed.
+#' @param time_range Required. Character string. Time granularity. Must be one
+#'   of "day", "week", "month", or "quarter".
 #' @param measure Required. Character string. Metric to measure. Must be one of
-#'   "DAU", "WAU", or "MAU".
+#'   "units" (downloads) or "revenue".
 #' @param date Required. Character string or Date object. Start date for the
-#'   query in "YYYY-MM-DD" format. Should typically match the beginning of the
-#'   `time_range`.
+#'   query in "YYYY-MM-DD" format. The API automatically adjusts this to the
+#'   beginning of the specified `time_range`.
+#' @param category Required. Character string or numeric. The ID of the category
+#'   to filter by (e.g., iOS Games is 6000 or "6000", Android Finance might be
+#'   "FINANCE"). Use `st_categories()` to find valid IDs.
 #' @param regions Required. Character vector or comma-separated string. Region
 #'   codes (e.g., `"US"`, `c("US", "GB")`, `"WW"`) to filter results. This
-#'   parameter is typically mandatory for this endpoint.
-#' @param category Optional. Character string or numeric. The ID of the category
-#'   to filter by (e.g., 6016 for iOS Social Networking). If NULL (default),
-#'   results for all categories are typically returned. Use `get_categories()`
-#'   to find valid IDs.
+#'   parameter is typically mandatory for this endpoint. Use `get_countries()`
+#'   to find valid codes.
+#' @param end_date Optional. Character string or Date object. End date for the
+#'   query in "YYYY-MM-DD" format, inclusive. If provided, allows aggregation
+#'   over multiple periods defined by `time_range`. Auto-adjusts to the end of
+#'   the period. Defaults to NULL.
 #' @param limit Optional. Integer. Maximum number of apps to return per call.
-#'   Defaults to 25.
+#'   Defaults to 25. Maximum allowed by API is 2000.
 #' @param offset Optional. Integer. Number of apps to skip for pagination.
 #'   Useful for retrieving results beyond the `limit`. Defaults to NULL (meaning 0).
 #' @param device_type Optional. Character string. For `os = "ios"` or `os = "unified"`:
@@ -45,22 +48,21 @@
 #' @param base_url Optional. Character string. The base URL for the Sensor Tower
 #'   API. Defaults to `"https://api.sensortower.com"`.
 #'
-#' @return A [tibble][tibble::tibble] (data frame) where each row represents an
-#'   app and columns correspond to the fields returned by the API JSON response
-#'   (e.g., `app_id`, `date`, `country`, `users_absolute`, `users_delta`, etc.).
-#'   Returns an empty tibble if the API call is successful but returns no data
-#'   or if an error occurs.
+#' @return A [tibble][tibble::tibble] (data frame) containing the requested top
+#'   app estimates. Columns correspond to the fields in the API JSON response
+#'   (e.g., `app_id`, `date`, `country`, `current_units_value`, etc.). Returns
+#'   an empty tibble if the API call is successful but returns no data or if an
+#'   error occurs.
 #'
 #' @section API Endpoint Used:
-#'   `GET /v1/{os}/top_and_trending/active_users`
-#'   *(Support for os="unified" depends on the Sensor Tower API)*
+#'   `GET /v1/{os}/sales_report_estimates_comparison_attributes`
 #'
 #' @section Common Issues (HTTP 422 Error):
 #'   An HTTP 422 "Unprocessable Entity" error often indicates invalid parameters
-#'   or combinations (e.g., invalid `category` ID, `regions` code, unsupported
-#'   `time_range`/`measure` combo, missing `device_type` for iOS/Unified, missing
-#'   `custom_tags_mode` when using filters with Unified OS). Consult API docs
-#'   and check console warnings for the response body.
+#'   or combinations (e.g., invalid `category` ID, `regions` code, missing
+#'   `device_type` for iOS/Unified, missing `custom_tags_mode` when using filters
+#'   with Unified OS). Consult API docs and check console warnings for the
+#'   response body.
 #'
 #' @importFrom httr2 request req_user_agent req_url_path_append req_url_query
 #'   req_error req_perform resp_status resp_body_raw resp_check_status resp_body_string
@@ -76,118 +78,104 @@
 #' # Ensure SENSORTOWER_AUTH_TOKEN environment variable is set
 #' # Sys.setenv(SENSORTOWER_AUTH_TOKEN = "YOUR_TOKEN_HERE")
 #'
-#' # Example 1: Top iOS Social apps by MAU
-#' top_ios_social_mau <- get_top_apps_by_active_users(
+#' # Get top 10 iOS Games by absolute downloads for month starting 2023-10-01 in US
+#' top_ios_games_dl <- st_top_sales(
 #'   os = "ios",
 #'   comparison_attribute = "absolute",
 #'   time_range = "month",
-#'   measure = "MAU",
+#'   measure = "units",
 #'   date = "2023-10-01",
-#'   category = 6016,
-#'   regions = c("US", "GB"),
+#'   category = 6000,      # iOS Games category ID
+#'   regions = "US",       # Region is required
 #'   limit = 10
+#'   # device_type defaults to "total"
 #' )
-#' print(top_ios_social_mau)
 #'
-#' # Example 2: Top Android apps (all categories) by DAU delta worldwide
-#' top_android_dau_delta <- get_top_apps_by_active_users(
+#' print(top_ios_games_dl)
+#'
+#' # Get top 5 Android Finance apps by revenue delta for Q4 2023 worldwide
+#' top_android_finance_rev <- st_top_sales(
 #'   os = "android",
 #'   comparison_attribute = "delta",
-#'   time_range = "month", # Verify if 'day' is allowed by API for DAU
-#'   measure = "DAU",
+#'   time_range = "quarter",
+#'   measure = "revenue",
 #'   date = "2023-10-01",
-#'   regions = "WW",
+#'   category = "FINANCE",    # Android Category ID might be a string
+#'   regions = "WW",          # Worldwide region code is required
 #'   limit = 5
 #' )
-#' print(top_android_dau_delta)
+#' print(top_android_finance_rev)
 #'
-#' # Example 3: Using Unified OS (if supported by API)
-#' # top_unified_apps <- get_top_apps_by_active_users(
-#' #   os = "unified",
-#' #   comparison_attribute = "absolute",
-#' #   time_range = "week",
-#' #   measure = "WAU",
-#' #   date = "2023-10-09",
-#' #   regions = "US",
-#' #   limit = 10
-#' #   # device_type defaults to "total"
-#' # )
-#' # print(top_unified_apps)
-#'
-#' # Example 4: Unified OS with Custom Filter (if supported by API)
-#' # top_unified_filtered <- get_top_apps_by_active_users(
+#' # Get top Unified apps using a filter (if supported by API)
+#' # top_unified_filtered <- st_top_sales(
 #' #   os = "unified",
 #' #   comparison_attribute = "absolute",
 #' #   time_range = "month",
-#' #   measure = "MAU",
+#' #   measure = "revenue",
 #' #   date = "2023-10-01",
+#' #   category = "OVERALL", # Example category
 #' #   regions = "WW",
-#' #   limit = 20,
+#' #   limit = 10,
 #' #   custom_fields_filter_id = "YOUR_FILTER_ID",
-#' #   custom_tags_mode = "include_unified_apps" # Required with filter + unified
+#' #   custom_tags_mode = "include_unified_apps" # Required
 #' # )
 #' # print(top_unified_filtered)
 #' }
-get_top_apps_by_active_users <- function(os,
-                                         comparison_attribute,
-                                         time_range,
-                                         measure,
-                                         date,
-                                         regions, # Made mandatory
-                                         category = NULL,
-                                         limit = 25,
-                                         offset = NULL,
-                                         device_type = NULL,
-                                         custom_fields_filter_id = NULL,
-                                         custom_tags_mode = NULL, # Added argument
-                                         auth_token = NULL,
-                                         base_url = "https://api.sensortower.com") {
+st_top_sales <- function(os,
+                                                  comparison_attribute,
+                                                  time_range,
+                                                  measure,
+                                                  date,
+                                                  category,
+                                                  regions, # Made mandatory
+                                                  end_date = NULL,
+                                                  limit = 25,
+                                                  offset = NULL,
+                                                  device_type = NULL,
+                                                  custom_fields_filter_id = NULL,
+                                                  custom_tags_mode = NULL, # Added argument
+                                                  auth_token = NULL,
+                                                  base_url = "https://api.sensortower.com") {
 
   # --- Input Validation ---
    stopifnot(
-    # Updated os validation
     "`os` must be 'ios', 'android', or 'unified'" =
         is.character(os) && length(os) == 1 && os %in% c("ios", "android", "unified"),
     "`comparison_attribute` must be 'absolute', 'delta', or 'transformed_delta'" =
         is.character(comparison_attribute) && length(comparison_attribute) == 1 && comparison_attribute %in% c("absolute", "delta", "transformed_delta"),
-    "`time_range` must be a single character string" =
-        is.character(time_range) && length(time_range) == 1,
-    "`measure` must be 'DAU', 'WAU', or 'MAU'" =
-        is.character(measure) && length(measure) == 1 && measure %in% c("DAU", "WAU", "MAU"),
+    "`time_range` must be 'day', 'week', 'month', or 'quarter'" =
+        is.character(time_range) && length(time_range) == 1 && time_range %in% c("day", "week", "month", "quarter"),
+    "`measure` must be 'units' or 'revenue'" =
+        is.character(measure) && length(measure) == 1 && measure %in% c("units", "revenue"),
     "`date` must be provided" = !missing(date),
+    "`category` must be provided" = !missing(category),
     "`regions` must be provided and non-empty" =
         !missing(regions) && !is.null(regions) && length(regions) > 0 && nzchar(paste(regions, collapse="")),
-    "`category` must be NULL or a single string/number" =
-        is.null(category) || ((is.character(category) || is.numeric(category)) && length(category) == 1),
-    "`limit` must be a positive integer" =
-        is.numeric(limit) && length(limit) == 1 && limit > 0 && floor(limit) == limit,
+    "`limit` must be a positive integer <= 2000" =
+        is.numeric(limit) && length(limit) == 1 && limit > 0 && limit <= 2000 && floor(limit) == limit,
     "`offset` must be NULL or a non-negative integer" =
         is.null(offset) || (is.numeric(offset) && length(offset) == 1 && offset >= 0 && floor(offset) == offset),
-    # Updated device_type validation
+    "`end_date` can be NULL, Date, or YYYY-MM-DD string" =
+        is.null(end_date) || inherits(end_date, "Date") || (is.character(end_date) && grepl("^\\d{4}-\\d{2}-\\d{2}$", end_date)),
     "`device_type` must be NULL or one of 'iphone', 'ipad', 'total'" =
         is.null(device_type) || (is.character(device_type) && length(device_type) == 1 && device_type %in% c("iphone", "ipad", "total")),
     "`custom_fields_filter_id` must be NULL or a character string" =
         is.null(custom_fields_filter_id) || (is.character(custom_fields_filter_id) && length(custom_fields_filter_id) == 1),
-    # Added custom_tags_mode validation
     "`custom_tags_mode` must be NULL or a character string" =
         is.null(custom_tags_mode) || (is.character(custom_tags_mode) && length(custom_tags_mode) == 1)
   )
 
-  # Validate date format
+  # Validate date formats
   start_date_str <- tryCatch({ format(as.Date(date), "%Y-%m-%d") }, error = function(e) rlang::abort("Invalid format for 'date'. Please use Date object or 'YYYY-MM-DD' string."))
+  end_date_str   <- if (!is.null(end_date)) tryCatch({ format(as.Date(end_date), "%Y-%m-%d") }, error = function(e) rlang::abort("Invalid format for 'end_date'. Please use Date object or 'YYYY-MM-DD' string.")) else NULL
 
   # Specific logical checks
-  if (measure == "MAU" && time_range == "week") {
-      rlang::abort("Sensor Tower API documentation indicates time_range='week' is not supported when measure='MAU'.")
-  }
-  # Check for custom_tags_mode requirement
   if (os == "unified" && !is.null(custom_fields_filter_id) && is.null(custom_tags_mode)) {
       rlang::abort("When 'os' is 'unified' and 'custom_fields_filter_id' is provided, 'custom_tags_mode' must also be specified (e.g., 'include_unified_apps').")
   }
-  if (os != "unified" && !is.null(custom_tags_mode) && is.null(custom_fields_filter_id)) {
+   if (os != "unified" && !is.null(custom_tags_mode) && is.null(custom_fields_filter_id)) {
       rlang::warn("'custom_tags_mode' provided without 'custom_fields_filter_id' or when os is not 'unified'. It might be ignored.")
   }
-
 
   # --- Authentication ---
   auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
@@ -209,8 +197,9 @@ get_top_apps_by_active_users <- function(os,
     time_range = time_range,
     measure = measure,
     date = start_date_str,
-    category = if (!is.null(category)) as.character(category) else NULL,
-    regions = paste(regions, collapse = ","),
+    category = as.character(category), # Ensure category is character
+    end_date = end_date_str,
+    regions = paste(regions, collapse = ","), # Collapse regions vector/list
     limit = limit,
     offset = offset,
     device_type = effective_device_type, # Use calculated value
@@ -222,7 +211,7 @@ get_top_apps_by_active_users <- function(os,
   query_params <- Filter(Negate(is.null), query_params)
 
   # --- Build Request ---
-  api_path <- file.path("v1", os, "top_and_trending", "active_users")
+  api_path <- file.path("v1", os, "sales_report_estimates_comparison_attributes")
 
   req <- httr2::request(base_url) |>
     httr2::req_user_agent("sensortowerR R Package (https://github.com/peterparkerspicklepatch/sensortowerR)") |>
@@ -231,7 +220,7 @@ get_top_apps_by_active_users <- function(os,
     httr2::req_error(is_error = function(resp) FALSE) # Manual error checking
 
   # --- Perform Request ---
-   resp <- tryCatch({
+  resp <- tryCatch({
       httr2::req_perform(req)
   }, error = function(e) {
       rlang::abort(paste("HTTP request failed:", e$message), parent = e, class = "sensortower_http_error")

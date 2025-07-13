@@ -4,7 +4,13 @@
 #' based on a search term. It targets the `/v1/{app_store}/search_entities`
 #' endpoint and fetches app IDs and names for unified app entities.
 #'
-# ... (rest of the description parameters etc.) ...
+#' @param term Character string. The search term for the app or publisher.
+#' @param app_store Character string. The app store to search. Defaults to "unified".
+#' @param entity_type Character string. The type of entity to search for. Defaults to "app".
+#' @param limit Numeric. The maximum number of results to return. Defaults to 100.
+#' @param auth_token Character string. Your Sensor Tower API authentication token.
+#'
+#' @return A [tibble][tibble::tibble] with app information.
 #'
 #' @examples
 #' \dontrun{
@@ -12,11 +18,11 @@
 #' # Sys.setenv(SENSORTOWER_AUTH_TOKEN = "your_auth_token_here")
 #'
 #' # Fetch unified app info for "Clash of Clans"
-#' app_info <- get_unified_app_info(term = "Clash of Clans")
+#' app_info <- st_app_info(term = "Clash of Clans")
 #' print(app_info)
 #'
 #' # Fetch publisher info
-#' # publisher_info <- get_unified_app_info(term = "Supercell", entity_type = "publisher")
+#' # publisher_info <- st_app_info(term = "Supercell", entity_type = "publisher")
 #' # print(publisher_info) # Note: returned columns might differ based on entity_type
 #' }
 #'
@@ -25,7 +31,7 @@
 #' @importFrom jsonlite fromJSON
 #' @importFrom tibble tibble
 #' @export
-get_unified_app_info <- function(term,
+st_app_info <- function(term,
                                  app_store = "unified",
                                  entity_type = "app",
                                  limit = 100,
@@ -88,7 +94,7 @@ get_unified_app_info <- function(term,
 
   # Filter for unified_app entities
   unified_apps <- apps %>%
-    filter(entity_type == "unified_app")
+    filter(.data$entity_type == "unified_app")
 
   # Check if any unified apps are available
   if (nrow(unified_apps) == 0) {
@@ -98,10 +104,10 @@ get_unified_app_info <- function(term,
 
   # Extract and rename desired fields
   extracted_info <- unified_apps %>%
-    select(app_id, name) %>%
+    select(.data$app_id, .data$name) %>%
     rename(
-      unified_app_id = app_id,
-      unified_app_name = name
+      unified_app_id = .data$app_id,
+      unified_app_name = .data$name
     )
 
   return(extracted_info)

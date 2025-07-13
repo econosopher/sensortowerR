@@ -39,7 +39,7 @@
 #' end_date <- Sys.Date() - 1
 #'
 #' # Fetch the metrics
-#' metrics <- fetch_sensor_tower_metrics(
+#' metrics <- st_metrics(
 #'   unified_app_id = unified_app_id,
 #'   start_date = start_date,
 #'   end_date = end_date
@@ -57,7 +57,7 @@
 #' @importFrom dplyr %>% rename mutate select full_join bind_rows filter all_of rowwise ungroup
 #' @importFrom utils str
 #' @export
-fetch_sensor_tower_metrics <- function(unified_app_id,
+st_metrics <- function(unified_app_id,
                                        start_date,
                                        end_date,
                                        auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
@@ -151,14 +151,14 @@ fetch_sensor_tower_metrics <- function(unified_app_id,
         # Rename to desired output names
         dplyr::rename(
             unified_app_id = !!id_col_name,
-            revenue = unified_revenue,
-            downloads = unified_units
+            revenue = .data$unified_revenue,
+            downloads = .data$unified_units
          ) %>%
-        dplyr::mutate(date = as.Date(date)) # Ensure date type
+        dplyr::mutate(date = as.Date(.data$date)) # Ensure date type
   } else {
       message("Sales data missing expected API columns (", paste(sales_cols_api, collapse=", "), ") or is empty.")
       # Return empty tibble matching the *final* desired structure for sales part
-      empty_result_structure %>% dplyr::select(unified_app_id, date, country, revenue, downloads)
+      empty_result_structure %>% dplyr::select(.data$unified_app_id, .data$date, .data$country, .data$revenue, .data$downloads)
   }
 
   # Process Usage Data
@@ -168,17 +168,17 @@ fetch_sensor_tower_metrics <- function(unified_app_id,
         # Sum platform users to create active_users, handle potential NAs
         dplyr::rowwise() %>% # Process row by row for summing
         dplyr::mutate(
-            active_users = sum(c(android_users, ipad_users, iphone_users), na.rm = TRUE)
+            active_users = sum(c(.data$android_users, .data$ipad_users, .data$iphone_users), na.rm = TRUE)
          ) %>%
         dplyr::ungroup() %>% # Important to ungroup after rowwise
         # Rename ID and select final columns
         dplyr::rename(unified_app_id = !!id_col_name) %>%
-        dplyr::select(unified_app_id, date, country, active_users) %>%
-        dplyr::mutate(date = as.Date(date)) # Ensure date type
+        dplyr::select(.data$unified_app_id, .data$date, .data$country, .data$active_users) %>%
+        dplyr::mutate(date = as.Date(.data$date)) # Ensure date type
   } else {
       message("Usage data missing expected API columns (", paste(usage_cols_api, collapse=", "), ") or is empty.")
       # Return empty tibble matching the *final* desired structure for usage part
-      empty_result_structure %>% dplyr::select(unified_app_id, date, country, active_users)
+      empty_result_structure %>% dplyr::select(.data$unified_app_id, .data$date, .data$country, .data$active_users)
   }
 
   # Combine using full_join

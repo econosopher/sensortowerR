@@ -1,10 +1,16 @@
 Package: sensortowerR
-Title: R Interface to Sensor Tower API
+Title: An R Interface to the 'Sensor Tower' API
 Version: 0.1.0
 Authors@R: 
-    person("Your", "Name", , "your.email@example.com", role = c("aut", "cre"))
-Description: Provides functions to interact with the Sensor Tower API for mobile app analytics.
+    person(given = "Phillip",
+           family = "Black",
+           role = c("aut", "cre"),
+           email = "pblack@gameeconomistconsulting.com",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: A wrapper for the 'Sensor Tower' API. The package provides functions to interact with the API to fetch mobile app analytics data, including app information, publisher details, revenue and download estimates, and active user metrics.
 License: MIT + file LICENSE
+URL: https://github.com/peterparkerspicklepatch/sensortowerR, https://gameeconomistconsulting.com
+BugReports: https://github.com/peterparkerspicklepatch/sensortowerR/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
@@ -20,4 +26,7 @@ Suggests:
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
-
+VignetteBuilder: knitr
+NeedsCompilation: no
+Depends: 
+    R (>= 3.5)

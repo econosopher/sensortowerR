@@ -1,5 +1,7 @@
 # sensortowerR
 
+<p align="center"><img src="images/sensortowerR_sticker.png" width="200"></p>
+
 An R package for interfacing with the Sensor Tower API to fetch mobile app analytics data, including app info, publisher details, revenue/download estimates, and active user metrics.
 
 ## Installation
@@ -39,11 +41,11 @@ Once set up, you generally won't need to pass the `auth_token` argument to the f
 
 The package provides the following main functions:
 
-- `get_unified_app_info()`: Search for apps or publishers and retrieve basic information (like unified IDs).
-- `get_publisher_games()`: Fetch metadata for all apps associated with a specific publisher ID.
-- `fetch_sensor_tower_metrics()`: Fetch detailed daily metrics (revenue, downloads, active users) for a specific unified app ID over a date range.
-- `get_top_apps_by_revenue_and_downloads()`: Retrieve ranked lists of top apps based on revenue or downloads ("units") for specific criteria (OS, category, region, time period, etc.). Replaces `st_get_sales_estimates`.
-- `get_top_apps_by_active_users()`: Retrieve ranked lists of top apps based on DAU, WAU, or MAU for specific criteria (OS, category, region, time period, etc.). Replaces `st_get_active_users`.
+- `st_app_info()`: Search for apps or publishers and retrieve basic information (like unified IDs).
+- `st_publisher_apps()`: Fetch metadata for all apps associated with a specific publisher ID.
+- `st_metrics()`: Fetch detailed daily metrics (revenue, downloads, active users) for a specific unified app ID over a date range.
+- `st_top_sales()`: Retrieve ranked lists of top apps based on revenue or downloads ("units") for specific criteria (OS, category, region, time period, etc.).
+- `st_top_active_users()`: Retrieve ranked lists of top apps based on DAU, WAU, or MAU for specific criteria (OS, category, region, time period, etc.).
 
 ## Example Usage
 
@@ -55,19 +57,19 @@ library(lubridate) # For easy date creation
 
 # --- Example 1: Get App Info ---
 # Search for apps matching "Clash Royale"
-app_info <- get_unified_app_info(term = "Clash Royale", limit = 1)
+app_info <- st_app_info(term = "Clash Royale", limit = 1)
 print(app_info)
 # Use the unified_app_id from app_info in other functions if needed
 
 # --- Example 2: Get Publisher's Apps ---
 # Fetch apps published by Supercell (replace with a valid ID)
-publisher_apps <- get_publisher_games(publisher_id = "560c48b48ac350643900b82d")
+publisher_apps <- st_publisher_apps(publisher_id = "560c48b48ac350643900b82d")
 print(publisher_apps)
 
 # --- Example 3: Fetch Detailed Metrics for One App ---
 # Fetch metrics for a specific app ID (replace with a valid ID)
 # Requires a valid unified_app_id known beforehand
-metrics <- fetch_sensor_tower_metrics(
+metrics <- st_metrics(
   unified_app_id = "YOUR_VALID_UNIFIED_APP_ID",
   start_date = Sys.Date() - 15,
   end_date = Sys.Date() - 1
@@ -77,7 +79,7 @@ head(metrics)
 
 # --- Example 4: Get Top Apps by Downloads ---
 # Get top 5 iOS Games by downloads ("units") in the US for the last full month
-top_downloads <- get_top_apps_by_revenue_and_downloads(
+top_downloads <- st_top_sales(
   os = "ios",
   comparison_attribute = "absolute", # Or "delta", "transformed_delta"
   time_range = "month",
@@ -92,7 +94,7 @@ print(top_downloads)
 
 # --- Example 5: Get Top Apps by Active Users ---
 # Get top 3 Android apps by MAU worldwide for the last quarter
-top_mau <- get_top_apps_by_active_users(
+top_mau <- st_top_active_users(
   os = "android",
   comparison_attribute = "absolute",
   time_range = "quarter",
@@ -126,7 +128,7 @@ library(scales) # Added for scale_y_continuous labels
 pokemon_terms <- c("Pokémon GO", "Pokémon UNITE", "Pokémon Masters EX") # Add more if needed
 
 get_id <- function(term) {
-  info <- get_unified_app_info(term = term, limit = 1)
+  info <- st_app_info(term = term, limit = 1)
   if (nrow(info) > 0) {
     # Return a tibble to handle cases where info might be empty
     return(tibble(unified_app_name = info$unified_app_name[[1]], unified_app_id = info$unified_app_id[[1]]))
@@ -167,7 +169,7 @@ days_to_fetch <- 15
 # Function to fetch metrics for one app
 fetch_launch_metrics <- function(unified_app_id, unified_app_name, launch_date) {
   message("Fetching metrics for: ", unified_app_name)
-  metrics <- fetch_sensor_tower_metrics(
+  metrics <- st_metrics(
     unified_app_id = unified_app_id,
     start_date = launch_date,
     end_date = launch_date + days(days_to_fetch) # Fetch for N days
@@ -275,8 +277,8 @@ if (nrow(combined_metrics) > 0) {
 
 Core package dependencies (managed via `DESCRIPTION`):
 
-- httr (`get_unified_app_info`, `get_publisher_games`)
-- httr2 (`get_top_apps_...` functions)
+- httr (`st_app_info`, `st_publisher_apps`, `st_metrics`)
+- httr2 (`st_top_sales`, `st_top_active_users`)
 - jsonlite
 - dplyr
 - tibble
