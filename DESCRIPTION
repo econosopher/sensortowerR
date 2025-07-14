@@ -1,32 +1,27 @@
 Package: sensortowerR
-Title: An R Interface to the 'Sensor Tower' API
+Title: A Wrapper for the 'Sensor Tower' API
 Version: 0.1.0
-Authors@R: 
-    person(given = "Phillip",
-           family = "Black",
-           role = c("aut", "cre"),
-           email = "pblack@gameeconomistconsulting.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: A wrapper for the 'Sensor Tower' API. The package provides functions to interact with the API to fetch mobile app analytics data, including app information, publisher details, revenue and download estimates, and active user metrics.
-License: MIT + file LICENSE
-URL: https://github.com/peterparkerspicklepatch/sensortowerR, https://gameeconomistconsulting.com
-BugReports: https://github.com/peterparkerspicklepatch/sensortowerR/issues
+Description: Provides functions to access and process data from the 'Sensor Tower' API, including top charts, app intelligence, and more.
+License: MIT
 Encoding: UTF-8
-Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-Imports:
+Imports: 
     dplyr,
     httr,
-    jsonlite,
-    tibble,
     httr2,
+    jsonlite,
     rlang,
-    utils
-Suggests:
+    tibble,
+    tidyr
+Suggests: 
     knitr,
+    lubridate,
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
-NeedsCompilation: no
-Depends: 
-    R (>= 3.5)
+Config/testthat/edition: 3
+Authors@R: 
+    person("Phillip", "Black",
+           email = "pblack@gameeconomistconsulting.com",
+           role = c("aut", "cre"))
+Depends: R (>= 4.1.0)
