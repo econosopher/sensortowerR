@@ -1,7 +1,0 @@
-st_app_info             Fetch Unified App Information from Sensor Tower
-st_categories           List Available Sensor Tower Categories
-st_metrics              Fetch Sensor Tower Metrics for a Unified App
-st_publisher_apps       Get All Apps from a Publisher
-st_top_active_users     Fetch Top Apps by Active User Estimates
-st_top_sales            Fetch Top Apps by Downloads and Revenue
-                        Estimates
