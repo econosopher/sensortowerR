@@ -40,11 +40,21 @@
 #' @param base_url Optional. Character string. The base URL for the API.
 #' @param enrich_response Optional. Logical. If `TRUE` (default), enriches
 #'   the response with app metadata and custom metrics.
+#' @param deduplicate_apps Optional. Logical. If `TRUE` (default), consolidates
+#'   apps with the same name but different platform/regional SKUs into single rows
+#'   with aggregated metrics. If `FALSE`, returns separate rows for each SKU.
 #'
 #' @return A [tibble][tibble::tibble] with top app data including enhanced
 #'   custom metrics like downloads, revenue, retention rates, and more.
 #'   For sales data (revenue/downloads), app names are automatically looked up
 #'   using the app IDs since the sales endpoint doesn't provide app names natively.
+#'   
+#'   **Data Cleaning**: Numeric metric values are automatically cleaned of special 
+#'   characters (%, $, commas) and converted to proper numeric format for analysis.
+#'   
+#'   **App Deduplication**: By default, apps with the same name but different 
+#'   platform/regional SKUs are consolidated into single rows with aggregated metrics
+#'   (downloads/revenue summed, rates/percentages averaged).
 #'
 #' @section API Endpoints Used:
 #'   - **Revenue/Downloads**: `GET /v1/\{os\}/sales_report_estimates_comparison_attributes`
@@ -96,7 +106,8 @@ st_top_charts <- function(measure = "revenue",
                           data_model = "DM_2025_Q2",
                           auth_token = NULL,
                           base_url = "https://api.sensortower.com",
-                          enrich_response = TRUE) {
+                          enrich_response = TRUE,
+                          deduplicate_apps = TRUE) {
   
   # --- Input Validation ---
   measure <- match.arg(measure, c("revenue", "units", "DAU", "WAU", "MAU"))
@@ -217,5 +228,11 @@ st_top_charts <- function(measure = "revenue",
   
   # --- Process Response ---
   result <- process_response(resp, enrich_response)
+  
+  # --- Deduplicate Apps (if requested) ---
+  if (deduplicate_apps && "unified_app_name" %in% names(result)) {
+    result <- deduplicate_apps_by_name(result)
+  }
+  
   return(result)
 } 

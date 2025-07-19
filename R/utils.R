@@ -219,17 +219,32 @@ process_response <- function(resp, enrich_response = TRUE) {
     # Create unified_app_name and unified_app_id for consistency
     if ("app.name" %in% names(result_tbl)) {
       result_tbl$unified_app_name <- result_tbl$app.name
-    } else if ("entities.app_id" %in% names(result_tbl)) {
-      # For sales endpoint, lookup app names using app IDs
-      result_tbl <- lookup_app_names_by_id(result_tbl)
     }
     
     if ("entities.app_id" %in% names(result_tbl)) {
       result_tbl$unified_app_id <- result_tbl$entities.app_id
+      
+      # If we have app_ids but missing app names, look them up
+      if (!"unified_app_name" %in% names(result_tbl) || 
+          any(is.na(result_tbl$unified_app_name))) {
+        result_tbl <- lookup_app_names_by_id(result_tbl)
+      }
     }
     
     # Extract custom metrics with clean names
     result_tbl <- extract_custom_metrics(result_tbl)
+    
+    # Clean special characters from numeric values
+    result_tbl <- clean_numeric_values(result_tbl)
+    
+    # Convert date columns to proper Date class
+    result_tbl <- clean_date_values(result_tbl)
+  } else {
+    # Even without enrichment, clean any numeric values that might have special characters
+    result_tbl <- clean_numeric_values(result_tbl)
+    
+    # Convert date columns to proper Date class
+    result_tbl <- clean_date_values(result_tbl)
   }
 
   return(result_tbl)
@@ -320,21 +335,139 @@ extract_custom_metrics <- function(data) {
     return(data)
 }
 
+# Helper function to clean special characters from numeric values
+clean_numeric_values <- function(data) {
+  if (nrow(data) == 0) return(data)
+  
+  # Define patterns of metrics that should be treated as numeric
+  # These patterns match the metric names we extract in extract_custom_metrics
+  numeric_metric_patterns <- c(
+    "downloads", "revenue", "users", "dau", "wau", "mau", "rpd", 
+    "retention", "age", "rating", "count", "days", "size", "absolute",
+    "delta", "share", "percent", "time", "last", "average", "total",
+    "first", "all time", "180", "30", "90", "7d", "14d", "month"
+  )
+  
+  # Find columns that likely contain numeric data  
+  numeric_cols <- names(data)[sapply(names(data), function(col_name) {
+    # Skip non-character columns
+    if (!is.character(data[[col_name]])) {
+      return(FALSE)
+    }
+    
+    # Check if column name matches our numeric patterns
+    matches_pattern <- any(sapply(numeric_metric_patterns, function(pattern) {
+      grepl(pattern, col_name, ignore.case = TRUE)
+    }))
+    
+    # Also check for aggregate_tags columns that might contain numeric data
+    is_aggregate_tag <- grepl("^aggregate_tags\\.", col_name)
+    
+    # Check for entities.custom_tags columns that might be numeric
+    is_custom_tag <- grepl("^entities\\.custom_tags\\.", col_name)
+    
+    # Skip obvious text columns 
+    is_text_column <- grepl("\\bname$|\\burl$|\\bdate$|app_id$|country$", col_name, ignore.case = TRUE)
+    
+    # If column matches our criteria and isn't obviously text, check the content
+    if ((matches_pattern || is_aggregate_tag || is_custom_tag) && !is_text_column) {
+      sample_values <- head(data[[col_name]][!is.na(data[[col_name]]) & data[[col_name]] != ""], 10)
+      if (length(sample_values) > 0) {
+        # Check if values contain digits with special characters OR pure numbers
+        has_numeric_with_special <- any(grepl("[0-9].*[%$,]|[%$,].*[0-9]", sample_values))
+        has_pure_numeric <- any(grepl("^[0-9]+\\.?[0-9]*$", sample_values))
+        
+        # Also check for formatted numbers like "1,234" or scientific notation
+        has_formatted_numeric <- any(grepl("^[0-9,]+\\.?[0-9]*$", sample_values))
+        
+        return(has_numeric_with_special || has_pure_numeric || has_formatted_numeric)
+      }
+    }
+    return(FALSE)
+  })]
+  
+  # Clean each numeric column
+  for (col in numeric_cols) {
+    if (is.character(data[[col]])) {
+      original_values <- data[[col]]
+      
+      # Handle percentage values (convert "45%" to 45, not 0.45)
+      # Most analytics metrics use percentages as whole numbers
+      has_percentages <- any(grepl("%", original_values, fixed = TRUE), na.rm = TRUE)
+      
+      # Remove currency symbols, commas, spaces, and other formatting
+      cleaned_values <- gsub("[$,\\s]", "", original_values)
+      
+      # Remove percentage signs (but track that they were there)
+      cleaned_values <- gsub("%", "", cleaned_values)
+      
+      # Remove any remaining non-numeric characters except decimal points and minus signs
+      cleaned_values <- gsub("[^0-9.-]", "", cleaned_values)
+      
+      # Convert empty strings to NA
+      cleaned_values[cleaned_values == ""] <- NA
+      
+      # Convert to numeric, suppressing warnings for values that can't be converted
+      numeric_values <- suppressWarnings(as.numeric(cleaned_values))
+      
+      # Only replace if we successfully converted most values
+      # This prevents accidentally converting text columns that happen to match patterns
+      non_na_original <- sum(!is.na(original_values))
+      non_na_converted <- sum(!is.na(numeric_values))
+      
+      if (non_na_original > 0) {
+        conversion_rate <- non_na_converted / non_na_original
+        if (conversion_rate > 0.5) {  # If more than 50% converted successfully
+          data[[col]] <- numeric_values
+          
+          # Special handling for retention metrics - convert from integer % to decimal
+          if (grepl("retention", col, ignore.case = TRUE)) {
+            data[[col]] <- data[[col]] / 100
+            message(sprintf("Converted column '%s' to numeric and converted to decimal (divided by 100)", col))
+          } else {
+            # Log the cleaning for transparency
+            if (has_percentages) {
+              message(sprintf("Converted column '%s' to numeric (removed %% symbols)", col))
+            } else {
+              message(sprintf("Converted column '%s' to numeric", col))
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return(data)
+}
+
 # Helper function to lookup app names by app ID (for sales endpoint which doesn't provide names)
 lookup_app_names_by_id <- function(data) {
   if (!"entities.app_id" %in% names(data) || nrow(data) == 0) {
     return(data)
   }
   
-  message("Looking up app names for sales data...")
+  message("Looking up missing app names...")
   
-  # Get unique app IDs to avoid duplicate API calls
-  unique_app_ids <- unique(data$entities.app_id)
-  unique_app_ids <- unique_app_ids[!is.na(unique_app_ids) & unique_app_ids != ""]
+  # Get unique app IDs that need lookup (missing app names)
+  # If unified_app_name already exists, only lookup IDs where name is missing
+  if ("unified_app_name" %in% names(data)) {
+    # Find rows where app_id exists but unified_app_name is missing
+    needs_lookup <- !is.na(data$entities.app_id) & 
+                    data$entities.app_id != "" & 
+                    (is.na(data$unified_app_name) | data$unified_app_name == "")
+    unique_app_ids <- unique(data$entities.app_id[needs_lookup])
+  } else {
+    # If no unified_app_name column exists, lookup all valid app_ids
+    unique_app_ids <- unique(data$entities.app_id)
+    unique_app_ids <- unique_app_ids[!is.na(unique_app_ids) & unique_app_ids != ""]
+  }
   
   if (length(unique_app_ids) == 0) {
-    # No valid app IDs, use IDs as names
-    data$unified_app_name <- data$entities.app_id
+    # No valid app IDs to lookup
+    if (!"unified_app_name" %in% names(data)) {
+      # If no unified_app_name column exists, create it using app IDs
+      data$unified_app_name <- data$entities.app_id
+    }
     return(data)
   }
   
@@ -379,18 +512,186 @@ lookup_app_names_by_id <- function(data) {
     })
   }
   
-  # Create unified_app_name based on lookup results, fallback to app_id
-  data$unified_app_name <- ifelse(
-    is.na(app_id_to_name[data$entities.app_id]), 
-    data$entities.app_id,  # Fallback to app ID if lookup failed
-    app_id_to_name[data$entities.app_id]  # Use looked up name
-  )
+  # Create or update unified_app_name based on lookup results
+  if (!"unified_app_name" %in% names(data)) {
+    # If no unified_app_name column exists, create it
+    data$unified_app_name <- ifelse(
+      is.na(app_id_to_name[data$entities.app_id]), 
+      data$entities.app_id,  # Fallback to app ID if lookup failed
+      app_id_to_name[data$entities.app_id]  # Use looked up name
+    )
+  } else {
+    # If unified_app_name exists, only update missing values
+    missing_names <- is.na(data$unified_app_name) | data$unified_app_name == ""
+    data$unified_app_name[missing_names] <- ifelse(
+      is.na(app_id_to_name[data$entities.app_id[missing_names]]), 
+      data$entities.app_id[missing_names],  # Fallback to app ID if lookup failed
+      app_id_to_name[data$entities.app_id[missing_names]]  # Use looked up name
+    )
+  }
   
   # Report success rate
   successful_lookups <- sum(!is.na(app_id_to_name))
   total_unique <- length(unique_app_ids)
   message(sprintf("App name lookup completed: %d/%d successful (%.1f%%)", 
                   successful_lookups, total_unique, 100 * successful_lookups / total_unique))
+  
+  return(data)
+}
+
+# Helper function to deduplicate apps by consolidating metrics for the same app name
+deduplicate_apps_by_name <- function(data) {
+  if (nrow(data) == 0 || !"unified_app_name" %in% names(data)) {
+    return(data)
+  }
+  
+  # Check if there are actually duplicates to consolidate
+  if (length(unique(data$unified_app_name)) == nrow(data)) {
+    return(data)  # No duplicates, return as-is
+  }
+  
+  message(sprintf("Consolidating %d app entries into %d unique apps...", 
+                  nrow(data), length(unique(data$unified_app_name))))
+  
+  # Identify numeric columns to sum vs average
+  numeric_cols <- names(data)[sapply(data, is.numeric)]
+  
+  # Metrics to SUM (additive across platforms)
+  sum_metrics <- numeric_cols[grepl(
+    "downloads|revenue|users|mau|dau|wau|units|count|absolute", 
+    numeric_cols, ignore.case = TRUE
+  )]
+  
+  # Metrics to AVERAGE (rates, percentages, ratios)
+  avg_metrics <- numeric_cols[grepl(
+    "retention|rpd|rating|age|share|percent|rate|ratio|transformed", 
+    numeric_cols, ignore.case = TRUE
+  )]
+  
+  # Everything else (first value)
+  other_metrics <- setdiff(numeric_cols, c(sum_metrics, avg_metrics))
+  
+  # Group by unified_app_name and aggregate
+  result <- data %>%
+    dplyr::group_by(.data$unified_app_name) %>%
+    dplyr::summarise(
+      # Keep first unified_app_id (preferably iOS if available, otherwise first)
+      unified_app_id = dplyr::first(.data$unified_app_id[order(nchar(.data$unified_app_id))]),
+      
+      # Sum metrics that should be additive
+      dplyr::across(dplyr::all_of(sum_metrics), ~ sum(.x, na.rm = TRUE)),
+      
+      # Average metrics that are rates/percentages  
+      dplyr::across(dplyr::all_of(avg_metrics), ~ mean(.x, na.rm = TRUE)),
+      
+      # First value for other metrics
+      dplyr::across(dplyr::all_of(other_metrics), ~ dplyr::first(.x[!is.na(.x)])),
+      
+      # First value for character/date columns
+      dplyr::across(where(is.character), ~ dplyr::first(.x[!is.na(.x) & .x != ""])),
+      dplyr::across(where(lubridate::is.Date), ~ dplyr::first(.x[!is.na(.x)])),
+      dplyr::across(where(lubridate::is.POSIXt), ~ dplyr::first(.x[!is.na(.x)])),
+      
+      .groups = "drop"
+    ) %>%
+    # Re-order to put unified_app_name first
+    dplyr::select(.data$unified_app_name, .data$unified_app_id, dplyr::everything())
+  
+  # Convert 0 values back to NA where appropriate for averaged metrics
+  for (col in avg_metrics) {
+    if (col %in% names(result)) {
+      result[[col]][result[[col]] == 0] <- NA
+    }
+  }
+  
+  return(result)
+}
+
+# Helper function to convert date columns to proper Date class
+clean_date_values <- function(data) {
+  if (nrow(data) == 0) return(data)
+  
+  # Find columns that likely contain date data
+  date_cols <- names(data)[sapply(names(data), function(col_name) {
+    # Skip non-character columns
+    if (!is.character(data[[col_name]])) {
+      return(FALSE)
+    }
+    
+    # Check if column name suggests it contains dates
+    is_date_column <- grepl("date|release", col_name, ignore.case = TRUE)
+    
+    # Skip columns that are clearly not dates (like frequency, days ago)
+    is_non_date <- grepl("frequency|days ago|update|freq", col_name, ignore.case = TRUE)
+    
+    if (is_date_column && !is_non_date) {
+      # Check if the column actually contains date-like values
+      sample_values <- head(data[[col_name]][!is.na(data[[col_name]]) & data[[col_name]] != ""], 5)
+      if (length(sample_values) > 0) {
+        # Check for various date patterns
+        has_iso_dates <- any(grepl("\\d{4}-\\d{2}-\\d{2}", sample_values))
+        has_slash_dates <- any(grepl("\\d{4}/\\d{2}/\\d{2}", sample_values))
+        has_datetime <- any(grepl("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}", sample_values))
+        
+        return(has_iso_dates || has_slash_dates || has_datetime)
+      }
+    }
+    return(FALSE)
+  })]
+  
+  if (length(date_cols) == 0) {
+    return(data)
+  }
+  
+  # Convert each date column
+  for (col in date_cols) {
+    if (is.character(data[[col]])) {
+      original_values <- data[[col]]
+      
+      # Try to convert to dates
+      converted_dates <- tryCatch({
+        # Handle different date formats
+        parsed_dates <- rep(as.Date(NA), length(original_values))
+        
+        # Handle ISO datetime format (e.g., "2025-07-01T00:00:00Z")
+        iso_pattern <- grepl("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}", original_values)
+        if (any(iso_pattern, na.rm = TRUE)) {
+          parsed_dates[iso_pattern] <- as.Date(lubridate::ymd_hms(original_values[iso_pattern]))
+        }
+        
+        # Handle YYYY-MM-DD format
+        ymd_pattern <- grepl("^\\d{4}-\\d{2}-\\d{2}$", original_values) & !iso_pattern
+        if (any(ymd_pattern, na.rm = TRUE)) {
+          parsed_dates[ymd_pattern] <- as.Date(original_values[ymd_pattern])
+        }
+        
+        # Handle YYYY/MM/DD format
+        slash_pattern <- grepl("^\\d{4}/\\d{2}/\\d{2}$", original_values)
+        if (any(slash_pattern, na.rm = TRUE)) {
+          parsed_dates[slash_pattern] <- as.Date(original_values[slash_pattern], format = "%Y/%m/%d")
+        }
+        
+        parsed_dates
+      }, error = function(e) {
+        # If conversion fails, return original
+        original_values
+      })
+      
+      # Only replace if we successfully converted most values
+      if (inherits(converted_dates, "Date")) {
+        non_na_original <- sum(!is.na(original_values) & original_values != "")
+        non_na_converted <- sum(!is.na(converted_dates))
+        
+        if (non_na_original > 0) {
+          conversion_rate <- non_na_converted / non_na_original
+          if (conversion_rate > 0.5) {  # If more than 50% converted successfully
+            data[[col]] <- converted_dates
+            message(sprintf("Converted column '%s' to Date class", col))
+          }
+        }
+      }
+    }
+  }
   
   return(data)
 }

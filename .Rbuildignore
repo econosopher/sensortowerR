@@ -5,7 +5,6 @@
 sensortowerR.Rproj
 ^CRAN-SUBMISSION$
 ^NEWS.md$
-^LICENSE$
 ^data-raw$
 ^examples$
 ^.Rbuildignore$
@@ -38,5 +37,6 @@ inst/images/logo_creation.R
 ^tests/test_functions\.R$
 ^tests/run_rhub_tests\.R$
 ^TESTING\.md$
+^LICENSE\.md$
 ^.*\.Rproj$
 ^\.Rproj\.user$

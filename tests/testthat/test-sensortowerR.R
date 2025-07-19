@@ -63,4 +63,44 @@ test_that("API calls retrieve data", {
   )
   expect_s3_class(top_active, "tbl_df")
   expect_true(nrow(top_active) > 0)
-}) 
+})
+
+test_that("clean_numeric_values removes special characters correctly", {
+  # Create test data with special characters in numeric columns
+  test_data <- tibble::tibble(
+    # Columns that should be cleaned
+    downloads_180d_ww = c("1,234,567", "$2,500", "45%", "100.5", NA),
+    revenue_30d_us = c("$1,000.50", "2,500%", "45", "", "N/A"),
+    retention_7d_us = c("15.5%", "25%", "0", "45.2%", NA),
+    aggregate_tags.test_metric = c("$100", "200%", "1,500", "", NA),
+    
+    # Columns that should NOT be cleaned (text data)
+    app_name = c("Test App", "Another App", "Game", "Tool", "App"),
+    category = c("Games", "Social", "Productivity", "Entertainment", "Utilities")
+  )
+  
+  # Apply the cleaning function
+  cleaned_data <- sensortowerR:::clean_numeric_values(test_data)
+  
+  # Check that numeric columns were converted to numeric type
+  expect_true(is.numeric(cleaned_data$downloads_180d_ww))
+  expect_true(is.numeric(cleaned_data$revenue_30d_us))
+  expect_true(is.numeric(cleaned_data$retention_7d_us))
+  expect_true(is.numeric(cleaned_data$`aggregate_tags.test_metric`))
+  
+  # Check that text columns remain as character
+  expect_true(is.character(cleaned_data$app_name))
+  expect_true(is.character(cleaned_data$category))
+  
+  # Check specific cleaned values
+  expect_equal(cleaned_data$downloads_180d_ww[1], 1234567)
+  expect_equal(cleaned_data$downloads_180d_ww[2], 2500)
+  expect_equal(cleaned_data$downloads_180d_ww[3], 45)
+  expect_equal(cleaned_data$revenue_30d_us[1], 1000.50)
+  expect_equal(cleaned_data$retention_7d_us[1], 15.5)
+  expect_equal(cleaned_data$retention_7d_us[2], 25)
+  
+  # Check that NA values are preserved
+  expect_true(is.na(cleaned_data$downloads_180d_ww[5]))
+  expect_true(is.na(cleaned_data$retention_7d_us[5]))
+})
