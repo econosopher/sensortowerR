@@ -8,7 +8,7 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ```r
 # Install from GitHub
-devtools::install_github("peterparkerspicklepatch/sensortowerR")
+devtools::install_github("econosopher/sensortowerR")
 ```
 
 ## Package Loading
