@@ -6,8 +6,8 @@
 \usage{
 st_metrics(
   unified_app_id,
-  start_date,
-  end_date,
+  start_date = NULL,
+  end_date = NULL,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
 )
 }
@@ -16,10 +16,10 @@ st_metrics(
 metrics (required).}
 
 \item{start_date}{Date object or character string (YYYY-MM-DD). The start
-date for data collection (required).}
+date for data collection. Defaults to the start of the current month.}
 
 \item{end_date}{Date object or character string (YYYY-MM-DD). The end date
-for data collection (required).}
+for data collection. Defaults to the current date.}
 
 \item{auth_token}{Character string. Your Sensor Tower API authentication
 token. Defaults to the value stored in the `SENSORTOWER_AUTH_TOKEN`

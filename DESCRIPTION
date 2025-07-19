@@ -2,7 +2,7 @@ Package: sensortowerR
 Title: A Wrapper for the 'Sensor Tower' API
 Version: 0.1.0
 Description: Provides functions to access and process data from the 'Sensor Tower' API, including top charts, app intelligence, and more.
-License: MIT
+License: MIT + file LICENSE
 Encoding: UTF-8
 RoxygenNote: 7.3.2
 Imports: 
@@ -10,18 +10,23 @@ Imports:
     httr,
     httr2,
     jsonlite,
+    lubridate,
     rlang,
+    stats,
     tibble,
     tidyr
 Suggests: 
     knitr,
-    lubridate,
+    pkgbuild,
+    rcmdcheck,
     rmarkdown,
+    rhub,
     testthat (>= 3.0.0)
-VignetteBuilder: knitr
 Config/testthat/edition: 3
 Authors@R: 
     person("Phillip", "Black",
            email = "pblack@gameeconomistconsulting.com",
            role = c("aut", "cre"))
+Author: Phillip Black [aut, cre]
+Maintainer: Phillip Black <pblack@gameeconomistconsulting.com>
 Depends: R (>= 4.1.0)

@@ -35,3 +35,8 @@ sensortowerR.Rproj
 ^tests/testthat/_snaps$
 ^man-roxygen$
 inst/images/logo_creation.R
+^tests/test_functions\.R$
+^tests/run_rhub_tests\.R$
+^TESTING\.md$
+^.*\.Rproj$
+^\.Rproj\.user$

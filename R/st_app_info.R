@@ -1,7 +1,7 @@
 #' Fetch Unified App Information from Sensor Tower
 #'
 #' This function retrieves information about apps from the Sensor Tower API
-#' based on a search term. It targets the `/v1/{app_store}/search_entities`
+#' based on a search term. It targets the `/v1/\{app_store\}/search_entities`
 #' endpoint and fetches app IDs and names for unified app entities.
 #'
 #' @param term Character string. The search term for the app or publisher.
@@ -10,18 +10,19 @@
 #' @param entity_type Character string. The type of entity to search for.
 #'   Defaults to "app".
 #' @param limit Numeric. The maximum number of results to return.
-#'   Defaults to 100.
+#'   Defaults to 20.
 #' @param auth_token Character string. Your Sensor Tower API authentication token.
 #' @param return_all_fields Boolean. If TRUE, returns all available fields
 #'   from the API response. Defaults to FALSE, which returns only
 #'   `unified_app_id` and `unified_app_name`.
 #'
 #' @return A [tibble][tibble::tibble] with app information. If
-#'   `return_all_fields` is FALSE (default), it contains `unified_app_id` and
-#'   `unified_app_name`. If TRUE, it contains the full, unfiltered data, and
-#'   if a `categories` field is returned by the API, it will be supplemented
-#'   with a `category_details` list-column containing the mapped category
-#'   names.
+#'   `return_all_fields` is FALSE (default), it contains `unified_app_id`,
+#'   `unified_app_name`, and `category_details` (when available). If TRUE, it
+#'   contains the full, unfiltered data. When category information is present
+#'   in the API response, it's automatically enriched into a `category_details`
+#'   list-column containing nested tibbles with platform, category_id, and 
+#'   category_name for each app's categories.
 #'
 #' @examples
 #' \dontrun{
@@ -32,6 +33,12 @@
 #' app_info <- st_app_info(term = "Clash of Clans")
 #' print(app_info)
 #'
+#' # Access nested category details
+#' if ("category_details" %in% names(app_info)) {
+#'   print("Categories for first app:")
+#'   print(app_info$category_details[[1]])
+#' }
+#'
 #' # Fetch publisher info
 #' # publisher_info <- st_app_info(
 #' #   term = "Supercell", entity_type = "publisher"
@@ -40,6 +47,7 @@
 #' }
 #'
 #' @import dplyr
+#' @importFrom dplyr all_of
 #' @importFrom httr GET add_headers http_error status_code content
 #' @importFrom jsonlite fromJSON
 #' @importFrom tibble tibble
@@ -47,7 +55,7 @@
 st_app_info <- function(term,
                         app_store = "unified",
                         entity_type = "app",
-                        limit = 100,
+                        limit = 20,
                         auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                         return_all_fields = FALSE) {
   # Ensure the auth_token is provided
@@ -118,19 +126,33 @@ st_app_info <- function(term,
     return(tibble())
   }
 
+  # Always create nested category_details when categories are present
+  if ("categories" %in% colnames(unified_apps) && is.list(unified_apps$categories)) {
+    category_lookup <- st_categories()  # Use the full category lookup instead of internal data
+    unified_apps$category_details <- lapply(unified_apps$categories, function(ids) {
+      if (length(ids) > 0 && !all(is.na(ids))) {
+        category_lookup[category_lookup$category_id %in% as.character(ids), ]
+      } else {
+        tibble::tibble(platform = character(0), category_id = character(0), category_name = character(0))
+      }
+    })
+    
+      # Remove the raw categories column in favor of the nested approach
+  unified_apps <- unified_apps %>% dplyr::select(-"categories")
+  }
+  
   # Return all fields if requested, otherwise extract and rename
   if (return_all_fields) {
-    # If category IDs are present, map them to the internal category data
-    if ("categories" %in% colnames(unified_apps) && is.list(unified_apps$categories)) {
-      category_lookup <- st_category_data
-      unified_apps$category_details <- lapply(unified_apps$categories, function(ids) {
-        category_lookup[category_lookup$category_id %in% ids, ]
-      })
-    }
     return(unified_apps)
   } else {
+    # Include category_details in the simplified output if available
+    base_columns <- c("app_id", "name")
+    if ("category_details" %in% colnames(unified_apps)) {
+      base_columns <- c(base_columns, "category_details")
+    }
+    
     extracted_info <- unified_apps %>%
-      select(.data$app_id, .data$name) %>%
+      select(all_of(base_columns)) %>%
       rename(
         unified_app_id = .data$app_id,
         unified_app_name = .data$name

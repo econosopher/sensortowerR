@@ -7,9 +7,9 @@
 #' @param unified_app_id Character string. The unified app ID for which to fetch
 #'   metrics (required).
 #' @param start_date Date object or character string (YYYY-MM-DD). The start
-#'   date for data collection (required).
+#'   date for data collection. Defaults to the start of the current month.
 #' @param end_date Date object or character string (YYYY-MM-DD). The end date
-#'   for data collection (required).
+#'   for data collection. Defaults to the current date.
 #' @param auth_token Character string. Your Sensor Tower API authentication
 #'   token. Defaults to the value stored in the `SENSORTOWER_AUTH_TOKEN`
 #'   environment variable.
@@ -58,11 +58,20 @@
 #' @importFrom dplyr %>% rename mutate select full_join bind_rows filter all_of
 #'   rowwise ungroup
 #' @importFrom utils str
+#' @importFrom lubridate floor_date
 #' @export
 st_metrics <- function(unified_app_id,
-                       start_date,
-                       end_date,
+                       start_date = NULL,
+                       end_date = NULL,
                        auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
+  # --- Handle Default Dates ---
+  if (is.null(start_date)) {
+    start_date <- lubridate::floor_date(Sys.Date(), "month")
+  }
+  if (is.null(end_date)) {
+    end_date <- Sys.Date()
+  }
+  
   # --- Input Validation and Setup ---
   auth_token_val <- auth_token %||% ""
   if (!is.character(auth_token_val) || nchar(auth_token_val) == 0) {

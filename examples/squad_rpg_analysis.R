@@ -34,14 +34,14 @@ marvel_strike_force_info <- st_app_info(
 # We unnest it to work with the category information.
 if (!is.null(marvel_strike_force_info$category_details)) {
   category_df <- marvel_strike_force_info %>%
-    select(.data$name, .data$category_details) %>%
+    select("name", "category_details") %>%
     tidyr::unnest(cols = c(category_details))
 
   # Find the ID for "Role Playing" (can be "Games/Role Playing" on iOS)
   # We search for any category name containing "Role Playing" to be flexible.
   role_playing_id <- category_df %>%
-    filter(grepl("Role Playing", .data$category_name)) %>%
-    pull(.data$category_id) %>%
+    filter(grepl("Role Playing", category_name)) %>%
+    pull(category_id) %>%
     first() # Take the first match
 
 } else {
@@ -60,61 +60,73 @@ if (!is.null(role_playing_id) && !is.na(role_playing_id)) {
 
 # Proceed only if we found a category ID
 if (!is.null(role_playing_id)) {
-  message("Fetching the top 20 Role Playing games by revenue...")
+  message("Fetching the top 20 Role Playing games by MAU...")
   top_rpgs <- st_top_active_users(
-    os = "unified",
     comparison_attribute = "absolute",
-    time_range = "month",
+    time_range = "month", 
     measure = "MAU",
-    date = floor_date(Sys.Date() - months(1), "month"),
-    regions = "WW",
-    limit = 20,
     category = role_playing_id
+    # Using defaults: os="unified", regions="WW", date=current month start, limit=20
   )
 
   # --- 2. Create a Presentation Table with gt ---
   if (nrow(top_rpgs) > 0) {
-    # Select and arrange columns for the table
+    # Select and arrange columns for the table using enhanced metrics
     table_data <- top_rpgs %>%
       select(
-        app.name,
-        users_absolute,
-        users_delta,
-        users_transformed_delta
+        unified_app_name,
+        entities.users_absolute,
+        entities.users_delta,
+        entities.users_transformed_delta,
+        # Enhanced custom metrics with clean names
+        downloads_180d_ww,
+        revenue_180d_ww,
+        retention_1d_us,
+        rpd_alltime_us
       ) %>%
-      arrange(desc(.data$users_absolute))
+      filter(!is.na(unified_app_name)) %>%  # Remove rows without app names
+      arrange(desc(entities.users_absolute))
 
-    # Create the gt table
-    gt_table <- table_data %>%
-      gt(rowname_col = "app.name") %>%
-      tab_header(
-        title = "Top 20 Role Playing Games by Monthly Active Users",
-        subtitle = paste("Worldwide -", format(floor_date(Sys.Date() - months(1), "month"), "%B %Y"))
-      ) %>%
-      cols_label(
-        users_absolute = "MAU",
-        users_delta = "Change",
-        users_transformed_delta = "Growth"
-      ) %>%
-      fmt_number(
-        columns = c(users_absolute, users_delta),
-        decimals = 0,
-        use_seps = TRUE
-      ) %>%
-      fmt_percent(
-        columns = users_transformed_delta,
-        decimals = 1
-      ) %>%
-      data_color(
-          columns = users_transformed_delta,
-          colors = scales::col_numeric(
-              palette = c("red", "white", "green"),
-              domain = c(-1, 1)
-          )
-      ) %>%
-      tab_source_note(
-        source_note = "Source: Sensor Tower API"
-      )
+          # Create the gt table with enhanced metrics
+      gt_table <- table_data %>%
+        gt(rowname_col = "unified_app_name") %>%
+        tab_header(
+          title = "Top 20 Role Playing Games - Enhanced Analytics",
+          subtitle = paste("Worldwide -", format(lubridate::floor_date(Sys.Date(), "month"), "%B %Y"))
+        ) %>%
+        cols_label(
+          entities.users_absolute = "Current MAU",
+          entities.users_delta = "MAU Change",
+          entities.users_transformed_delta = "Growth %",
+          downloads_180d_ww = "Downloads (180d)",
+          revenue_180d_ww = "Revenue (180d)", 
+          retention_1d_us = "Day 1 Retention",
+          rpd_alltime_us = "RPD (All Time)"
+        ) %>%
+        fmt_number(
+          columns = c(entities.users_absolute, entities.users_delta, downloads_180d_ww),
+          decimals = 0,
+          use_seps = TRUE
+        ) %>%
+        fmt_currency(
+          columns = c(revenue_180d_ww, rpd_alltime_us),
+          currency = "USD",
+          decimals = 0
+        ) %>%
+        fmt_percent(
+          columns = c(entities.users_transformed_delta, retention_1d_us),
+          decimals = 1
+        ) %>%
+        data_color(
+            columns = entities.users_transformed_delta,
+            colors = scales::col_numeric(
+                palette = c("red", "white", "green"),
+                domain = c(-1, 1)
+            )
+        ) %>%
+        tab_source_note(
+          source_note = "Source: Sensor Tower API | Enhanced with custom metrics extraction"
+        )
 
       # Print the table
       print(gt_table)

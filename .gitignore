@@ -67,3 +67,14 @@ _output.yml
 
 # roxygen2
 man-roxygen/
+
+# R package build artifacts
+*.tar.gz
+*.zip
+..Rcheck/
+*.Rcheck/
+.Rcheck/
+
+# CRAN submission files (keep source but ignore generated)
+sensortowerR_*.tar.gz
+

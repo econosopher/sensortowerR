@@ -6,290 +6,231 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## Installation
 
-You need the `devtools` package to install `sensortowerR` from GitHub.
-
 ```r
-# install.packages("devtools") # Run this if you don't have devtools installed
+# Install from GitHub
 devtools::install_github("peterparkerspicklepatch/sensortowerR")
 ```
 
-## Authentication (Important!)
+## Package Loading
 
-This package requires a Sensor Tower API authentication token to function. **It is strongly recommended to store your token securely as an environment variable rather than hardcoding it in your scripts.**
+We recommend using `pacman` for efficient package management:
 
-The functions in this package will automatically look for an environment variable named `SENSORTOWER_AUTH_TOKEN`.
+```r
+# Install pacman if needed
+if (!require("pacman")) install.packages("pacman")
 
-**Recommended Setup:**
+# Load packages efficiently
+pacman::p_load(
+  char = c(
+    "devtools",
+    "sensortowerR", 
+    "dplyr",
+    "lubridate",
+    "gt"  # For nice tables
+  )
+)
 
-1. Use the `usethis` package to edit your R environment file:
-   ```r
-   # Run this in your R console
-   usethis::edit_r_environ()
-   ```
-   *(This usually opens the file `~/.Renviron` in your home directory. You can also use `usethis::edit_r_environ(scope = "project")` to create one specific to your current project, but be sure to add `.Renviron` to your `.gitignore` file if you do!)*
+# Load development version if working locally
+devtools::load_all()
+```
 
-2. Add the following line to the `.Renviron` file that opens, replacing `"YOUR_SECRET_TOKEN_HERE"` with your actual Sensor Tower API token:
-   ```
-   SENSORTOWER_AUTH_TOKEN="YOUR_SECRET_TOKEN_HERE"
-   ```
+## Authentication
 
-3. Save the `.Renviron` file and **restart your R session** for the changes to take effect.
+Store your Sensor Tower API token as an environment variable:
 
-Once set up, you generally won't need to pass the `auth_token` argument to the functions.
+```r
+# Edit your R environment file
+usethis::edit_r_environ()
+
+# Add this line (replace with your actual token):
+# SENSORTOWER_AUTH_TOKEN="YOUR_SECRET_TOKEN_HERE"
+
+# Restart R session for changes to take effect
+```
+
+The package automatically uses the `SENSORTOWER_AUTH_TOKEN` environment variable.
 
 ## Core Functions
 
-The package provides the following main functions:
+- **`st_app_info()`**: Search for apps and get basic information
+- **`st_publisher_apps()`**: Get all apps from a specific publisher  
+- **`st_metrics()`**: Detailed daily metrics for specific apps
+- **`st_top_charts()`**: **⭐ Unified function for all top charts** (revenue, downloads, DAU, WAU, MAU)
+- **`st_game_summary()`**: **🎮 NEW! Game market summary** (aggregated downloads/revenue by categories and countries)
 
-- `st_app_info()`: Search for apps or publishers and retrieve basic information (like unified IDs).
-- `st_publisher_apps()`: Fetch metadata for all apps associated with a specific publisher ID.
-- `st_metrics()`: Fetch detailed daily metrics (revenue, downloads, active users) for a specific unified app ID over a date range.
-- `st_top_sales()`: Retrieve ranked lists of top apps based on revenue or downloads ("units") for specific criteria (OS, category, region, time period, etc.).
-- `st_top_active_users()`: Retrieve ranked lists of top apps based on DAU, WAU, or MAU for specific criteria (OS, category, region, time period, etc.).
+## Quick Examples
 
-## Example Usage
-
-Make sure you have set the `SENSORTOWER_AUTH_TOKEN` environment variable and restarted R before running these examples.
-
+### Basic App Search
 ```r
-library(sensortowerR)
-library(lubridate) # For easy date creation
+# Search for apps
+clash_info <- st_app_info("Clash Royale")
+pokemon_info <- st_app_info("Pokemon GO", limit = 1)
+```
 
-# --- Example 1: Get App Info ---
-# Search for apps matching "Clash Royale"
-app_info <- st_app_info(term = "Clash Royale", limit = 1)
-print(app_info)
-# Use the unified_app_id from app_info in other functions if needed
+### Publisher Apps
+```r
+# Get all Supercell games
+supercell_apps <- st_publisher_apps("560c48b48ac350643900b82d")
+```
 
-# --- Example 2: Get Publisher's Apps ---
-# Fetch apps published by Supercell (replace with a valid ID)
-publisher_apps <- st_publisher_apps(publisher_id = "560c48b48ac350643900b82d")
-print(publisher_apps)
-
-# --- Example 3: Fetch Detailed Metrics for One App ---
-# Fetch metrics for a specific app ID (replace with a valid ID)
-# Requires a valid unified_app_id known beforehand
+### App Metrics
+```r
+# Get recent metrics for a specific app
 metrics <- st_metrics(
-  unified_app_id = "YOUR_VALID_UNIFIED_APP_ID",
-  start_date = Sys.Date() - 15,
+  unified_app_id = "your_app_id",
+  start_date = Sys.Date() - 30,
   end_date = Sys.Date() - 1
 )
-print(metrics)
-head(metrics)
-
-# --- Example 4: Get Top Apps by Downloads ---
-# Get top 5 iOS Games by downloads ("units") in the US for the last full month
-top_downloads <- st_top_sales(
-  os = "ios",
-  comparison_attribute = "absolute", # Or "delta", "transformed_delta"
-  time_range = "month",
-  measure = "units",
-  date = floor_date(Sys.Date() - months(1), "month"), # Start of last month
-  category = 6000, # iOS Games category ID
-  regions = "US",  # Region is required
-  limit = 5
-  # device_type defaults to "total" for iOS
-)
-print(top_downloads)
-
-# --- Example 5: Get Top Apps by Active Users ---
-# Get top 3 Android apps by MAU worldwide for the last quarter
-top_mau <- st_top_active_users(
-  os = "android",
-  comparison_attribute = "absolute",
-  time_range = "quarter",
-  measure = "MAU",
-  date = floor_date(Sys.Date() - months(3), "quarter"), # Start of last quarter
-  regions = "WW", # Worldwide region is required
-  # category = NULL, # Optional: omit for all categories
-  limit = 3
-)
-print(top_mau)
 ```
 
-## Example Workflow: Comparing Pokemon Game Launches
+### Top Charts with Enhanced Metrics
+```r
+# ⭐ NEW: Unified function for all top charts
+# Top apps by revenue (default measure)
+top_revenue <- st_top_charts(category = 6000)  # iOS Games
 
-This workflow demonstrates fetching data for multiple apps, combining it, and plotting launch performance.
+# Top apps by downloads 
+top_downloads <- st_top_charts(measure = "units", category = 6000)
+
+# Top Role Playing games by MAU with rich analytics
+top_rpg_games <- st_top_charts(
+  measure = "MAU",
+  category = 7014  # Role Playing category
+)
+
+# View enhanced custom metrics (24+ metrics available!)
+top_rpg_games %>%
+  select(unified_app_name, entities.users_absolute, 
+         downloads_180d_ww, revenue_180d_ww, retention_1d_us, rpd_alltime_us) %>%
+  head()
+```
+
+### Game Market Summary
+```r
+# 🎮 NEW: Game market overview analysis
+# iOS games market summary (last 7 days)
+game_market <- st_game_summary(
+  categories = 7001,           # Game category
+  os = "ios",                  # iOS platform
+  countries = c("US", "GB"),   # Multiple countries
+  date_granularity = "daily",  # Daily breakdown
+  start_date = Sys.Date() - 7
+)
+
+# Analyze market trends
+market_trends <- game_market %>%
+  group_by(Date) %>%
+  summarise(
+    Total_Revenue = sum(`iPhone Revenue` + `iPad Revenue`, na.rm = TRUE),
+    Total_Downloads = sum(`iPhone Downloads` + `iPad Downloads`, na.rm = TRUE)
+  )
+```
+
+### Create Professional Tables
+```r
+# Beautiful analytics table
+top_rpg_games %>%
+  select(unified_app_name, entities.users_absolute, 
+         downloads_180d_ww, revenue_180d_ww) %>%
+  slice_head(n = 10) %>%
+  gt() %>%
+  tab_header(title = "Top Role Playing Games") %>%
+  fmt_number(columns = c(entities.users_absolute, downloads_180d_ww), 
+             decimals = 0, use_seps = TRUE) %>%
+  fmt_currency(columns = revenue_180d_ww, currency = "USD", decimals = 0)
+```
+
+## ⭐ NEW: Unified Top Charts Function
+
+The new `st_top_charts()` function combines revenue, downloads, and active user metrics in one simple interface:
 
 ```r
-# Load required packages
-library(sensortowerR)
-library(dplyr)
-library(purrr)
-library(lubridate)
-library(ggplot2)
-library(forcats)
-library(tibble) # Added for tibble() usage
-library(tidyr)  # Added for pivot_longer
-library(scales) # Added for scale_y_continuous labels
-
-# --- 1. Find App IDs ---
-# Note: Ensure SENSORTOWER_AUTH_TOKEN is set in environment
-pokemon_terms <- c("Pokémon GO", "Pokémon UNITE", "Pokémon Masters EX") # Add more if needed
-
-get_id <- function(term) {
-  info <- st_app_info(term = term, limit = 1)
-  if (nrow(info) > 0) {
-    # Return a tibble to handle cases where info might be empty
-    return(tibble(unified_app_name = info$unified_app_name[[1]], unified_app_id = info$unified_app_id[[1]]))
-  } else {
-    warning("Could not find app info for term: ", term)
-    return(tibble(unified_app_name = term, unified_app_id = NA_character_)) # Return NA if not found
-  }
-}
-
-# Get IDs for the specified Pokemon games
-top_pokemon_games <- map_dfr(pokemon_terms, get_id) %>%
-  filter(!is.na(unified_app_id)) # Remove any not found
-
-print("Found Pokemon Game IDs:")
-print(top_pokemon_games)
-
-# --- 2. Add Launch Dates (Manual Step) ---
-# You might need to find these dates elsewhere
-top_pokemon_games <- top_pokemon_games %>%
-  mutate(
-    launch_date = case_when(
-      unified_app_name == "Pokémon GO"       ~ ymd("2016-07-06"),
-      unified_app_name == "Pokémon UNITE"    ~ ymd("2021-09-22"),
-      # unified_app_name == "Pokémon TCG Pocket" ~ ymd("2024-10-30"), # Example future date
-      unified_app_name == "Pokémon Masters EX" ~ ymd("2019-08-28"), # Corrected launch date approx
-      TRUE                                   ~ NA_Date_
-    )
-  ) %>%
-  filter(!is.na(launch_date)) # Keep only those with launch dates
-
-print("Games with Launch Dates:")
-print(top_pokemon_games)
-
-# --- 3. Fetch Metrics Around Launch ---
-# Define how many days post-launch to fetch
-days_to_fetch <- 15
-
-# Function to fetch metrics for one app
-fetch_launch_metrics <- function(unified_app_id, unified_app_name, launch_date) {
-  message("Fetching metrics for: ", unified_app_name)
-  metrics <- st_metrics(
-    unified_app_id = unified_app_id,
-    start_date = launch_date,
-    end_date = launch_date + days(days_to_fetch) # Fetch for N days
-  )
-
-  # Add app info back if metrics were returned
-  if (nrow(metrics) > 0) {
-     metrics %>%
-        # Ensure unified_app_id is present (should be from fetch function)
-        # Add name and launch date for context
-        mutate(
-          unified_app_name = unified_app_name,
-          launch_date = launch_date
-        )
-  } else {
-    # Return an empty tibble matching expected structure if fetch failed
-    tibble(
-        unified_app_id = character(), date = as.Date(character()), country = character(),
-        revenue = numeric(), downloads = numeric(), active_users = numeric(),
-        unified_app_name = character(), launch_date = as.Date(character())
-    )
-  }
-}
-
-# Use pmap_dfr to iterate over rows of top_pokemon_games
-# Ensure columns passed match function arguments: unified_app_id, unified_app_name, launch_date
-combined_metrics <- top_pokemon_games %>%
-  select(unified_app_id, unified_app_name, launch_date) %>% # Select only needed columns in correct order
-  pmap_dfr(fetch_launch_metrics)
-
-print("Combined Metrics Sample:")
-print(head(combined_metrics))
-
-# --- 4. Process and Plot ---
-# Check if combined_metrics has data before proceeding
-if (nrow(combined_metrics) > 0) {
-
-  plot_data <- combined_metrics %>%
-    mutate(
-      date = as.Date(date),
-      days_since_launch = as.numeric(date - launch_date),
-      country = factor(country)
-    ) %>%
-    filter(country %in% c("US", "JP")) %>% # Filter for specific countries
-    # Group by app, country, and days since launch to sum metrics if needed (e.g., if API splits by device)
-    # Note: fetch_sensor_tower_metrics should already provide unified daily totals
-    group_by(unified_app_name, country, days_since_launch) %>%
-    summarize(
-      daily_downloads = sum(downloads, na.rm = TRUE), # Use 'downloads' column
-      daily_revenue = sum(revenue, na.rm = TRUE),     # Use 'revenue' column
-      .groups = "drop"
-    ) %>%
-    # Calculate cumulative totals
-    group_by(unified_app_name, country) %>%
-    arrange(days_since_launch) %>% # Ensure correct order for cumsum
-    mutate(
-      total_downloads = cumsum(daily_downloads),
-      total_revenue = cumsum(daily_revenue)
-    ) %>%
-    ungroup() %>%
-    # Filter for the specific day we want to compare
-    filter(days_since_launch == days_to_fetch) %>%
-    # Pivot for plotting
-    tidyr::pivot_longer( # Use tidyr::pivot_longer explicitly
-      cols = c(total_downloads, total_revenue),
-      names_to = "metric",
-      values_to = "value"
-    )
-
-  # Check if plot_data has rows before plotting
-  if (nrow(plot_data) > 0) {
-    # Generate the plot
-    launch_plot <- ggplot(plot_data, aes(x = fct_reorder(unified_app_name, value), y = value, fill = metric)) +
-      geom_col(position = "dodge") + # Use geom_col for pre-summarized data
-      facet_grid(metric ~ country, scales = "free_y") + # Use free_y for different scales
-      scale_y_continuous(labels = scales::label_number(scale_cut = scales::cut_short_scale())) + # Nicer labels
-      labs(
-        title = paste("Cumulative Metrics", days_to_fetch, "Days Post-Launch"),
-        subtitle = "Comparing Downloads and Revenue in US & JP",
-        x = "Game",
-        y = "Cumulative Value",
-        fill = "Metric"
-      ) +
-      theme_minimal(base_size = 12) +
-      theme(
-        legend.position = "bottom",
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        strip.text = element_text(face = "bold"),
-        plot.title = element_text(face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5)
-      )
-
-    print(launch_plot)
-
-  } else {
-    message("No data available for plotting after filtering.")
-  }
-
-} else {
-  message("No combined metrics data was fetched successfully.")
-}
+# All these use the same function with different measures:
+st_top_charts(measure = "revenue", category = 6000)    # Default
+st_top_charts(measure = "units", category = 6000)      # Downloads  
+st_top_charts(measure = "MAU", category = 7014)        # Monthly Active Users
+st_top_charts(measure = "DAU", category = 7014)        # Daily Active Users
 ```
 
-## Dependencies
+## Enhanced Custom Metrics
 
-Core package dependencies (managed via `DESCRIPTION`):
+The `st_top_charts()` function extracts comprehensive custom metrics:
 
-- httr (`st_app_info`, `st_publisher_apps`, `st_metrics`)
-- httr2 (`st_top_sales`, `st_top_active_users`)
-- jsonlite
-- dplyr
-- tibble
-- rlang
-- utils (implicitly used, e.g., `str`, `head`)
+## 🚀 Automatic App Name Lookup
 
-Workflow dependencies (install separately if running the workflow):
+For sales data (revenue/downloads), the package **automatically looks up app names** since the sales endpoint only provides app IDs:
 
-- purrr
-- lubridate
-- ggplot2
-- forcats
-- tidyr (for `pivot_longer`)
-- scales (for plot labels)
+```r
+# Sales data automatically gets app names resolved
+top_revenue <- st_top_charts(measure = "revenue", category = 6000)
+# Returns: "LinkedIn: Network & Job Finder" instead of just "288429040"
+```
+
+**Features:**
+- ✅ **Automatic**: No manual work required
+- ✅ **Smart deduplication**: Avoids duplicate API calls  
+- ✅ **Cross-platform**: Works with iOS App Store IDs and Android package names
+- ✅ **Graceful fallback**: Uses app ID if lookup fails
+- ✅ **Progress tracking**: Shows lookup progress for larger datasets
+
+**📊 Available Metrics:**
+- **Downloads**: `downloads_180d_ww`, `downloads_90d_us`
+- **Revenue**: `revenue_180d_ww`, `revenue_90d_us` 
+- **Retention**: `retention_1d_us`, `retention_7d_us`, `retention_30d_us`
+- **Monetization**: `rpd_alltime_us`, `arpu_90d_us`
+- **Demographics**: `male_share_us`, `female_share_us`
+- **Platform**: `ios_share_ww`, `android_share_ww`
+
+## Example Workflow: Squad RPG Analysis
+
+```r
+# Load packages
+pacman::p_load(char = c("devtools", "gt", "dplyr", "lubridate", "tidyr"))
+devtools::load_all()
+
+# Find Role Playing category ID
+marvel_info <- st_app_info("Marvel Strike Force", return_all_fields = TRUE, limit = 1)
+role_playing_id <- marvel_info %>%
+  tidyr::unnest(category_details) %>%
+  filter(grepl("Role Playing", category_name)) %>%
+  pull(category_id) %>%
+  first()
+
+# Get top RPG games with enhanced metrics using unified function
+top_rpgs <- st_top_charts(
+  measure = "MAU",
+  category = role_playing_id
+)
+
+# Create professional analytics table
+top_rpgs %>%
+  select(unified_app_name, entities.users_absolute, entities.users_delta,
+         downloads_180d_ww, revenue_180d_ww, retention_1d_us, rpd_alltime_us) %>%
+  slice_head(n = 10) %>%
+  gt(rowname_col = "unified_app_name") %>%
+  tab_header(
+    title = "Top Role Playing Games - Enhanced Analytics",
+    subtitle = paste("Worldwide -", format(floor_date(Sys.Date(), "month"), "%B %Y"))
+  ) %>%
+  cols_label(
+    entities.users_absolute = "Current MAU",
+    entities.users_delta = "MAU Change", 
+    downloads_180d_ww = "Downloads (180d)",
+    revenue_180d_ww = "Revenue (180d)",
+    retention_1d_us = "Day 1 Retention",
+    rpd_alltime_us = "RPD (All Time)"
+  ) %>%
+  fmt_number(columns = c(entities.users_absolute, entities.users_delta, downloads_180d_ww),
+             decimals = 0, use_seps = TRUE) %>%
+  fmt_currency(columns = c(revenue_180d_ww, rpd_alltime_us), currency = "USD", decimals = 0) %>%
+  fmt_percent(columns = retention_1d_us, decimals = 1)
+```
+
+##  Defaults
+
+The package defaults to simplify usage:
+
+- **OS**: `"unified"` (combines iOS + Android)
+- **Region**: `"WW"` (Worldwide) 
+- **Date**: Current month start to present
+- **Limit**: `20` results
