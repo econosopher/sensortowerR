@@ -202,28 +202,6 @@ top_rpgs <- st_top_charts(
   category = role_playing_id
 )
 
-# Create professional analytics table
-top_rpgs %>%
-  select(unified_app_name, entities.users_absolute, entities.users_delta,
-         downloads_180d_ww, revenue_180d_ww, retention_1d_us, rpd_alltime_us) %>%
-  slice_head(n = 10) %>%
-  gt(rowname_col = "unified_app_name") %>%
-  tab_header(
-    title = "Top Role Playing Games - Enhanced Analytics",
-    subtitle = paste("Worldwide -", format(floor_date(Sys.Date(), "month"), "%B %Y"))
-  ) %>%
-  cols_label(
-    entities.users_absolute = "Current MAU",
-    entities.users_delta = "MAU Change", 
-    downloads_180d_ww = "Downloads (180d)",
-    revenue_180d_ww = "Revenue (180d)",
-    retention_1d_us = "Day 1 Retention",
-    rpd_alltime_us = "RPD (All Time)"
-  ) %>%
-  fmt_number(columns = c(entities.users_absolute, entities.users_delta, downloads_180d_ww),
-             decimals = 0, use_seps = TRUE) %>%
-  fmt_currency(columns = c(revenue_180d_ww, rpd_alltime_us), currency = "USD", decimals = 0) %>%
-  fmt_percent(columns = retention_1d_us, decimals = 1)
 ```
 
 ##  Defaults
