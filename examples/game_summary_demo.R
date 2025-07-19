@@ -28,10 +28,8 @@ cat("Columns:", paste(names(ios_games), collapse = ", "), "\n")
 daily_summary <- ios_games %>%
   group_by(Date) %>%
   summarise(
-    Total_iPhone_Downloads = sum(`iPhone Downloads`, na.rm = TRUE),
-    Total_iPhone_Revenue = sum(`iPhone Revenue`, na.rm = TRUE),
-    Total_iPad_Downloads = sum(`iPad Downloads`, na.rm = TRUE),
-    Total_iPad_Revenue = sum(`iPad Revenue`, na.rm = TRUE),
+    Total_iOS_Downloads = sum(`iOS Downloads`, na.rm = TRUE),
+    Total_iOS_Revenue = sum(`iOS Revenue`, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -52,8 +50,8 @@ multi_country <- st_game_summary(
 country_revenue <- multi_country %>%
   group_by(`Country Code`) %>%
   summarise(
-    Total_Revenue = sum(`iPhone Revenue` + `iPad Revenue`, na.rm = TRUE),
-    Total_Downloads = sum(`iPhone Downloads` + `iPad Downloads`, na.rm = TRUE),
+    Total_Revenue = sum(`iOS Revenue`, na.rm = TRUE),
+    Total_Downloads = sum(`iOS Downloads`, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   arrange(desc(Total_Revenue))
@@ -83,23 +81,26 @@ cat("\n📋 Summary Table\n")
 summary_table <- ios_games %>%
   group_by(`Country Code`, Date) %>%
   summarise(
-    iPhone_Revenue = sum(`iPhone Revenue`, na.rm = TRUE),
-    iPad_Revenue = sum(`iPad Revenue`, na.rm = TRUE),
-    Total_Revenue = iPhone_Revenue + iPad_Revenue,
+    iOS_Downloads = sum(`iOS Downloads`, na.rm = TRUE),
+    iOS_Revenue = sum(`iOS Revenue`, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  arrange(desc(Total_Revenue)) %>%
+  arrange(desc(iOS_Revenue)) %>%
   head(10)
 
 formatted_table <- summary_table %>%
   gt() %>%
   tab_header(
     title = "Top iOS Game Market Performance",
-    subtitle = "Daily revenue breakdown by country"
+    subtitle = "Daily downloads and revenue by country (iPhone + iPad combined)"
   ) %>%
   fmt_currency(
-    columns = c(iPhone_Revenue, iPad_Revenue, Total_Revenue),
+    columns = iOS_Revenue,
     currency = "USD",
+    decimals = 0
+  ) %>%
+  fmt_number(
+    columns = iOS_Downloads,
     decimals = 0
   ) %>%
   fmt_date(
@@ -111,6 +112,7 @@ print(formatted_table)
 
 cat("\n🎯 Key Features Demonstrated:\n")
 cat("✅ Multiple platforms (iOS, Android, Unified)\n")
+cat("✅ Automatic iPhone + iPad data combination\n")
 cat("✅ Flexible date ranges and granularities\n")
 cat("✅ Multi-country analysis\n")
 cat("✅ Automatic field name mapping\n")

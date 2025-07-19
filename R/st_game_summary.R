@@ -27,19 +27,25 @@
 #' @return A [tibble][tibble::tibble] with game market summary data including:
 #'   - **Category information**: Game category details
 #'   - **Geographic data**: Country-level breakdowns
-#'   - **Downloads**: iPhone, iPad, and Android download estimates
-#'   - **Revenue**: Platform-specific revenue estimates
+#'   - **Downloads**: Unified iOS (iPhone + iPad combined) and Android download estimates
+#'   - **Revenue**: Unified iOS (iPhone + iPad combined) and Android revenue estimates
 #'   - **Time series**: Data broken down by specified granularity
+#'   
+#'   **Automatic Data Combination**: For iOS and unified platforms, iPhone and iPad
+#'   data are automatically combined into single "iOS Downloads" and "iOS Revenue" 
+#'   columns for simplified analysis.
 #'
 #' @section API Endpoint Used:
 #'   - **Game Summary**: `GET /v1/\{os\}/games_breakdown`
 #'
-#' @section Field Mappings:
+#' @section Field Mappings and Processing:
 #'   The API returns abbreviated field names which are automatically mapped to 
-#'   descriptive names:
-#'   - **iOS**: `iu` → iPhone Downloads, `ir` → iPhone Revenue, `au` → iPad Downloads, `ar` → iPad Revenue
+#'   descriptive names and processed:
+#'   - **iOS**: `iu` + `au` → iOS Downloads (combined), `ir` + `ar` → iOS Revenue (combined)
 #'   - **Android**: `u` → Android Downloads, `r` → Android Revenue
 #'   - **Common**: `cc` → Country Code, `d` → Date, `aid` → App ID
+#'   
+#'   iPhone and iPad data are automatically combined for simplified analysis.
 #'
 #' @examples
 #' \dontrun{
@@ -184,6 +190,31 @@ process_game_summary_response <- function(resp, os) {
   for (col in numeric_cols) {
     if (is.character(result_tbl[[col]])) {
       result_tbl[[col]] <- as.numeric(result_tbl[[col]])
+    }
+  }
+  
+  # Automatically combine iPad and iPhone data into unified iOS totals
+  if (os %in% c("ios", "unified")) {
+    # Check if we have both iPhone and iPad columns
+    has_iphone_downloads <- "iPhone Downloads" %in% names(result_tbl)
+    has_ipad_downloads <- "iPad Downloads" %in% names(result_tbl)
+    has_iphone_revenue <- "iPhone Revenue" %in% names(result_tbl)
+    has_ipad_revenue <- "iPad Revenue" %in% names(result_tbl)
+    
+    if (has_iphone_downloads && has_ipad_downloads) {
+      result_tbl$`iOS Downloads` <- result_tbl$`iPhone Downloads` + result_tbl$`iPad Downloads`
+      # Remove individual device columns
+      result_tbl$`iPhone Downloads` <- NULL
+      result_tbl$`iPad Downloads` <- NULL
+      message("Combined iPhone and iPad downloads into 'iOS Downloads'")
+    }
+    
+    if (has_iphone_revenue && has_ipad_revenue) {
+      result_tbl$`iOS Revenue` <- result_tbl$`iPhone Revenue` + result_tbl$`iPad Revenue`
+      # Remove individual device columns
+      result_tbl$`iPhone Revenue` <- NULL
+      result_tbl$`iPad Revenue` <- NULL
+      message("Combined iPhone and iPad revenue into 'iOS Revenue'")
     }
   }
   

@@ -440,6 +440,9 @@ clean_numeric_values <- function(data) {
   return(data)
 }
 
+# Global cache for app name lookups to avoid redundant API calls across function calls
+.app_name_cache <- new.env()
+
 # Helper function to lookup app names by app ID (for sales endpoint which doesn't provide names)
 lookup_app_names_by_id <- function(data) {
   if (!"entities.app_id" %in% names(data) || nrow(data) == 0) {
@@ -471,45 +474,92 @@ lookup_app_names_by_id <- function(data) {
     return(data)
   }
   
-  # Initialize lookup results
+  # Initialize lookup results - first check cache
   app_id_to_name <- setNames(rep(NA_character_, length(unique_app_ids)), unique_app_ids)
   
-  # Look up each unique app ID
-  for (i in seq_along(unique_app_ids)) {
-    app_id <- unique_app_ids[i]
+  # Check cache first to avoid redundant API calls
+  cached_count <- 0
+  for (app_id in unique_app_ids) {
+    if (exists(app_id, envir = .app_name_cache)) {
+      app_id_to_name[app_id] <- get(app_id, envir = .app_name_cache)
+      cached_count <- cached_count + 1
+    }
+  }
+  
+  if (cached_count > 0) {
+    message(sprintf("  Found %d app names in cache (skipping API calls)", cached_count))
+  }
+  
+  # Only lookup app IDs that are not in cache
+  unique_app_ids <- unique_app_ids[is.na(app_id_to_name)]
+  
+  # Early exit if all app IDs were found in cache
+  if (length(unique_app_ids) == 0) {
+    message("All app names found in cache - no API calls needed!")
+    # Proceed to create unified_app_name column
+  } else {
+    # Batch lookup strategy: Use larger search queries to find multiple apps at once
+    batch_size <- 10  # Process apps in batches to reduce API calls
+    successful_lookups <- cached_count  # Include cached results in success count
+  
+  # Process unique app IDs in batches
+  for (batch_start in seq(1, length(unique_app_ids), by = batch_size)) {
+    batch_end <- min(batch_start + batch_size - 1, length(unique_app_ids))
+    current_batch <- unique_app_ids[batch_start:batch_end]
     
-    # Progress indicator for larger datasets
-    if (length(unique_app_ids) > 5) {
-      message(sprintf("  Looking up app %d/%d: %s", i, length(unique_app_ids), app_id))
+    # Strategy 1: Try searching for exact app IDs individually (optimized)
+    for (app_id in current_batch) {
+      if (!is.na(app_id_to_name[app_id])) next  # Skip if already found
+      
+      tryCatch({
+        # Search for the app using the app_id as a search term
+        app_search <- st_app_info(term = app_id, limit = 3)  # Get more results to find exact matches
+        
+        if (nrow(app_search) > 0) {
+          # Look for exact app ID match in the results
+          exact_match_idx <- which(app_search$unified_app_id == app_id)
+          
+          if (length(exact_match_idx) > 0) {
+            # Found exact match
+            app_name <- app_search$unified_app_name[exact_match_idx[1]]
+                         if (!is.na(app_name) && app_name != "") {
+               app_id_to_name[app_id] <- app_name
+               # Cache the result for future use
+               assign(app_id, app_name, envir = .app_name_cache)
+               successful_lookups <- successful_lookups + 1
+               message(sprintf("  Found: %s -> %s", app_id, app_name))
+             }
+                     } else if (!is.na(app_search$unified_app_name[1])) {
+             # Use first result as fallback (for package names that might match)
+             app_name <- app_search$unified_app_name[1]
+             app_id_to_name[app_id] <- app_name
+             # Cache the result for future use
+             assign(app_id, app_name, envir = .app_name_cache)
+             successful_lookups <- successful_lookups + 1
+             message(sprintf("  Found: %s -> %s", app_id, app_name))
+           }
+        }
+        
+      }, error = function(e) {
+        # Silently continue if lookup fails
+        if (length(unique_app_ids) <= 10) {
+          message(sprintf("  Error looking up %s: %s", app_id, e$message))
+        }
+      })
     }
     
-    tryCatch({
-      # Search for the app using the app_id as a search term
-      # This works for both iOS App Store IDs and Android package names
-      app_search <- st_app_info(term = app_id, limit = 1)
-      
-      if (nrow(app_search) > 0 && !is.na(app_search$unified_app_name[1])) {
-        app_id_to_name[app_id] <- app_search$unified_app_name[1]
-        if (length(unique_app_ids) <= 5) {
-          message(sprintf("  Found: %s -> %s", app_id, app_search$unified_app_name[1]))
-        }
-      } else {
-        if (length(unique_app_ids) <= 5) {
-          message(sprintf("  Not found: %s (will use app ID)", app_id))
-        }
-      }
-      
-      # Add small delay to be respectful to API
-      if (length(unique_app_ids) > 1) {
-        Sys.sleep(0.1)
-      }
-      
-    }, error = function(e) {
-      # Silently continue if lookup fails
-      if (length(unique_app_ids) <= 5) {
-        message(sprintf("  Error looking up %s: %s", app_id, e$message))
-      }
-    })
+    # Add batch delay to be respectful to API (reduced total delay)
+    if (batch_end < length(unique_app_ids)) {
+      Sys.sleep(0.5)  # Longer delay between batches, shorter overall time
+    }
+  }
+  
+    # Report lookup success rate for API calls only
+    not_found_count <- sum(is.na(app_id_to_name))
+    total_lookups <- cached_count + length(unique_app_ids)
+    message(sprintf("App name lookup completed: %d/%d successful (%.1f%%)", 
+                    successful_lookups, total_lookups, 
+                    (successful_lookups / total_lookups) * 100))
   }
   
   # Create or update unified_app_name based on lookup results
@@ -694,6 +744,17 @@ clean_date_values <- function(data) {
   }
   
   return(data)
+}
+
+#' Clear App Name Cache
+#'
+#' Clears the internal cache of app name lookups. Useful for testing or when
+#' you want to refresh app name data.
+#'
+#' @export
+st_clear_app_cache <- function() {
+  rm(list = ls(envir = .app_name_cache), envir = .app_name_cache)
+  message("App name cache cleared")
 }
 
  
