@@ -1,6 +1,6 @@
 Package: sensortowerR
 Title: A Wrapper for the 'Sensor Tower' API
-Version: 0.1.0
+Version: 0.1.5
 Description: Provides functions to access and process data from the 'Sensor Tower' API, including top charts, app intelligence, and more.
 License: MIT + file LICENSE
 Encoding: UTF-8

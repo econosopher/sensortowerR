@@ -157,6 +157,6 @@ st_app_info <- function(term,
         unified_app_id = .data$app_id,
         unified_app_name = .data$name
       )
-    return(extracted_info)
+    return(tibble::as_tibble(extracted_info))
   }
 }

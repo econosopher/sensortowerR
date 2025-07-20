@@ -49,9 +49,13 @@ the response with readable column names and processes the data.}
 A [tibble][tibble::tibble] with game market summary data including:
   - **Category information**: Game category details
   - **Geographic data**: Country-level breakdowns
-  - **Downloads**: iPhone, iPad, and Android download estimates
-  - **Revenue**: Platform-specific revenue estimates
+  - **Downloads**: Unified iOS (iPhone + iPad combined) and Android download estimates
+  - **Revenue**: Unified iOS (iPhone + iPad combined) and Android revenue estimates
   - **Time series**: Data broken down by specified granularity
+  
+  **Automatic Data Combination**: For iOS and unified platforms, iPhone and iPad
+  data are automatically combined into single "iOS Downloads" and "iOS Revenue" 
+  columns for simplified analysis.
 }
 \description{
 Retrieves aggregated download and revenue estimates by game categories, 
@@ -63,13 +67,15 @@ performance across different segments.
   - **Game Summary**: `GET /v1/\{os\}/games_breakdown`
 }
 
-\section{Field Mappings}{
+\section{Field Mappings and Processing}{
 
   The API returns abbreviated field names which are automatically mapped to 
-  descriptive names:
-  - **iOS**: `iu` → iPhone Downloads, `ir` → iPhone Revenue, `au` → iPad Downloads, `ar` → iPad Revenue
+  descriptive names and processed:
+  - **iOS**: `iu` + `au` → iOS Downloads (combined), `ir` + `ar` → iOS Revenue (combined)
   - **Android**: `u` → Android Downloads, `r` → Android Revenue
   - **Common**: `cc` → Country Code, `d` → Date, `aid` → App ID
+  
+  iPhone and iPad data are automatically combined for simplified analysis.
 }
 
 \examples{

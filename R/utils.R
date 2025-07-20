@@ -11,7 +11,7 @@
 #'   resp_body_string
 #' @importFrom jsonlite fromJSON
 #' @importFrom tibble as_tibble
-#' @importFrom utils URLencode
+#' @importFrom utils URLencode head
 #' @importFrom tidyr unnest
 #' @importFrom dplyr rename all_of
 #'

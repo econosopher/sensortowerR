@@ -35,8 +35,8 @@ test_that("API calls retrieve data", {
   expect_s3_class(metrics, "tbl_df")
   expect_true(nrow(metrics) > 0)
 
-  # Test st_top_sales
-  top_sales <- st_top_sales(
+  # Test st_top_charts (replaces st_top_sales)
+  top_sales <- st_top_charts(
     os = "ios",
     comparison_attribute = "absolute",
     time_range = "month",
@@ -50,13 +50,14 @@ test_that("API calls retrieve data", {
   expect_s3_class(top_sales, "tbl_df")
   expect_true(nrow(top_sales) > 0)
 
-  # Test st_top_active_users
-  top_active <- st_top_active_users(
+  # Test st_top_charts with active users
+  top_active <- st_top_charts(
     os = "android",
     comparison_attribute = "absolute",
     time_range = "quarter",
     measure = "MAU",
     date = "2023-10-01",
+    category = "game",  # Games category for Android
     regions = "WW",
     limit = 3,
     auth_token = auth_token
@@ -97,8 +98,9 @@ test_that("clean_numeric_values removes special characters correctly", {
   expect_equal(cleaned_data$downloads_180d_ww[2], 2500)
   expect_equal(cleaned_data$downloads_180d_ww[3], 45)
   expect_equal(cleaned_data$revenue_30d_us[1], 1000.50)
-  expect_equal(cleaned_data$retention_7d_us[1], 15.5)
-  expect_equal(cleaned_data$retention_7d_us[2], 25)
+  # Retention values are converted to decimals (divided by 100)
+  expect_equal(cleaned_data$retention_7d_us[1], 0.155)
+  expect_equal(cleaned_data$retention_7d_us[2], 0.25)
   
   # Check that NA values are preserved
   expect_true(is.na(cleaned_data$downloads_180d_ww[5]))

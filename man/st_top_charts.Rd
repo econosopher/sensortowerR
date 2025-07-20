@@ -21,7 +21,8 @@ st_top_charts(
   data_model = "DM_2025_Q2",
   auth_token = NULL,
   base_url = "https://api.sensortower.com",
-  enrich_response = TRUE
+  enrich_response = TRUE,
+  deduplicate_apps = TRUE
 )
 }
 \arguments{
@@ -77,12 +78,23 @@ Defaults to "DM_2025_Q2". Only used for active user metrics.}
 
 \item{enrich_response}{Optional. Logical. If `TRUE` (default), enriches
 the response with app metadata and custom metrics.}
+
+\item{deduplicate_apps}{Optional. Logical. If `TRUE` (default), consolidates
+apps with the same name but different platform/regional SKUs into single rows
+with aggregated metrics. If `FALSE`, returns separate rows for each SKU.}
 }
 \value{
 A [tibble][tibble::tibble] with top app data including enhanced
   custom metrics like downloads, revenue, retention rates, and more.
   For sales data (revenue/downloads), app names are automatically looked up
   using the app IDs since the sales endpoint doesn't provide app names natively.
+  
+  **Data Cleaning**: Numeric metric values are automatically cleaned of special 
+  characters (%, $, commas) and converted to proper numeric format for analysis.
+  
+  **App Deduplication**: By default, apps with the same name but different 
+  platform/regional SKUs are consolidated into single rows with aggregated metrics
+  (downloads/revenue summed, rates/percentages averaged).
 }
 \description{
 Retrieves top apps from Sensor Tower based on revenue, downloads ("units"), 

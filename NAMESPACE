@@ -2,6 +2,7 @@
 
 export(st_app_info)
 export(st_categories)
+export(st_clear_app_cache)
 export(st_game_summary)
 export(st_metrics)
 export(st_publisher_apps)
@@ -44,4 +45,5 @@ importFrom(tibble,as_tibble)
 importFrom(tibble,tibble)
 importFrom(tidyr,unnest)
 importFrom(utils,URLencode)
+importFrom(utils,head)
 importFrom(utils,str)
