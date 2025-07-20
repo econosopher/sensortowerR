@@ -27,6 +27,28 @@ usethis::edit_r_environ()
 
 The package automatically uses the `SENSORTOWER_AUTH_TOKEN` environment variable.
 
+## Category Codes
+
+Common category codes for use with API functions:
+
+### iOS Categories
+- `6000` - Games (general)
+- `6014` - Games
+- `6016` - Social Networking
+- `7001` - Action (games)
+- `7002` - Adventure (games)
+- `7014` - Role Playing (games)
+
+### Android Categories
+- `GAME` - Games
+- `SOCIAL` - Social
+- `game` - Games (lowercase)
+- `game_action` - Action Games
+- `game_adventure` - Adventure Games
+- `game_role_playing` - Role Playing Games
+
+For a complete list, use `st_categories()` to see available categories.
+
 ## Core Functions
 
 - **`st_app_info()`**: Search for apps and get basic information
@@ -95,11 +117,12 @@ game_market <- st_game_summary(
 )
 
 # Analyze market trends
+# Note: iPhone and iPad data are automatically combined into iOS
 market_trends <- game_market %>%
   group_by(Date) %>%
   summarise(
-    Total_Revenue = sum(`iPhone Revenue` + `iPad Revenue`, na.rm = TRUE),
-    Total_Downloads = sum(`iPhone Downloads` + `iPad Downloads`, na.rm = TRUE)
+    Total_Revenue = sum(`iOS Revenue`, na.rm = TRUE),
+    Total_Downloads = sum(`iOS Downloads`, na.rm = TRUE)
   )
 ```
 
@@ -140,7 +163,7 @@ For sales data (revenue/downloads), the package **automatically looks up app nam
 ```r
 # Sales data automatically gets app names resolved
 top_revenue <- st_top_charts(measure = "revenue", category = 6000)
-# Returns: "LinkedIn: Network & Job Finder" instead of just "288429040"
+# Returns: "Pokémon GO" instead of just "834731712"
 ```
 
 **Features:**
