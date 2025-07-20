@@ -3,7 +3,7 @@
 
 # Load packages
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(char = c("devtools", "dplyr", "gt", "ggplot2"))
+pacman::p_load(char = c("devtools", "dplyr", "gt", "ggplot2", "tidyr", "scales", "webshot2"))
 
 # Load the development version
 devtools::load_all()
@@ -117,4 +117,105 @@ cat("✅ Flexible date ranges and granularities\n")
 cat("✅ Multi-country analysis\n")
 cat("✅ Automatic field name mapping\n")
 cat("✅ Clean, analysis-ready data\n")
-cat("✅ Integration with tidyverse and gt\n") 
+cat("✅ Integration with tidyverse and gt\n")
+
+# --- Create Visualizations ---
+
+# Create output directory
+output_dir <- "inst/images"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+# 1. Multi-Country Revenue Comparison
+cat("\n📊 Creating Revenue Comparison Visualization...\n")
+revenue_comparison <- multi_country %>%
+  select(Date, `Country Code`, `iOS Revenue`) %>%
+  ggplot(aes(x = Date, y = `iOS Revenue`, color = `Country Code`)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  scale_y_continuous(labels = scales::dollar_format(scale = 1e-6, suffix = "M")) +
+  scale_color_brewer(palette = "Dark2", name = "Country") +
+  labs(
+    title = "iOS Game Revenue by Country",
+    subtitle = "Daily revenue trends across major markets",
+    x = "Date",
+    y = "Revenue (USD Millions)",
+    caption = "Data source: Sensor Tower API"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5, color = "gray50"),
+    axis.title = element_text(size = 11),
+    legend.position = "bottom"
+  )
+
+ggsave(
+  filename = file.path(output_dir, "game_market_revenue_comparison.png"),
+  plot = revenue_comparison,
+  width = 10,
+  height = 6,
+  dpi = 300,
+  bg = "white"
+)
+
+# 2. Downloads vs Revenue Analysis
+cat("📊 Creating Downloads vs Revenue Analysis...\n")
+downloads_revenue_plot <- multi_country %>%
+  group_by(`Country Code`) %>%
+  summarise(
+    Total_Revenue = sum(`iOS Revenue`, na.rm = TRUE),
+    Total_Downloads = sum(`iOS Downloads`, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Revenue_Millions = Total_Revenue / 1000000,
+    Downloads_Millions = Total_Downloads / 1000000,
+    RPD = Total_Revenue / Total_Downloads
+  ) %>%
+  ggplot(aes(x = Downloads_Millions, y = Revenue_Millions)) +
+  geom_point(aes(size = RPD, color = `Country Code`), alpha = 0.7) +
+  geom_text(aes(label = `Country Code`), vjust = -1.5, size = 4) +
+  scale_x_continuous(labels = scales::comma_format(suffix = "M")) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = "M")) +
+  scale_size_continuous(range = c(5, 15), name = "RPD (USD)") +
+  scale_color_brewer(palette = "Set1", guide = "none") +
+  labs(
+    title = "Game Market Performance by Country",
+    subtitle = "Total downloads vs revenue (bubble size = revenue per download)",
+    x = "Total Downloads (Millions)",
+    y = "Total Revenue (USD Millions)",
+    caption = "Data source: Sensor Tower API"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5, color = "gray50"),
+    axis.title = element_text(size = 11),
+    legend.position = "bottom"
+  )
+
+ggsave(
+  filename = file.path(output_dir, "game_market_performance.png"),
+  plot = downloads_revenue_plot,
+  width = 10,
+  height = 8,
+  dpi = 300,
+  bg = "white"
+)
+
+# 3. Save the GT table as PNG
+cat("📊 Saving summary table as PNG...\n")
+formatted_table %>%
+  gtsave(
+    filename = file.path(output_dir, "game_market_summary_table.png"),
+    vwidth = 1000,
+    vheight = 600
+  )
+
+cat("\n✅ Visualizations created successfully!\n")
+cat("Files saved to:", output_dir, "\n")
+cat("- game_market_revenue_comparison.png\n")
+cat("- game_market_performance.png\n")
+cat("- game_market_summary_table.png\n") 

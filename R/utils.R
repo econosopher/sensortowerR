@@ -304,6 +304,25 @@ extract_custom_metrics <- function(data) {
     # Demographics
     "aggregate_tags.Age (Last Quarter, US)" = "age_us",
     "aggregate_tags.Age (Last Quarter, WW)" = "age_ww",
+    "aggregate_tags.Genders (Last Quarter, US)" = "genders_us",
+    "aggregate_tags.Genders (Last Quarter, WW)" = "genders_ww",
+    "aggregate_tags.Gender (Last Quarter, US)" = "gender_us",
+    "aggregate_tags.Gender (Last Quarter, WW)" = "gender_ww",
+    
+    # Additional revenue metrics
+    "aggregate_tags.Most Popular Country by Revenue" = "most_popular_country_revenue",
+    "aggregate_tags.Last 90 Days Downloads (US)" = "downloads_90d_us",
+    "aggregate_tags.Last 90 Days Downloads (WW)" = "downloads_90d_ww",
+    "aggregate_tags.Last 90 Days Revenue (US)" = "revenue_90d_us",
+    "aggregate_tags.Last 90 Days Revenue (WW)" = "revenue_90d_ww",
+    "aggregate_tags.ARPU (90 Days, US)" = "arpu_90d_us",
+    "aggregate_tags.ARPU (90 Days, WW)" = "arpu_90d_ww",
+    
+    # Platform shares
+    "aggregate_tags.Android Share (WW)" = "android_share_ww",
+    "aggregate_tags.iOS Share (WW)" = "ios_share_ww",
+    "aggregate_tags.Female Share (US)" = "female_share_us",
+    "aggregate_tags.Male Share (US)" = "male_share_us",
     
     # Additional useful metrics from entities.custom_tags (when available)
     "entities.custom_tags.Game Sub-genre" = "game_subgenre",
@@ -367,7 +386,7 @@ clean_numeric_values <- function(data) {
     is_custom_tag <- grepl("^entities\\.custom_tags\\.", col_name)
     
     # Skip obvious text columns 
-    is_text_column <- grepl("\\bname$|\\burl$|\\bdate$|app_id$|country$", col_name, ignore.case = TRUE)
+    is_text_column <- grepl("\\bname$|\\burl$|\\bdate$|app_id$|country$|gender|genre|style|category", col_name, ignore.case = TRUE)
     
     # If column matches our criteria and isn't obviously text, check the content
     if ((matches_pattern || is_aggregate_tag || is_custom_tag) && !is_text_column) {

@@ -198,10 +198,28 @@ role_playing_id <- marvel_info %>%
 
 # Get top RPG games with enhanced metrics using unified function
 top_rpgs <- st_top_charts(
-  measure = "MAU",
+  measure = "revenue",
   category = role_playing_id
 )
 
+```
+
+### Example Output: Top Role Playing Games Analytics Dashboard
+
+The `squad_rpg_analysis_unified.R` example generates a comprehensive analytics dashboard for the top role playing games:
+
+<p align="center"><img src="inst/images/rpg_analytics_dashboard.png" width="100%"></p>
+
+This dashboard showcases:
+- **Monthly and Daily Active Users** - worldwide and US metrics
+- **Downloads Performance** - 30-day, 180-day, and all-time totals
+- **Revenue Metrics** - comprehensive monetization data
+- **Revenue Per Download (RPD)** - key monetization efficiency metric
+- **User Retention** - Day 1, 7, and 30 retention rates
+
+Run the full example with:
+```r
+source("examples/squad_rpg_analysis_unified.R")
 ```
 
 ##  Defaults
