@@ -11,29 +11,6 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 devtools::install_github("econosopher/sensortowerR")
 ```
 
-## Package Loading
-
-We recommend using `pacman` for efficient package management:
-
-```r
-# Install pacman if needed
-if (!require("pacman")) install.packages("pacman")
-
-# Load packages efficiently
-pacman::p_load(
-  char = c(
-    "devtools",
-    "sensortowerR", 
-    "dplyr",
-    "lubridate",
-    "gt"  # For nice tables
-  )
-)
-
-# Load development version if working locally
-devtools::load_all()
-```
-
 ## Authentication
 
 Store your Sensor Tower API token as an environment variable:
@@ -55,8 +32,8 @@ The package automatically uses the `SENSORTOWER_AUTH_TOKEN` environment variable
 - **`st_app_info()`**: Search for apps and get basic information
 - **`st_publisher_apps()`**: Get all apps from a specific publisher  
 - **`st_metrics()`**: Detailed daily metrics for specific apps
-- **`st_top_charts()`**: **⭐ Unified function for all top charts** (revenue, downloads, DAU, WAU, MAU)
-- **`st_game_summary()`**: **🎮 NEW! Game market summary** (aggregated downloads/revenue by categories and countries)
+- **`st_top_charts()`**: **Unified function for all top charts** (revenue, downloads, DAU, WAU, MAU)
+- **`st_game_summary()`**: **NEW! Game market summary** (aggregated downloads/revenue by categories and countries)
 
 ## Quick Examples
 
@@ -85,7 +62,7 @@ metrics <- st_metrics(
 
 ### Top Charts with Enhanced Metrics
 ```r
-# ⭐ NEW: Unified function for all top charts
+# NEW: Unified function for all top charts
 # Top apps by revenue (default measure)
 top_revenue <- st_top_charts(category = 6000)  # iOS Games
 
@@ -107,7 +84,7 @@ top_rpg_games %>%
 
 ### Game Market Summary
 ```r
-# 🎮 NEW: Game market overview analysis
+# NEW: Game market overview analysis
 # iOS games market summary (last 7 days)
 game_market <- st_game_summary(
   categories = 7001,           # Game category
@@ -140,7 +117,7 @@ top_rpg_games %>%
   fmt_currency(columns = revenue_180d_ww, currency = "USD", decimals = 0)
 ```
 
-## ⭐ NEW: Unified Top Charts Function
+## NEW: Unified Top Charts Function
 
 The new `st_top_charts()` function combines revenue, downloads, and active user metrics in one simple interface:
 
@@ -156,7 +133,7 @@ st_top_charts(measure = "DAU", category = 7014)        # Daily Active Users
 
 The `st_top_charts()` function extracts comprehensive custom metrics:
 
-## 🚀 Automatic App Name Lookup
+## Automatic App Name Lookup
 
 For sales data (revenue/downloads), the package **automatically looks up app names** since the sales endpoint only provides app IDs:
 
@@ -167,13 +144,13 @@ top_revenue <- st_top_charts(measure = "revenue", category = 6000)
 ```
 
 **Features:**
-- ✅ **Automatic**: No manual work required
-- ✅ **Smart deduplication**: Avoids duplicate API calls  
-- ✅ **Cross-platform**: Works with iOS App Store IDs and Android package names
-- ✅ **Graceful fallback**: Uses app ID if lookup fails
-- ✅ **Progress tracking**: Shows lookup progress for larger datasets
+- **Automatic**: No manual work required
+- **Smart deduplication**: Avoids duplicate API calls  
+- **Cross-platform**: Works with iOS App Store IDs and Android package names
+- **Graceful fallback**: Uses app ID if lookup fails
+- **Progress tracking**: Shows lookup progress for larger datasets
 
-**📊 Available Metrics:**
+**Available Metrics:**
 - **Downloads**: `downloads_180d_ww`, `downloads_90d_us`
 - **Revenue**: `revenue_180d_ww`, `revenue_90d_us` 
 - **Retention**: `retention_1d_us`, `retention_7d_us`, `retention_30d_us`
