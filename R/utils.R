@@ -439,10 +439,10 @@ clean_numeric_values <- function(data) {
         if (conversion_rate > 0.5) {  # If more than 50% converted successfully
           data[[col]] <- numeric_values
           
-          # Special handling for retention metrics - convert from integer % to decimal
+          # Special handling for retention metrics - keep as percentage values
           if (grepl("retention", col, ignore.case = TRUE)) {
-            data[[col]] <- data[[col]] / 100
-            message(sprintf("Converted column '%s' to numeric and converted to decimal (divided by 100)", col))
+            # Keep retention as percentage values (0-100) not decimals (0-1)
+            message(sprintf("Converted column '%s' to numeric (kept as percentage)", col))
           } else {
             # Log the cleaning for transparency
             if (has_percentages) {
@@ -626,14 +626,17 @@ deduplicate_apps_by_name <- function(data) {
   numeric_cols <- names(data)[sapply(data, is.numeric)]
   
   # Metrics to SUM (additive across platforms)
+  # IMPORTANT: DAU/MAU/WAU/users are NOT additive - same user can be on multiple platforms
   sum_metrics <- numeric_cols[grepl(
-    "downloads|revenue|users|mau|dau|wau|units|count|absolute", 
+    "downloads|revenue|units|count|absolute", 
     numeric_cols, ignore.case = TRUE
   )]
+  # Explicitly exclude user metrics from sum
+  sum_metrics <- sum_metrics[!grepl("dau|mau|wau|users", sum_metrics, ignore.case = TRUE)]
   
-  # Metrics to AVERAGE (rates, percentages, ratios)
+  # Metrics to AVERAGE (rates, percentages, ratios, AND user counts)
   avg_metrics <- numeric_cols[grepl(
-    "retention|rpd|rating|age|share|percent|rate|ratio|transformed", 
+    "retention|rpd|rating|age|share|percent|rate|ratio|transformed|dau|mau|wau|users", 
     numeric_cols, ignore.case = TRUE
   )]
   

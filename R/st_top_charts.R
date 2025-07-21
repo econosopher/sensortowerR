@@ -229,6 +229,11 @@ st_top_charts <- function(measure = "revenue",
   # --- Process Response ---
   result <- process_response(resp, enrich_response)
   
+  # --- Validate Data ---
+  if (nrow(result) > 0) {
+    result <- validate_top_charts_data(result, measure, regions)
+  }
+  
   # --- Deduplicate Apps (if requested) ---
   if (deduplicate_apps && "unified_app_name" %in% names(result)) {
     result <- deduplicate_apps_by_name(result)

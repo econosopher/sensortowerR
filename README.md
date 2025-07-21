@@ -2,7 +2,7 @@
 
 <p align="center"><img src="inst/images/sensortowerR_sticker.png" width="200"></p>
 
-An R package for interfacing with the Sensor Tower API to fetch mobile app analytics data, including app info, publisher details, revenue/download estimates, and active user metrics.
+An R package for interfacing with the Sensor Tower API to fetch mobile app analytics data, including app info, publisher details, revenue/download estimates, active user metrics, and professional dashboard generation.
 
 ## Installation
 
@@ -37,6 +37,7 @@ Common category codes for use with API functions:
 - `6016` - Social Networking
 - `7001` - Action (games)
 - `7002` - Adventure (games)
+- `7012` - Casino (games)
 - `7014` - Role Playing (games)
 
 ### Android Categories
@@ -45,6 +46,7 @@ Common category codes for use with API functions:
 - `game` - Games (lowercase)
 - `game_action` - Action Games
 - `game_adventure` - Adventure Games
+- `game_casino` - Casino Games
 - `game_role_playing` - Role Playing Games
 
 For a complete list, use `st_categories()` to see available categories.
@@ -54,15 +56,16 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_app_info()`**: Search for apps and get basic information
 - **`st_publisher_apps()`**: Get all apps from a specific publisher  
 - **`st_metrics()`**: Detailed daily metrics for specific apps
-- **`st_top_charts()`**: **Unified function for all top charts** (revenue, downloads, DAU, WAU, MAU)
-- **`st_game_summary()`**: **NEW! Game market summary** (aggregated downloads/revenue by categories and countries)
+- **`st_top_charts()`**: Unified function for all top charts (revenue, downloads, DAU, WAU, MAU)
+- **`st_game_summary()`**: Game market summary (aggregated downloads/revenue by categories and countries)
+- **`st_gt_dashboard()`**: **NEW!** Generate professional FiveThirtyEight-styled dashboards with one line of code
 
 ## Quick Examples
 
 ### Basic App Search
 ```r
 # Search for apps
-clash_info <- st_app_info("Clash Royale")
+monopoly_info <- st_app_info("Monopoly Go")
 pokemon_info <- st_app_info("Pokemon GO", limit = 1)
 ```
 
@@ -84,7 +87,6 @@ metrics <- st_metrics(
 
 ### Top Charts with Enhanced Metrics
 ```r
-# NEW: Unified function for all top charts
 # Top apps by revenue (default measure)
 top_revenue <- st_top_charts(category = 6000)  # iOS Games
 
@@ -97,7 +99,7 @@ top_rpg_games <- st_top_charts(
   category = 7014  # Role Playing category
 )
 
-# View enhanced custom metrics (24+ metrics available!)
+# View enhanced custom metrics (40+ metrics available!)
 top_rpg_games %>%
   select(unified_app_name, entities.users_absolute, 
          downloads_180d_ww, revenue_180d_ww, retention_1d_us, rpd_alltime_us) %>%
@@ -106,7 +108,7 @@ top_rpg_games %>%
 
 ### Game Market Summary
 ```r
-# NEW: Game market overview analysis
+# Game market overview analysis
 # iOS games market summary (last 7 days)
 game_market <- st_game_summary(
   categories = 7001,           # Game category
@@ -126,23 +128,55 @@ market_trends <- game_market %>%
   )
 ```
 
-### Create Professional Tables
+## NEW: Professional Dashboard Generation
+
+Create stunning FiveThirtyEight-styled dashboards with a single line of code:
+
 ```r
-# Beautiful analytics table
-top_rpg_games %>%
-  select(unified_app_name, entities.users_absolute, 
-         downloads_180d_ww, revenue_180d_ww) %>%
-  slice_head(n = 10) %>%
-  gt() %>%
-  tab_header(title = "Top Role Playing Games") %>%
-  fmt_number(columns = c(entities.users_absolute, downloads_180d_ww), 
-             decimals = 0, use_seps = TRUE) %>%
-  fmt_currency(columns = revenue_180d_ww, currency = "USD", decimals = 0)
+# Get top charts data
+top_games <- st_top_charts(category = 7012)  # Casino games
+
+# Generate dashboard with ONE line!
+st_gt_dashboard(top_games)
+
+# Customize the dashboard
+st_gt_dashboard(
+  top_games,
+  title = "Top Casino Games - US Market",
+  ranking_metric = "revenue_30d_ww",
+  save_path = "casino_dashboard.png"
+)
+
+# Minimal styling for reports
+st_gt_dashboard(top_games, raw = TRUE)
 ```
 
-## NEW: Unified Top Charts Function
+### Dashboard Features
+- **Automatic ranking** by customizable metric
+- **Bar charts** for revenue, downloads, and engagement metrics
+- **Retention heatmaps** with color gradients
+- **Country flag emojis** for international markets
+- **Gender demographics** with visual breakdown
+- **Smart formatting** with 2 decimal places for billions
+- **FiveThirtyEight styling** or clean minimal mode
 
-The new `st_top_charts()` function combines revenue, downloads, and active user metrics in one simple interface:
+### Dashboard Parameters
+- `title`: Custom title for the dashboard
+- `subtitle`: Auto-generated or custom subtitle
+- `ranking_metric`: Choose which metric to rank by
+- `show_demographics`: Toggle demographic columns
+- `show_engagement`: Toggle DAU/WAU/MAU columns
+- `show_retention`: Toggle retention metrics
+- `retention_region`: Choose retention region ("us", "ww")
+- `bar_charts`: Enable/disable bar chart visualizations
+- `heatmap_retention`: Enable/disable retention heatmaps
+- `raw`: Return minimal styling without visualizations
+- `save_path`: Save directly to PNG file
+- `color_scheme`: Customize colors for different metric types
+
+## Unified Top Charts Function
+
+The `st_top_charts()` function combines revenue, downloads, and active user metrics in one simple interface:
 
 ```r
 # All these use the same function with different measures:
@@ -156,8 +190,17 @@ st_top_charts(measure = "DAU", category = 7014)        # Daily Active Users
 
 The `st_top_charts()` function extracts comprehensive custom metrics:
 
-## Automatic App Name Lookup
+- **Downloads**: `downloads_180d_ww`, `downloads_90d_us`, `downloads_30d_ww`, `downloads_alltime_ww`
+- **Revenue**: `revenue_180d_ww`, `revenue_90d_us`, `revenue_30d_ww`, `revenue_alltime_ww`
+- **Active Users**: `dau_30d_ww`, `wau_4w_ww`, `mau_month_ww`
+- **Retention**: `retention_1d_us`, `retention_7d_us`, `retention_30d_us`, `retention_60d_us`
+- **Monetization**: `rpd_alltime_us`, `arpu_90d_us`
+- **Demographics**: `age_ww`, `male_share_us`, `female_share_us`
+- **Platform**: `ios_share_ww`, `android_share_ww`
 
+## Automatic Features
+
+### App Name Lookup
 For sales data (revenue/downloads), the package **automatically looks up app names** since the sales endpoint only provides app IDs:
 
 ```r
@@ -166,63 +209,79 @@ top_revenue <- st_top_charts(measure = "revenue", category = 6000)
 # Returns: "Pokémon GO" instead of just "834731712"
 ```
 
-**Features:**
-- **Automatic**: No manual work required
-- **Smart deduplication**: Avoids duplicate API calls  
-- **Cross-platform**: Works with iOS App Store IDs and Android package names
-- **Graceful fallback**: Uses app ID if lookup fails
-- **Progress tracking**: Shows lookup progress for larger datasets
+### App Deduplication
+By default, apps with the same name but different platform/regional SKUs are consolidated:
 
-**Available Metrics:**
-- **Downloads**: `downloads_180d_ww`, `downloads_90d_us`
-- **Revenue**: `revenue_180d_ww`, `revenue_90d_us` 
-- **Retention**: `retention_1d_us`, `retention_7d_us`, `retention_30d_us`
-- **Monetization**: `rpd_alltime_us`, `arpu_90d_us`
-- **Demographics**: `male_share_us`, `female_share_us`
-- **Platform**: `ios_share_ww`, `android_share_ww`
+```r
+# Genshin Impact (8 different app IDs) becomes one row with aggregated metrics
+top_games <- st_top_charts(category = 7014)
+# Downloads/revenue are summed, rates/percentages are averaged
+```
 
-## Example Workflow: Squad RPG Analysis
+## Example Workflow: Social Casino Analysis
 
 ```r
 # Load packages
-pacman::p_load(char = c("devtools", "gt", "dplyr", "lubridate", "tidyr"))
-devtools::load_all()
+library(sensortowerR)
 
-# Find Role Playing category ID
-marvel_info <- st_app_info("Marvel Strike Force", return_all_fields = TRUE, limit = 1)
-role_playing_id <- marvel_info %>%
+# Find Social Casino category from a specific game
+monopoly_info <- st_app_info("Monopoly Go", return_all_fields = TRUE, limit = 1)
+social_casino_id <- monopoly_info %>%
   tidyr::unnest(category_details) %>%
-  filter(grepl("Role Playing", category_name)) %>%
+  filter(grepl("Casino", category_name)) %>%
   pull(category_id) %>%
   first()
 
-# Get top RPG games with enhanced metrics using unified function
-top_rpgs <- st_top_charts(
+# Get top social casino games (US focus)
+top_casino <- st_top_charts(
   measure = "revenue",
-  category = role_playing_id
+  category = social_casino_id,
+  regions = "US"
 )
 
+# Create professional dashboard with one line
+st_gt_dashboard(
+  top_casino,
+  title = "Top Social Casino Games - US Market",
+  save_path = "social_casino_dashboard.png"
+)
 ```
 
-### Example Output: Top Role Playing Games Analytics Dashboard
+### Example Output: Social Casino Dashboard
 
-The `squad_rpg_analysis_unified.R` example generates a comprehensive analytics dashboard for the top role playing games:
+The `social_casino_analysis.R` example generates a comprehensive analytics dashboard for top social casino games:
 
-<p align="center"><img src="inst/images/rpg_analytics_dashboard.png" width="100%"></p>
+<p align="center"><img src="inst/images/social_casino_dashboard.png" width="100%"></p>
 
 This dashboard showcases:
-- **Monthly and Daily Active Users** - worldwide and US metrics
-- **Downloads Performance** - 30-day, 180-day, and all-time totals
-- **Revenue Metrics** - comprehensive monetization data
-- **Revenue Per Download (RPD)** - key monetization efficiency metric
-- **User Retention** - Day 1, 7, and 30 retention rates
+- **180-day Revenue Performance** - ranking metric with bar charts
+- **User Engagement** - DAU, WAU, MAU with visual comparisons
+- **Downloads Metrics** - 30-day, 180-day, and lifetime totals
+- **Retention Rates** - Day 1, 7, 30, and 60 retention with heatmaps
+- **Monetization** - Revenue Per Download (RPD) efficiency
+- **Demographics** - Age and gender breakdowns
+
+Additional visualizations generated:
+- Revenue trend analysis
+- DAU/MAU engagement ratios
+- Retention curves comparison
+- Monetization efficiency metrics
 
 Run the full example with:
 ```r
-source("examples/squad_rpg_analysis_unified.R")
+source("examples/category_analyses/social_casino_analysis.R")
 ```
 
-##  Defaults
+## Data Cleaning and Processing
+
+The package automatically handles:
+- **Numeric formatting**: Removes special characters ($, %, commas) from numeric values
+- **Date parsing**: Converts date strings to proper Date objects
+- **Missing values**: Gracefully handles NA values
+- **Retention values**: Maintains percentage format (0-100)
+- **Multi-platform aggregation**: Intelligently combines metrics across platforms
+
+## Defaults
 
 The package defaults to simplify usage:
 
@@ -230,3 +289,44 @@ The package defaults to simplify usage:
 - **Region**: `"WW"` (Worldwide) 
 - **Date**: Current month start to present
 - **Limit**: `20` results
+- **Deduplication**: `TRUE` (consolidates apps with same name)
+
+## Examples Directory Structure
+
+```
+examples/
+├── category_analyses/         # Comprehensive category analysis scripts
+│   ├── social_casino_analysis.R
+│   └── squad_rpg_analysis_*.R
+├── dashboard_examples/        # Dashboard generation examples
+│   └── test_gt_dashboard.R
+└── simple_examples/          # Basic usage examples
+    ├── api_optimization_demo.R
+    ├── game_summary_demo.R
+    └── simple_dashboard_example.R
+```
+
+## Advanced Features
+
+### Custom Metric Extraction
+The package extracts and renames 40+ custom metrics from Sensor Tower's aggregate and entity tags, making them easily accessible with intuitive column names.
+
+### Smart Data Processing
+- Automatic deduplication of apps with multiple SKUs
+- Intelligent metric aggregation (sum for additive metrics, average for rates)
+- Proper handling of user metrics (DAU/MAU/WAU averaged, not summed)
+
+### Professional Visualization
+- FiveThirtyEight-quality table styling
+- Automatic bar chart generation
+- Retention heatmaps with gradient coloring
+- Country flag emoji support
+- Gender demographic visualization
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This package is licensed under the MIT License.
