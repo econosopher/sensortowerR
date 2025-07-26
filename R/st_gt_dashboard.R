@@ -46,6 +46,10 @@
 #'
 #' @return GT object (if save_path is NULL) or saves image and returns path
 #'
+#' @importFrom purrr map2_chr map_chr
+#' @importFrom utils data
+#' @importFrom stats setNames
+#' @importFrom graphics title
 #' @export
 #'
 #' @examples
@@ -106,12 +110,16 @@ st_gt_dashboard <- function(
   )
 ) {
   
-  # Load required packages
-  require(gt)
-  require(gtExtras)
-  require(dplyr)
-  require(purrr)
-  require(stringr)
+  # Check for required packages
+  if (!requireNamespace("gt", quietly = TRUE)) {
+    stop("Package 'gt' is required for this function. Please install it with: install.packages('gt')")
+  }
+  if (!requireNamespace("gtExtras", quietly = TRUE)) {
+    stop("Package 'gtExtras' is required for this function. Please install it with: install.packages('gtExtras')")
+  }
+  if (!requireNamespace("stringr", quietly = TRUE)) {
+    stop("Package 'stringr' is required for this function. Please install it with: install.packages('stringr')")
+  }
   
   # Override styling options if raw mode
   if (raw) {
@@ -121,7 +129,7 @@ st_gt_dashboard <- function(
   
   # Helper function to format billions with 2 decimals
   format_billions <- function(val) {
-    if (is.na(val)) return("—")
+    if (is.na(val)) return("-")
     if (val >= 1e9) {
       paste0(formatC(val/1e9, format = "f", digits = 2), "B")
     } else if (val >= 1e6) {
@@ -135,7 +143,7 @@ st_gt_dashboard <- function(
   
   # Helper function to format currency with billions
   format_currency_billions <- function(val) {
-    if (is.na(val)) return("—")
+    if (is.na(val)) return("-")
     if (val >= 1e9) {
       paste0("$", formatC(val/1e9, format = "f", digits = 2), "B")
     } else if (val >= 1e6) {
@@ -152,7 +160,7 @@ st_gt_dashboard <- function(
     max_val <- max(values, na.rm = TRUE)
     
     purrr::map2_chr(values, labels, function(val, label) {
-      if (is.na(val)) return("—")
+      if (is.na(val)) return("-")
       bar_width <- (val / max_val) * 100
       
       # Use provided labels or format the value
@@ -184,27 +192,28 @@ st_gt_dashboard <- function(
     
     country_code <- toupper(country_code)
     
+    # Using ASCII-only country codes instead of flag emojis
     flags <- c(
-      "US" = "🇺🇸", "GB" = "🇬🇧", "CA" = "🇨🇦", "AU" = "🇦🇺", "DE" = "🇩🇪",
-      "FR" = "🇫🇷", "IT" = "🇮🇹", "ES" = "🇪🇸", "NL" = "🇳🇱", "SE" = "🇸🇪",
-      "NO" = "🇳🇴", "DK" = "🇩🇰", "FI" = "🇫🇮", "PL" = "🇵🇱", "RU" = "🇷🇺",
-      "BR" = "🇧🇷", "MX" = "🇲🇽", "AR" = "🇦🇷", "CL" = "🇨🇱", "CO" = "🇨🇴",
-      "JP" = "🇯🇵", "KR" = "🇰🇷", "CN" = "🇨🇳", "TW" = "🇹🇼", "HK" = "🇭🇰",
-      "SG" = "🇸🇬", "MY" = "🇲🇾", "TH" = "🇹🇭", "ID" = "🇮🇩", "PH" = "🇵🇭",
-      "VN" = "🇻🇳", "IN" = "🇮🇳", "PK" = "🇵🇰", "BD" = "🇧🇩", "LK" = "🇱🇰",
-      "AE" = "🇦🇪", "SA" = "🇸🇦", "EG" = "🇪🇬", "IL" = "🇮🇱", "TR" = "🇹🇷",
-      "ZA" = "🇿🇦", "NG" = "🇳🇬", "KE" = "🇰🇪", "GH" = "🇬🇭", "MA" = "🇲🇦",
-      "PT" = "🇵🇹", "GR" = "🇬🇷", "CH" = "🇨🇭", "AT" = "🇦🇹", "BE" = "🇧🇪",
-      "CZ" = "🇨🇿", "HU" = "🇭🇺", "RO" = "🇷🇴", "BG" = "🇧🇬", "SK" = "🇸🇰",
-      "HR" = "🇭🇷", "SI" = "🇸🇮", "LT" = "🇱🇹", "LV" = "🇱🇻", "EE" = "🇪🇪",
-      "IE" = "🇮🇪", "NZ" = "🇳🇿", "PE" = "🇵🇪", "VE" = "🇻🇪", "EC" = "🇪🇨",
-      "UY" = "🇺🇾", "PY" = "🇵🇾", "BO" = "🇧🇴", "CR" = "🇨🇷", "PA" = "🇵🇦",
-      "GT" = "🇬🇹", "HN" = "🇭🇳", "SV" = "🇸🇻", "NI" = "🇳🇮", "DO" = "🇩🇴",
-      "JM" = "🇯🇲", "TT" = "🇹🇹", "CU" = "🇨🇺", "PR" = "🇵🇷", "LU" = "🇱🇺",
-      "IS" = "🇮🇸", "MT" = "🇲🇹", "CY" = "🇨🇾", "AL" = "🇦🇱", "MK" = "🇲🇰",
-      "RS" = "🇷🇸", "BA" = "🇧🇦", "ME" = "🇲🇪", "XK" = "🇽🇰", "MD" = "🇲🇩",
-      "UA" = "🇺🇦", "BY" = "🇧🇾", "AM" = "🇦🇲", "GE" = "🇬🇪", "AZ" = "🇦🇿",
-      "KZ" = "🇰🇿", "UZ" = "🇺🇿", "TM" = "🇹🇲", "KG" = "🇰🇬", "TJ" = "🇹🇯"
+      "US" = "[US]", "GB" = "[GB]", "CA" = "[CA]", "AU" = "[AU]", "DE" = "[DE]",
+      "FR" = "[FR]", "IT" = "[IT]", "ES" = "[ES]", "NL" = "[NL]", "SE" = "[SE]",
+      "NO" = "[NO]", "DK" = "[DK]", "FI" = "[FI]", "PL" = "[PL]", "RU" = "[RU]",
+      "BR" = "[BR]", "MX" = "[MX]", "AR" = "[AR]", "CL" = "[CL]", "CO" = "[CO]",
+      "JP" = "[JP]", "KR" = "[KR]", "CN" = "[CN]", "TW" = "[TW]", "HK" = "[HK]",
+      "SG" = "[SG]", "MY" = "[MY]", "TH" = "[TH]", "ID" = "[ID]", "PH" = "[PH]",
+      "VN" = "[VN]", "IN" = "[IN]", "PK" = "[PK]", "BD" = "[BD]", "LK" = "[LK]",
+      "AE" = "[AE]", "SA" = "[SA]", "EG" = "[EG]", "IL" = "[IL]", "TR" = "[TR]",
+      "ZA" = "[ZA]", "NG" = "[NG]", "KE" = "[KE]", "GH" = "[GH]", "MA" = "[MA]",
+      "PT" = "[PT]", "GR" = "[GR]", "CH" = "[CH]", "AT" = "[AT]", "BE" = "[BE]",
+      "CZ" = "[CZ]", "HU" = "[HU]", "RO" = "[RO]", "BG" = "[BG]", "SK" = "[SK]",
+      "HR" = "[HR]", "SI" = "[SI]", "LT" = "[LT]", "LV" = "[LV]", "EE" = "[EE]",
+      "IE" = "[IE]", "NZ" = "[NZ]", "PE" = "[PE]", "VE" = "[VE]", "EC" = "[EC]",
+      "UY" = "[UY]", "PY" = "[PY]", "BO" = "[BO]", "CR" = "[CR]", "PA" = "[PA]",
+      "GT" = "[GT]", "HN" = "[HN]", "SV" = "[SV]", "NI" = "[NI]", "DO" = "[DO]",
+      "JM" = "[JM]", "TT" = "[TT]", "CU" = "[CU]", "PR" = "[PR]", "LU" = "[LU]",
+      "IS" = "[IS]", "MT" = "[MT]", "CY" = "[CY]", "AL" = "[AL]", "MK" = "[MK]",
+      "RS" = "[RS]", "BA" = "[BA]", "ME" = "[ME]", "XK" = "[XK]", "MD" = "[MD]",
+      "UA" = "[UA]", "BY" = "[BY]", "AM" = "[AM]", "GE" = "[GE]", "AZ" = "[AZ]",
+      "KZ" = "[KZ]", "UZ" = "[UZ]", "TM" = "[TM]", "KG" = "[KG]", "TJ" = "[TJ]"
     )
     
     if (country_code %in% names(flags)) {
@@ -238,7 +247,7 @@ st_gt_dashboard <- function(
             TRUE ~ "<1m"
           )
         },
-        TRUE ~ "—"
+        TRUE ~ "-"
       )
     )
   
@@ -318,17 +327,17 @@ st_gt_dashboard <- function(
   
   # Create GT table
   gt_table <- table_data %>%
-    gt()
+    gt::gt()
   
   # Apply theme based on raw parameter
   if (!raw) {
     gt_table <- gt_table %>%
-      gt_theme_538()
+      gtExtras::gt_theme_538()
   }
   
   # Add header
   gt_table <- gt_table %>%
-    tab_header(
+    gt::tab_header(
       title = title,
       subtitle = subtitle
     )
@@ -336,17 +345,17 @@ st_gt_dashboard <- function(
   # Apply compact mode if requested
   if (compact_mode && !raw) {
     gt_table <- gt_table %>%
-      tab_options(
-        data_row.padding = px(2),
+      gt::tab_options(
+        data_row.padding = gt::px(2),
         row.striping.include_table_body = FALSE
       )
   }
   
   # Center all column headers
   gt_table <- gt_table %>%
-    tab_style(
-      style = cell_text(align = "center"),
-      locations = cells_column_labels(everything())
+    gt::tab_style(
+      style = gt::cell_text(align = "center"),
+      locations = gt::cells_column_labels(everything())
     )
   
   # Build column labels dynamically
@@ -405,12 +414,12 @@ st_gt_dashboard <- function(
   
   # Apply column labels
   gt_table <- gt_table %>%
-    cols_label(!!!col_labels)
+    gt::cols_label(!!!col_labels)
   
   # Add column groups (spanners)
   if (!raw || ranking_metric %in% names(table_data)) {
     gt_table <- gt_table %>%
-      tab_spanner(
+      gt::tab_spanner(
         label = "RANKING KPI",
         columns = all_of(ranking_metric)
       )
@@ -422,7 +431,7 @@ st_gt_dashboard <- function(
                                      "entities.custom_tags.Most Popular Country by Revenue",
                                      "most_popular_country_revenue"))
     gt_table <- gt_table %>%
-      tab_spanner(
+      gt::tab_spanner(
         label = "DEMOGRAPHICS", 
         columns = all_of(demo_cols_present)
       )
@@ -432,7 +441,7 @@ st_gt_dashboard <- function(
                                     c("revenue_30d_ww", "revenue_alltime_ww", "rpd_alltime_ww"))
   if (length(revenue_cols_present) > 0) {
     gt_table <- gt_table %>%
-      tab_spanner(
+      gt::tab_spanner(
         label = "REVENUE",
         columns = all_of(revenue_cols_present)
       )
@@ -443,7 +452,7 @@ st_gt_dashboard <- function(
                                          c("dau_30d_ww", "wau_4w_ww", "mau_month_ww"))
     if (length(engagement_cols_present) > 0) {
       gt_table <- gt_table %>%
-        tab_spanner(
+        gt::tab_spanner(
           label = "ENGAGEMENT",
           columns = all_of(engagement_cols_present)
         )
@@ -454,7 +463,7 @@ st_gt_dashboard <- function(
                                       c("downloads_30d_ww", "downloads_180d_ww", "downloads_alltime_ww"))
   if (length(downloads_cols_present) > 0) {
     gt_table <- gt_table %>%
-      tab_spanner(
+      gt::tab_spanner(
         label = "DOWNLOADS",
         columns = all_of(downloads_cols_present)
       )
@@ -462,7 +471,7 @@ st_gt_dashboard <- function(
   
   if (show_retention && length(available_retention) > 0) {
     gt_table <- gt_table %>%
-      tab_spanner(
+      gt::tab_spanner(
         label = paste0("RETENTION (", toupper(retention_region), ")"),
         columns = all_of(available_retention)
       )
@@ -470,37 +479,37 @@ st_gt_dashboard <- function(
   
   # Apply number formatting
   gt_table <- gt_table %>%
-    fmt_number(
+    gt::fmt_number(
       columns = rank,
       decimals = 0
     ) %>%
-    sub_missing(
+    gt::sub_missing(
       columns = everything(),
-      missing_text = "—"
+      missing_text = "-"
     )
   
   # Format numeric columns based on raw parameter
   if (raw) {
     # Simple formatting for raw mode
     gt_table <- gt_table %>%
-      fmt_number(
+      gt::fmt_number(
         columns = any_of(c("age_ww", "dau_30d_ww", "wau_4w_ww", "mau_month_ww",
                           "downloads_30d_ww", "downloads_180d_ww", "downloads_alltime_ww")),
         decimals = 0,
         suffixing = TRUE
       ) %>%
-      fmt_currency(
+      gt::fmt_currency(
         columns = any_of(c(ranking_metric, "revenue_30d_ww", "revenue_alltime_ww")),
         currency = "USD",
         decimals = 0,
         suffixing = TRUE
       ) %>%
-      fmt_currency(
+      gt::fmt_currency(
         columns = any_of("rpd_alltime_ww"),
         currency = "USD",
         decimals = 2
       ) %>%
-      fmt_percent(
+      gt::fmt_percent(
         columns = any_of(available_retention),
         decimals = 0,
         scale_values = FALSE
@@ -510,17 +519,17 @@ st_gt_dashboard <- function(
     
     # Format engagement metrics
     gt_table <- gt_table %>%
-      fmt_number(
+      gt::fmt_number(
         columns = any_of(c("age_ww", "dau_30d_ww", "wau_4w_ww", "mau_month_ww")),
         decimals = 0,
         suffixing = TRUE
       ) %>%
-      fmt_currency(
+      gt::fmt_currency(
         columns = any_of("rpd_alltime_ww"),
         currency = "USD",
         decimals = 2
       ) %>%
-      fmt_percent(
+      gt::fmt_percent(
         columns = any_of(available_retention),
         decimals = 0,
         scale_values = FALSE
@@ -534,8 +543,8 @@ st_gt_dashboard <- function(
         original_ranking_values <- table_data[[ranking_metric]]
         
         gt_table <- gt_table %>%
-          text_transform(
-            locations = cells_body(columns = all_of(ranking_metric)),
+          gt::text_transform(
+            locations = gt::cells_body(columns = all_of(ranking_metric)),
             fn = function(x) {
               create_bar_chart(
                 original_ranking_values, 
@@ -549,8 +558,8 @@ st_gt_dashboard <- function(
       
       if ("revenue_30d_ww" %in% names(table_data)) {
         gt_table <- gt_table %>%
-          text_transform(
-            locations = cells_body(columns = revenue_30d_ww),
+          gt::text_transform(
+            locations = gt::cells_body(columns = revenue_30d_ww),
             fn = function(x) {
               create_bar_chart(
                 table_data$revenue_30d_ww,
@@ -564,8 +573,8 @@ st_gt_dashboard <- function(
       
       if ("revenue_alltime_ww" %in% names(table_data)) {
         gt_table <- gt_table %>%
-          text_transform(
-            locations = cells_body(columns = revenue_alltime_ww),
+          gt::text_transform(
+            locations = gt::cells_body(columns = revenue_alltime_ww),
             fn = function(x) {
               create_bar_chart(
                 table_data$revenue_alltime_ww,
@@ -581,8 +590,8 @@ st_gt_dashboard <- function(
       for (dl_col in c("downloads_30d_ww", "downloads_180d_ww", "downloads_alltime_ww")) {
         if (dl_col %in% names(table_data)) {
           gt_table <- gt_table %>%
-            text_transform(
-              locations = cells_body(columns = all_of(dl_col)),
+            gt::text_transform(
+              locations = gt::cells_body(columns = all_of(dl_col)),
               fn = function(x) {
                 create_bar_chart(
                   table_data[[dl_col]],
@@ -602,8 +611,8 @@ st_gt_dashboard <- function(
           original_values <- table_data[[eng_col]]
           
           gt_table <- gt_table %>%
-            text_transform(
-              locations = cells_body(columns = all_of(eng_col)),
+            gt::text_transform(
+              locations = gt::cells_body(columns = all_of(eng_col)),
               fn = function(x) {
                 # x contains the formatted values (e.g., "779M", "2.1B")
                 # Use the formatted values as labels
@@ -623,7 +632,7 @@ st_gt_dashboard <- function(
     if (heatmap_retention && show_retention && length(available_retention) > 0) {
       for (ret_col in available_retention) {
         gt_table <- gt_table %>%
-          data_color(
+          gt::data_color(
             columns = all_of(ret_col),
             method = "numeric",
             palette = c(color_scheme$retention_low, 
@@ -642,7 +651,7 @@ st_gt_dashboard <- function(
           locations = cells_body(columns = genders_ww),
           fn = function(x) {
             purrr::map_chr(x, function(gender) {
-              if (is.na(gender) || gender == "") return("—")
+              if (is.na(gender) || gender == "") return("-")
               
               # Parse the gender percentage
               male_match <- regexpr("[0-9]+(?=% Male)", gender, perl = TRUE)
@@ -656,8 +665,8 @@ st_gt_dashboard <- function(
               
               sprintf(
                 '<div style="font-size: 12px; line-height: 1.3;">
-                  <div style="color: #4A90E2; font-weight: 500;">♂ %d%%</div>
-                  <div style="color: #E91E63; font-weight: 500;">♀ %d%%</div>
+                  <div style="color: #4A90E2; font-weight: 500;">\u2642 %d%%</div>
+                  <div style="color: #E91E63; font-weight: 500;">\u2640 %d%%</div>
                 </div>',
                 male_pct,
                 female_pct
@@ -682,7 +691,7 @@ st_gt_dashboard <- function(
               if (flag_text != "") {
                 sprintf('<span style="font-size: 14px;">%s</span>', flag_text)
               } else {
-                "—"
+                "-"
               }
             })
           }
@@ -691,7 +700,7 @@ st_gt_dashboard <- function(
     
     # Style the rank column
     gt_table <- gt_table %>%
-      tab_style(
+      gt::tab_style(
         style = list(
           cell_text(
             size = px(20),
@@ -706,22 +715,22 @@ st_gt_dashboard <- function(
     gt_table <- gt_table %>%
       text_transform(
         locations = cells_body(columns = rank, rows = 1),
-        fn = function(x) paste0(x, " 🥇")
+        fn = function(x) paste0(x, " \U0001f947")
       ) %>%
       text_transform(
         locations = cells_body(columns = rank, rows = 2),
-        fn = function(x) paste0(x, " 🥈")
+        fn = function(x) paste0(x, " \U0001f948")
       ) %>%
       text_transform(
         locations = cells_body(columns = rank, rows = 3),
-        fn = function(x) paste0(x, " 🥉")
+        fn = function(x) paste0(x, " \U0001f949")
       )
     
     # Highlight top 3 games
     gt_table <- gt_table %>%
-      tab_style(
+      gt::tab_style(
         style = list(
-          cell_fill(color = "#F2F2F2"),
+          gt::cell_fill(color = "#F2F2F2"),
           cell_text(weight = "bold")
         ),
         locations = cells_body(
@@ -732,7 +741,7 @@ st_gt_dashboard <- function(
     
     # Style game names
     gt_table <- gt_table %>%
-      tab_style(
+      gt::tab_style(
         style = list(
           cell_text(
             size = px(14),
@@ -746,9 +755,9 @@ st_gt_dashboard <- function(
   # Add footnotes
   if (!raw) {
     gt_table <- gt_table %>%
-      tab_footnote(
+      gt::tab_footnote(
         footnote = "Data represents worldwide metrics unless otherwise specified",
-        locations = cells_column_labels(columns = all_of(ranking_metric))
+        locations = gt::cells_column_labels(columns = all_of(ranking_metric))
       )
     
     # Check if we have engagement columns to add footnote
@@ -756,22 +765,22 @@ st_gt_dashboard <- function(
                                          c("dau_30d_ww", "wau_4w_ww", "mau_month_ww"))
     if (show_engagement && length(engagement_cols_in_table) > 0) {
       gt_table <- gt_table %>%
-        tab_footnote(
+        gt::tab_footnote(
           footnote = "All engagement metrics show average values over their respective time periods",
-          locations = cells_column_spanners(spanners = "ENGAGEMENT")
+          locations = gt::cells_column_spanners(spanners = "ENGAGEMENT")
         )
     }
     
     gt_table <- gt_table %>%
-      tab_source_note(
-        source_note = md("**Source:** Sensor Tower Store Intelligence")
+      gt::tab_source_note(
+        source_note = gt::md("**Source:** Sensor Tower Store Intelligence")
       )
   }
   
   # Save or return
   if (!is.null(save_path)) {
     gt_table %>%
-      gtsave(
+      gt::gtsave(
         filename = save_path,
         vwidth = width,
         vheight = height

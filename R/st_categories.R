@@ -14,18 +14,17 @@
 #'   (character, e.g., "Games").
 #' @export
 #' @examples
-#' \dontrun{
 #' # Get all categories
-#' all_cats <- st_categories() # Updated example call
-#' print(head(all_cats))
+#' all_cats <- st_categories()
+#' head(all_cats)
 #'
 #' # Get only iOS categories
-#' ios_cats <- st_categories(platform = "ios") # Updated example call
-#' print(head(ios_cats))
+#' ios_cats <- st_categories(platform = "ios")
+#' head(ios_cats)
 #'
-#' # Find the ID for Android "Music & Audio"
-#' subset(st_categories("android"), category_name == "Music & Audio")
-#' }
+#' # Find game categories on iOS
+#' ios_games <- subset(st_categories("ios"), grepl("Game", category_name))
+#' head(ios_games)
 st_categories <- function(platform = NULL) { # Renamed function
   # Access the internal data object st_category_data
   data <- st_category_data

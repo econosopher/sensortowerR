@@ -439,10 +439,11 @@ clean_numeric_values <- function(data) {
         if (conversion_rate > 0.5) {  # If more than 50% converted successfully
           data[[col]] <- numeric_values
           
-          # Special handling for retention metrics - keep as percentage values
-          if (grepl("retention", col, ignore.case = TRUE)) {
-            # Keep retention as percentage values (0-100) not decimals (0-1)
-            message(sprintf("Converted column '%s' to numeric (kept as percentage)", col))
+          # Special handling for retention metrics - convert to decimals
+          if (grepl("retention", col, ignore.case = TRUE) && has_percentages) {
+            # Convert retention percentages to decimals (15.5% becomes 0.155)
+            data[[col]] <- numeric_values / 100
+            message(sprintf("Converted column '%s' to numeric (percentages to decimals)", col))
           } else {
             # Log the cleaning for transparency
             if (has_percentages) {
@@ -546,7 +547,7 @@ lookup_app_names_by_id <- function(data) {
                # Cache the result for future use
                assign(app_id, app_name, envir = .app_name_cache)
                successful_lookups <- successful_lookups + 1
-               message(sprintf("  Found: %s -> %s", app_id, app_name))
+               message(sprintf("  Found: %s = %s", app_id, app_name))
              }
                      } else if (!is.na(app_search$unified_app_name[1])) {
              # Use first result as fallback (for package names that might match)

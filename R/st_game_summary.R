@@ -41,9 +41,9 @@
 #' @section Field Mappings and Processing:
 #'   The API returns abbreviated field names which are automatically mapped to 
 #'   descriptive names and processed:
-#'   - **iOS**: `iu` + `au` → iOS Downloads (combined), `ir` + `ar` → iOS Revenue (combined)
-#'   - **Android**: `u` → Android Downloads, `r` → Android Revenue
-#'   - **Common**: `cc` → Country Code, `d` → Date, `aid` → App ID
+#'   - **iOS**: `iu` + `au` = iOS Downloads (combined), `ir` + `ar` = iOS Revenue (combined)
+#'   - **Android**: `u` = Android Downloads, `r` = Android Revenue
+#'   - **Common**: `cc` = Country Code, `d` = Date, `aid` = App ID
 #'   
 #'   iPhone and iPad data are automatically combined for simplified analysis.
 #'

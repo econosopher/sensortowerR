@@ -40,3 +40,7 @@ inst/images/logo_creation.R
 ^LICENSE\.md$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^\.git$
+^\.claude$
+^\.\.\Rcheck$
+^\.DS_Store$

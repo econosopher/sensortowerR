@@ -58,7 +58,9 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_metrics()`**: Detailed daily metrics for specific apps
 - **`st_top_charts()`**: Unified function for all top charts (revenue, downloads, DAU, WAU, MAU)
 - **`st_game_summary()`**: Game market summary (aggregated downloads/revenue by categories and countries)
-- **`st_gt_dashboard()`**: **NEW!** Generate professional FiveThirtyEight-styled dashboards with one line of code
+- **`st_category_rankings()`**: **NEW!** Get official app store rankings by category
+- **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
+- **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
 
 ## Quick Examples
 
@@ -83,6 +85,41 @@ metrics <- st_metrics(
   start_date = Sys.Date() - 30,
   end_date = Sys.Date() - 1
 )
+```
+
+### Category Rankings
+```r
+# Get official App Store rankings
+ios_top_free <- st_category_rankings(
+  os = "ios",
+  category = 6014,  # Games
+  chart_type = "topfreeapplications",
+  country = "US",
+  limit = 10
+)
+
+# Get Google Play top grossing games
+android_top_grossing <- st_category_rankings(
+  os = "android",
+  category = "game",
+  chart_type = "topgrossing",
+  country = "US",
+  limit = 20
+)
+```
+
+### App Details
+```r
+# Get detailed metadata for specific apps
+app_details <- st_app_details(
+  app_ids = c("553834731", "1053012308"),  # Candy Crush, Clash Royale
+  os = "ios"
+)
+
+# View key information
+app_details %>%
+  select(app_name, publisher_name, rating, price, description) %>%
+  glimpse()
 ```
 
 ### Top Charts with Enhanced Metrics
@@ -209,6 +246,15 @@ top_revenue <- st_top_charts(measure = "revenue", category = 6000)
 # Returns: "Pokémon GO" instead of just "834731712"
 ```
 
+### Intelligent Data Type Handling
+The new functions ensure consistent data types for seamless joining:
+
+```r
+# Rankings return character app_ids, details also convert to character
+# This allows direct joining without type conversion
+rankings %>% left_join(details, by = "app_id")  # Works seamlessly
+```
+
 ### App Deduplication
 By default, apps with the same name but different platform/regional SKUs are consolidated:
 
@@ -216,6 +262,84 @@ By default, apps with the same name but different platform/regional SKUs are con
 # Genshin Impact (8 different app IDs) becomes one row with aggregated metrics
 top_games <- st_top_charts(category = 7014)
 # Downloads/revenue are summed, rates/percentages are averaged
+```
+
+## Combining Functions for Enriched Data
+
+The package is designed with composability in mind. Here's how to combine functions for richer insights:
+
+### Enriching Rankings with App Details
+```r
+# Step 1: Get current rankings
+rankings <- st_category_rankings(
+  os = "ios",
+  category = 6014,  # Games
+  chart_type = "topgrossingapplications",
+  limit = 10
+)
+
+# Step 2: Get detailed metadata for ranked apps
+details <- st_app_details(
+  app_ids = rankings$app_id,
+  os = "ios"
+)
+
+# Step 3: Combine for enriched rankings
+enriched_rankings <- rankings %>%
+  left_join(details %>% 
+    select(app_id, app_name, publisher_name, rating, 
+           rating_count, release_date), 
+    by = "app_id") %>%
+  arrange(rank)
+
+# View top grossing games with details
+enriched_rankings %>%
+  select(rank, app_name, publisher_name, rating, rating_count) %>%
+  head(10)
+```
+
+### Complete Market Analysis Workflow
+```r
+# 1. Find a category from a known app
+app_info <- st_app_info("Genshin Impact", return_all_fields = TRUE, limit = 1)
+rpg_category <- app_info %>%
+  tidyr::unnest(category_details) %>%
+  filter(grepl("Role Playing", category_name)) %>%
+  pull(category_id) %>%
+  first()
+
+# 2. Get current store rankings
+current_rankings <- st_category_rankings(
+  os = "ios",
+  category = rpg_category,
+  chart_type = "topgrossingapplications",
+  limit = 20
+)
+
+# 3. Get performance metrics for top apps
+top_metrics <- st_top_charts(
+  measure = "revenue",
+  category = rpg_category,
+  regions = "US"
+)
+
+# 4. Get detailed app information
+app_details <- st_app_details(
+  app_ids = current_rankings$app_id[1:10],
+  os = "ios"
+)
+
+# 5. Combine all data and create dashboard
+combined_data <- current_rankings %>%
+  left_join(app_details %>% select(app_id, app_name, publisher_name), by = "app_id") %>%
+  left_join(top_metrics %>% select(app_id, revenue_30d_ww, mau_month_ww), by = "app_id")
+
+# Generate professional dashboard
+st_gt_dashboard(
+  top_metrics,
+  title = "RPG Games Market Analysis",
+  save_path = "rpg_market_dashboard.png"
+)
 ```
 
 ## Example Workflow: Social Casino Analysis

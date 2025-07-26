@@ -247,6 +247,7 @@ process_sales_response <- function(resp, os) {
 #' @param category_ids Character vector of category IDs
 #' @param platform Character string. "ios" or "android"
 #' @return Character vector of category names
+#' @importFrom purrr map_chr
 #' @export
 lookup_category_names <- function(category_ids, platform = "ios") {
   # Load internal data

@@ -183,39 +183,3 @@ select_robust <- function(data, ...) {
   return(dplyr::select(data, all_of(selected)))
 }
 
-#' Create column mapping for region-specific data
-#' 
-#' @param data Data frame
-#' @param from_region Source region suffix (e.g., "ww")
-#' @param to_region Target region suffix (e.g., "us")
-#' @return Data frame with mapped columns
-#' @export
-map_region_columns <- function(data, from_region = "ww", to_region = "us") {
-  from_pattern <- paste0("_", from_region, "$")
-  to_replacement <- paste0("_", to_region)
-  
-  # Find columns to map
-  from_cols <- grep(from_pattern, names(data), value = TRUE)
-  
-  if (length(from_cols) == 0) {
-    return(data)
-  }
-  
-  # Create new column names
-  to_cols <- gsub(from_pattern, to_replacement, from_cols)
-  
-  # Check if target columns already exist
-  existing_to_cols <- intersect(to_cols, names(data))
-  
-  if (length(existing_to_cols) == 0) {
-    # Safe to map - create new columns
-    for (i in seq_along(from_cols)) {
-      if (!to_cols[i] %in% names(data)) {
-        data[[to_cols[i]]] <- data[[from_cols[i]]]
-        message(sprintf("Created %s from %s", to_cols[i], from_cols[i]))
-      }
-    }
-  }
-  
-  return(data)
-}

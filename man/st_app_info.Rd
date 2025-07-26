@@ -47,9 +47,6 @@ endpoint and fetches app IDs and names for unified app entities.
 }
 \examples{
 \dontrun{
-# Ensure the SENSORTOWER_AUTH_TOKEN environment variable is set
-# Sys.setenv(SENSORTOWER_AUTH_TOKEN = "your_auth_token_here")
-
 # Fetch unified app info for "Clash of Clans"
 app_info <- st_app_info(term = "Clash of Clans")
 print(app_info)
@@ -59,12 +56,6 @@ if ("category_details" \%in\% names(app_info)) {
   print("Categories for first app:")
   print(app_info$category_details[[1]])
 }
-
-# Fetch publisher info
-# publisher_info <- st_app_info(
-#   term = "Supercell", entity_type = "publisher"
-# )
-# print(publisher_info) # Note: returned columns might differ
 }
 
 }
