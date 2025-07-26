@@ -1,6 +1,6 @@
-# Multi-Platform CRAN Testing for sensortowerR
+# Cross-Platform Testing Guide for sensortowerR
 
-This document explains how to use the integrated multi-platform CRAN testing functionality to catch issues before submitting to CRAN.
+This package includes comprehensive cross-platform testing capabilities to ensure compatibility across Windows, Linux, and macOS before CRAN submission.
 
 ## Overview
 

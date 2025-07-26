@@ -447,6 +447,15 @@ The package extracts and renames 40+ custom metrics from Sensor Tower's aggregat
 - Country flag emoji support
 - Gender demographic visualization
 
+## Recent Changes
+
+### Version 0.5.0 (2025-01-26)
+- Enhanced cross-platform testing with rhub v2 GitHub Actions
+- Improved CRAN submission readiness with stricter checks
+- Updated documentation for function examples
+- Added comprehensive cross-platform test suite
+- Fixed minor issues identified during CRAN pre-submission checks
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
