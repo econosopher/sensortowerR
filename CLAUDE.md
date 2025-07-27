@@ -12,6 +12,14 @@
   - Performance improvements
   - Any meaningful code changes
 
+### When NOT to Increment Version
+- Very minor changes like:
+  - Deleting a single file
+  - Fixing typos
+  - Whitespace/formatting only changes
+  - Adding/removing comments
+  - File reorganization without functional changes
+
 ### Commit Messages
 Include a concise version summary with each commit that describes:
 - What was added/changed
