@@ -60,6 +60,8 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_game_summary()`**: Game market summary (aggregated downloads/revenue by categories and countries)
 - **`st_category_rankings()`**: **NEW!** Get official app store rankings by category
 - **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
+- **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
+- **`st_publisher_category_breakdown()`**: **NEW!** Analyze publisher revenue across categories
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
 
 ## Quick Examples
@@ -163,6 +165,44 @@ market_trends <- game_market %>%
     Total_Revenue = sum(`iOS Revenue`, na.rm = TRUE),
     Total_Downloads = sum(`iOS Downloads`, na.rm = TRUE)
   )
+```
+
+### Top Publishers Analysis
+```r
+# Get top 10 game publishers by revenue
+top_publishers <- st_top_publishers(
+  measure = "revenue",
+  os = "unified",
+  category = 6014,  # Games
+  time_range = "month",
+  limit = 10
+)
+
+# View publisher rankings with revenue
+top_publishers %>%
+  select(rank, publisher_name, revenue_usd, units_absolute) %>%
+  head()
+
+# Get top publishers by downloads with growth metrics
+growth_publishers <- st_top_publishers(
+  measure = "units",
+  comparison_attribute = "delta",
+  time_range = "week",
+  limit = 20
+)
+
+# Analyze publisher category breakdown
+publisher_ids <- top_publishers$publisher_id[1:5]
+category_breakdown <- st_publisher_category_breakdown(
+  publisher_ids = publisher_ids,
+  time_range = "month"
+)
+
+# View revenue distribution by category
+category_breakdown %>%
+  group_by(publisher_name) %>%
+  arrange(desc(category_percentage)) %>%
+  slice_head(n = 3)  # Top 3 categories per publisher
 ```
 
 ## NEW: Professional Dashboard Generation

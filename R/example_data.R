@@ -21,6 +21,7 @@
 #'
 #' @importFrom stats runif
 #' @keywords internal
+#' @export
 example_sensortower_data <- function(type = "app_info", n = 5) {
   
   type <- match.arg(type, c("app_info", "rankings", "details", "metrics", 

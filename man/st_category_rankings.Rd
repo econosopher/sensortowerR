@@ -61,7 +61,7 @@ The API returns only app IDs, not names. To get app names and other
 }
 \section{API Endpoint Used}{
 
-  - \verb{GET /v1/{os}/ranking}
+  - `GET /v1/{os}/ranking`
 }
 
 \examples{
