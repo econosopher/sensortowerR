@@ -44,3 +44,4 @@ inst/images/logo_creation.R
 ^\.claude$
 ^\.\.\Rcheck$
 ^\.DS_Store$
+^inst/images$
