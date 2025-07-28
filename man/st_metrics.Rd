@@ -36,8 +36,8 @@ st_metrics(
 
 \item{date_granularity}{Character. One of "daily", "weekly", "monthly", "quarterly".}
 
-\item{auto_platform_fetch}{Logical. When TRUE (default), uses platform-specific 
-endpoints. Set to FALSE only if you want to attempt the broken unified endpoint.}
+\item{auto_platform_fetch}{Logical. When TRUE (default), automatically falls back
+to platform-specific endpoints if unified endpoint returns no data.}
 
 \item{combine_platforms}{Logical. When TRUE (default), combines iOS and Android data
 into unified totals. The platform column is excluded from results when TRUE.}
@@ -50,18 +50,18 @@ into unified totals. The platform column is excluded from results when TRUE.}
 A tibble with columns: date, country, revenue, downloads, platform (if not combined)
 }
 \description{
-Retrieves metrics for apps. Since the unified sales_report_estimates endpoint
-is completely broken (returns empty for ALL granularities), this function
-ALWAYS uses platform-specific endpoints and combines the results.
+Retrieves metrics for apps. First attempts to use the unified endpoint,
+but if it returns empty (which happens for all granularities currently),
+automatically falls back to platform-specific endpoints and combines the results.
 }
 \details{
-This function handles Sensor Tower's broken unified endpoint:
+This function intelligently handles Sensor Tower's API limitations:
 
-- The unified sales_report_estimates endpoint returns EMPTY for ALL granularities
-- This function ALWAYS uses platform-specific endpoints (iOS/Android) instead
+- First attempts the unified sales_report_estimates endpoint
+- If unified returns empty (current behavior for all granularities), falls back to platform-specific endpoints
 - Automatically detects app ID format and fetches appropriate data
-- Combines iOS and Android data for true unified view
-- Set auto_platform_fetch = FALSE only if you want to test the broken endpoint
+- Combines iOS and Android data for true unified view when using fallback
+- Set auto_platform_fetch = FALSE to disable automatic fallback
 }
 \examples{
 \dontrun{

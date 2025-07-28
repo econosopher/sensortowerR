@@ -6,6 +6,13 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.3.3
+- **DAU Support in YTD Metrics**: `st_ytd_metrics()` now supports Daily Active Users (DAU) metrics
+- **Average DAU Calculation**: DAU is calculated as average daily users for meaningful YoY comparisons
+- **Intelligent DAU Batching**: Fetches full YTD DAU data efficiently with minimal API calls
+- **Platform-Specific DAU**: Automatically handles iOS (iPhone + iPad) and Android user counts
+- **Unified Endpoint Fix**: `st_metrics()` now uses fallback pattern for broken unified endpoint
+
 ### v0.3.1
 - **New YTD Metrics Function**: `st_ytd_metrics()` fetches year-to-date metrics across multiple years
 - **Multi-Year Support**: Compare metrics across multiple years with a single function call
@@ -162,6 +169,9 @@ Key features of `st_ytd_metrics()`:
 - **Custom periods**: Specify any date range (e.g., "02-01" to "02-28")
 - **Automatic caching**: Reuses data across years to minimize API calls
 - **Works with publishers**: Use `publisher_id` instead of app IDs
+- **DAU Support**: Fetch average Daily Active Users with intelligent batching
+- **Platform-aware**: Automatically handles iOS (iPhone + iPad) and Android users
+- **YoY Comparable**: Average DAU enables fair comparisons across different period lengths
 
 The package now:
 - Provides `st_ytd_metrics()` for accurate YTD calculations
@@ -242,7 +252,7 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
 - **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
 - **`st_publisher_category_breakdown()`**: **NEW!** Analyze publisher revenue across categories
-- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics across multiple years with smart defaults
+- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics (revenue, downloads, DAU) across multiple years
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
 - **`st_sales_report()`**: Platform-specific daily revenue and download data
 
@@ -416,12 +426,13 @@ category_breakdown %>%
   slice_head(n = 3)  # Top 3 categories per publisher
 ```
 
-### Year-to-Date Metrics
+### Year-to-Date Metrics (Now with DAU!)
 ```r
-# Get YTD metrics for multiple apps across multiple years
+# Get YTD metrics including Daily Active Users
 ytd_metrics <- st_ytd_metrics(
   unified_app_id = c("553834731", "1195621598"),  # Candy Crush, Homescapes
   years = c(2023, 2024, 2025),
+  metrics = c("revenue", "downloads", "dau"),  # Now supports DAU!
   cache_dir = ".cache/ytd"  # Enable caching
 )
 
@@ -434,19 +445,36 @@ ytd_metrics %>%
     yoy_growth_2025 = (`2025` - `2024`) / `2024` * 100
   )
 
+# Analyze DAU trends (values are already averaged)
+dau_summary <- ytd_metrics %>%
+  filter(metric == "dau") %>%
+  pivot_wider(names_from = year, values_from = value) %>%
+  mutate(
+    yoy_change = (`2025` - `2024`) / `2024` * 100
+  )
+
 # Custom date ranges (e.g., Q1 comparison)
 q1_metrics <- st_ytd_metrics(
   unified_app_id = "1053012308",  # MONOPOLY GO!
   years = c(2023, 2024, 2025),
   period_start = "01-01",
-  period_end = "03-31"
+  period_end = "03-31",
+  metrics = c("revenue", "downloads", "dau")
 )
 
-# Works with publishers too
+# DAU for multiple apps with platform-specific IDs
+multi_app_dau <- st_ytd_metrics(
+  ios_app_id = c("553834731", "1195621598"),
+  android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
+  years = 2025,
+  metrics = "dau"  # DAU only
+)
+
+# Works with publishers too (but not for DAU)
 publisher_ytd <- st_ytd_metrics(
   publisher_id = c("pub123", "pub456"),
   years = 2025,
-  metrics = c("revenue", "downloads")
+  metrics = c("revenue", "downloads")  # DAU not available for publishers
 )
 ```
 

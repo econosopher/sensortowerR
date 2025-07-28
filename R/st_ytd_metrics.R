@@ -13,8 +13,8 @@
 #'   If NULL, defaults to "01-01" (January 1).
 #' @param period_end Character string. End date in "MM-DD" format (e.g., "02-28").
 #'   If NULL, defaults to last completed week (ending Saturday) of current year.
-#' @param metrics Character vector. Metrics to fetch. Currently supports "revenue" and "downloads".
-#'   Default is both metrics.
+#' @param metrics Character vector. Metrics to fetch. Supports "revenue", "downloads", and "dau".
+#'   Default is both revenue and downloads. Note: DAU is calculated as average daily active users.
 #' @param countries Character vector. Country codes (default: "US").
 #' @param cache_dir Character. Directory for caching API responses (optional).
 #' @param auth_token Character string. Sensor Tower API token.
@@ -28,7 +28,7 @@
 #'   - `date_start`: Start date of the period
 #'   - `date_end`: End date of the period
 #'   - `country`: Country code
-#'   - `metric`: The metric name (e.g., "revenue", "downloads", etc.)
+#'   - `metric`: The metric name (e.g., "revenue", "downloads", "dau")
 #'   - `value`: Metric value (units depend on metric type)
 #'
 #' @details
@@ -39,36 +39,23 @@
 #' - **Leap years**: Automatically handled (e.g., Feb 29 in leap years)
 #' - **Entity detection**: Automatically determines if using app or publisher endpoints
 #' - **Caching**: Reuses cached data for overlapping periods across years
+#' - **DAU Support**: Daily Active Users are averaged across the period for meaningful comparisons
 #'
 #' @examples
 #' \dontrun{
-#' # Get YTD metrics for a single app across multiple years
+#' # Get YTD metrics including DAU for a single app
 #' ytd_metrics <- st_ytd_metrics(
 #'   unified_app_id = "553834731",  # Candy Crush
-#'   years = c(2023, 2024, 2025)
-#' )
-#'
-#' # Get metrics for multiple apps at once
-#' multi_app_metrics <- st_ytd_metrics(
-#'   unified_app_id = c("553834731", "1195621598", "1053012308"),  # Multiple apps
-#'   years = c(2024, 2025),
-#'   metrics = c("revenue", "downloads")
-#' )
-#'
-#' # Get February metrics for multiple publishers
-#' feb_metrics <- st_ytd_metrics(
-#'   publisher_id = c("pub123", "pub456", "pub789"),
 #'   years = c(2023, 2024, 2025),
-#'   period_start = "02-01",
-#'   period_end = "02-28"  # Auto-handles Feb 29 in 2024
+#'   metrics = c("revenue", "downloads", "dau")
 #' )
 #'
-#' # Mix iOS and Android IDs for complete data
-#' ytd_metrics <- st_ytd_metrics(
-#'   ios_app_id = c("1195621598", "553834731"),
-#'   android_app_id = c("com.playrix.homescapes", "com.king.candycrushsaga"),
-#'   years = c(2024, 2025),
-#'   cache_dir = ".cache/ytd"
+#' # Get DAU only for multiple apps
+#' dau_metrics <- st_ytd_metrics(
+#'   ios_app_id = c("553834731", "1195621598"),
+#'   android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
+#'   years = 2025,
+#'   metrics = "dau"
 #' )
 #' }
 #'
@@ -77,6 +64,8 @@
 #' @importFrom tibble tibble
 #' @importFrom rlang %||%
 #' @importFrom tidyr pivot_longer
+#' @importFrom httr GET content status_code
+#' @importFrom jsonlite fromJSON
 #' @export
 st_ytd_metrics <- function(
   unified_app_id = NULL,
@@ -94,45 +83,34 @@ st_ytd_metrics <- function(
 ) {
   
   # Validate metrics
-  valid_metrics <- c("revenue", "downloads")
+  valid_metrics <- c("revenue", "downloads", "dau")
   if (!all(metrics %in% valid_metrics)) {
     invalid <- metrics[!metrics %in% valid_metrics]
     stop(paste0("Invalid metrics: ", paste(invalid, collapse = ", "), 
-                ". Currently only 'revenue' and 'downloads' are supported."))
+                ". Valid options are: ", paste(valid_metrics, collapse = ", ")))
   }
   
-  # Validate entity inputs
+  # Check if DAU is requested with publishers
+  if ("dau" %in% metrics && !is.null(publisher_id)) {
+    stop("DAU metrics are not available for publishers, only for individual apps.")
+  }
+  
+  # Validate inputs
   if (is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id) && is.null(publisher_id)) {
-    stop("At least one entity ID must be provided (unified_app_id, ios_app_id, android_app_id, or publisher_id)")
-  }
-  
-  if (!is.null(publisher_id) && (!is.null(unified_app_id) || !is.null(ios_app_id) || !is.null(android_app_id))) {
-    stop("Cannot specify both publisher_id and app IDs. Choose one entity type.")
+    stop("At least one ID must be provided (unified_app_id, ios_app_id, android_app_id, or publisher_id)")
   }
   
   # Determine entity type
   entity_type <- if (!is.null(publisher_id)) "publisher" else "app"
   
-  # Default to current year if not specified
+  # If both app IDs and publisher IDs are provided, throw error
+  if (!is.null(publisher_id) && (!is.null(unified_app_id) || !is.null(ios_app_id) || !is.null(android_app_id))) {
+    stop("Cannot mix publisher IDs with app IDs. Use either publisher_id OR app IDs.")
+  }
+  
+  # Default years to current year
   if (is.null(years)) {
     years <- as.integer(format(Sys.Date(), "%Y"))
-  }
-  years <- sort(unique(as.integer(years)))
-  
-  # Calculate default period_end if not provided (last completed week ending Saturday)
-  if (is.null(period_end)) {
-    today <- Sys.Date()
-    # Find last Saturday (wday: 1=Sunday, 7=Saturday)
-    days_since_saturday <- (lubridate::wday(today) + 7 - 7) %% 7
-    if (days_since_saturday == 0 && lubridate::wday(today) != 7) {
-      days_since_saturday <- 7  # If today is not Saturday, go back to previous Saturday
-    }
-    last_saturday <- today - days_since_saturday
-    period_end <- format(last_saturday, "%m-%d")
-    
-    if (verbose) {
-      message(sprintf("Using last completed week ending: %s", format(last_saturday, "%Y-%m-%d")))
-    }
   }
   
   # Default period_start to January 1
@@ -140,12 +118,44 @@ st_ytd_metrics <- function(
     period_start <- "01-01"
   }
   
+  # Default period_end to last completed week (ending Saturday)
+  if (is.null(period_end)) {
+    today <- Sys.Date()
+    current_year <- as.integer(format(today, "%Y"))
+    
+    # Check if we're asking for current year
+    if (current_year %in% years) {
+      # Find last Saturday
+      days_since_saturday <- (lubridate::wday(today) + 5) %% 7
+      last_saturday <- today - days_since_saturday
+      
+      # If last Saturday is in the future (today is Sunday), go back a week
+      if (last_saturday >= today) {
+        last_saturday <- last_saturday - 7
+      }
+      
+      period_end <- format(last_saturday, "%m-%d")
+      
+      if (verbose) {
+        message(sprintf("Using default period_end: %s (last completed week)", period_end))
+      }
+    } else {
+      # For past years, use Dec 31
+      period_end <- "12-31"
+    }
+  }
+  
   # Validate date formats
   if (!grepl("^\\d{2}-\\d{2}$", period_start)) {
-    stop("period_start must be in MM-DD format (e.g., '01-01')")
+    stop("period_start must be in MM-DD format (e.g., '02-01')")
   }
   if (!grepl("^\\d{2}-\\d{2}$", period_end)) {
-    stop("period_end must be in MM-DD format (e.g., '12-31')")
+    stop("period_end must be in MM-DD format (e.g., '02-28')")
+  }
+  
+  # Check authentication
+  if (is.null(auth_token) || auth_token == "") {
+    stop("Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
   # Initialize cache if specified
@@ -212,6 +222,7 @@ st_ytd_metrics <- function(
     message("  Entities: ", nrow(entities))
     message("  Years: ", paste(years, collapse = ", "))
     message(sprintf("  Period: %s to %s for each year", period_start, period_end))
+    message("  Metrics: ", paste(metrics, collapse = ", "))
   }
   
   # Loop through each entity and year
@@ -330,9 +341,11 @@ st_ytd_metrics <- function(
   combined_data <- dplyr::bind_rows(all_results)
   
   # Transform to tidy format
+  metric_cols <- intersect(metrics, colnames(combined_data))
+  
   tidy_data <- combined_data %>%
     tidyr::pivot_longer(
-      cols = all_of(metrics),
+      cols = all_of(metric_cols),
       names_to = "metric",
       values_to = "value"
     ) %>%
@@ -395,10 +408,13 @@ fetch_publisher_metrics <- function(
   }
   
   empty_data <- tibble::tibble(
-    country = character(),
-    revenue = numeric(),
-    downloads = numeric()
+    country = character()
   )
+  
+  # Add empty columns for requested metrics
+  for (metric in metrics) {
+    empty_data[[metric]] <- numeric()
+  }
   
   return(list(data = empty_data, api_calls = 0))
 }
@@ -443,45 +459,237 @@ fetch_app_metrics <- function(
     }
   }
   
-  # Use the optimized data fetching function
-  result <- fetch_optimized_data(
-    ios_app_id = ios_app_id,
-    android_app_id = android_app_id,
-    app_id = unified_app_id,
-    start_date = start_date,
-    end_date = end_date,
-    countries = countries,
-    date_granularity = "daily",
-    auth_token = auth_token,
-    verbose = verbose
-  )
+  # Separate regular metrics (revenue, downloads) from DAU
+  regular_metrics <- intersect(metrics, c("revenue", "downloads"))
+  needs_dau <- "dau" %in% metrics
   
-  # Aggregate by country (summing daily data)
-  # Check if country column exists
-  if ("country" %in% colnames(result$data)) {
-    aggregated_data <- result$data %>%
-      group_by(country) %>%
-      summarise(
-        revenue = sum(revenue, na.rm = TRUE),
-        downloads = sum(downloads, na.rm = TRUE),
-        .groups = "drop"
-      )
-  } else {
-    # If no country column, just sum the totals
-    aggregated_data <- result$data %>%
-      summarise(
-        revenue = sum(revenue, na.rm = TRUE),
-        downloads = sum(downloads, na.rm = TRUE)
-      ) %>%
-      mutate(country = countries[1])  # Use the requested country
+  api_calls <- 0
+  aggregated_data <- tibble::tibble(country = countries)
+  
+  # Fetch revenue/downloads if requested
+  if (length(regular_metrics) > 0) {
+    # Use the optimized data fetching function
+    result <- fetch_optimized_data(
+      ios_app_id = ios_app_id,
+      android_app_id = android_app_id,
+      app_id = unified_app_id,
+      start_date = start_date,
+      end_date = end_date,
+      countries = countries,
+      date_granularity = "daily",
+      auth_token = auth_token,
+      verbose = verbose
+    )
+    
+    # Aggregate by country (summing daily data)
+    if ("country" %in% colnames(result$data)) {
+      revenue_downloads <- result$data %>%
+        group_by(country) %>%
+        summarise(
+          across(all_of(regular_metrics), ~sum(.x, na.rm = TRUE)),
+          .groups = "drop"
+        )
+    } else {
+      # If no country column, just sum the totals
+      revenue_downloads <- result$data %>%
+        summarise(
+          across(all_of(regular_metrics), ~sum(.x, na.rm = TRUE))
+        ) %>%
+        mutate(country = countries[1])  # Use the requested country
+    }
+    
+    # Merge with aggregated data
+    aggregated_data <- aggregated_data %>%
+      left_join(revenue_downloads, by = "country")
+    
+    api_calls <- api_calls + result$api_calls
+  }
+  
+  # Fetch DAU if requested
+  if (needs_dau) {
+    dau_result <- fetch_dau_metrics(
+      unified_app_id = unified_app_id,
+      ios_app_id = ios_app_id,
+      android_app_id = android_app_id,
+      start_date = start_date,
+      end_date = end_date,
+      countries = countries,
+      cache_dir = cache_dir,
+      auth_token = auth_token,
+      verbose = verbose
+    )
+    
+    # Merge DAU data
+    if (nrow(dau_result$data) > 0) {
+      aggregated_data <- aggregated_data %>%
+        left_join(dau_result$data %>% select(country, dau), by = "country")
+    } else {
+      aggregated_data$dau <- NA_real_
+    }
+    
+    api_calls <- api_calls + dau_result$api_calls
   }
   
   # Save to cache
-  if (!is.null(cache_dir) && !is.null(cache_file)) {
+  if (!is.null(cache_dir) && exists("cache_file")) {
     saveRDS(aggregated_data, cache_file)
   }
   
-  return(list(data = aggregated_data, api_calls = result$api_calls))
+  return(list(data = aggregated_data, api_calls = api_calls))
+}
+
+#' Fetch DAU metrics for apps
+#' @noRd
+fetch_dau_metrics <- function(
+  unified_app_id = NULL,
+  ios_app_id = NULL,
+  android_app_id = NULL,
+  start_date,
+  end_date,
+  countries,
+  cache_dir = NULL,
+  auth_token,
+  verbose = FALSE
+) {
+  
+  # Check cache first
+  if (!is.null(cache_dir)) {
+    cache_key <- paste(
+      "dau",
+      unified_app_id %||% paste(ios_app_id, android_app_id, sep = "_"),
+      format(start_date, "%Y%m%d"),
+      format(end_date, "%Y%m%d"),
+      paste(countries, collapse = "_"),
+      sep = "_"
+    )
+    cache_file <- file.path(cache_dir, paste0(cache_key, ".rds"))
+    
+    if (file.exists(cache_file)) {
+      cache_age <- difftime(Sys.time(), file.mtime(cache_file), units = "hours")
+      if (cache_age < 24) {
+        if (verbose) {
+          message(sprintf("    Using cached DAU data (%.1f hours old)", as.numeric(cache_age)))
+        }
+        cached_data <- readRDS(cache_file)
+        return(list(data = cached_data, api_calls = 0))
+      }
+    }
+  }
+  
+  api_calls <- 0
+  all_dau_data <- list()
+  
+  # Determine which platforms to fetch
+  platforms_to_fetch <- list()
+  
+  if (!is.null(unified_app_id)) {
+    # Try to detect platform from unified ID
+    if (grepl("^\\d+$", unified_app_id)) {
+      platforms_to_fetch[["ios"]] <- unified_app_id
+    } else if (grepl("^(com|net|org|io)\\.", unified_app_id)) {
+      platforms_to_fetch[["android"]] <- unified_app_id
+    } else {
+      # Try both platforms
+      platforms_to_fetch[["ios"]] <- unified_app_id
+      platforms_to_fetch[["android"]] <- unified_app_id
+    }
+  }
+  
+  if (!is.null(ios_app_id)) {
+    platforms_to_fetch[["ios"]] <- ios_app_id
+  }
+  
+  if (!is.null(android_app_id)) {
+    platforms_to_fetch[["android"]] <- android_app_id
+  }
+  
+  # Fetch DAU for each platform
+  for (platform in names(platforms_to_fetch)) {
+    app_id <- platforms_to_fetch[[platform]]
+    
+    if (verbose) {
+      message(sprintf("    Fetching %s DAU for %s", platform, app_id))
+    }
+    
+    # Build API request
+    base_url <- sprintf("https://api.sensortower.com/v1/%s/usage/active_users", platform)
+    
+    params <- list(
+      app_ids = app_id,
+      time_period = "day",
+      start_date = format(start_date, "%Y-%m-%d"),
+      end_date = format(end_date, "%Y-%m-%d"),
+      auth_token = auth_token
+    )
+    
+    # Add countries if not WW
+    if (!is.null(countries) && countries != "WW") {
+      params$countries <- countries
+    }
+    
+    # Make API request
+    response <- httr::GET(base_url, query = params)
+    api_calls <- api_calls + 1
+    
+    if (httr::status_code(response) == 200) {
+      content <- httr::content(response, as = "text", encoding = "UTF-8")
+      
+      if (nchar(content) > 0 && content != "[]" && content != "{}") {
+        data <- jsonlite::fromJSON(content, flatten = TRUE)
+        
+        if (is.data.frame(data) && nrow(data) > 0) {
+          # Process platform-specific columns
+          if (platform == "ios") {
+            # Sum iPhone and iPad users
+            data$daily_users <- rowSums(data[, c("iphone_users", "ipad_users")], na.rm = TRUE)
+          } else {
+            # Android has a single users column
+            data$daily_users <- data$users
+          }
+          
+          # Store with platform identifier
+          all_dau_data[[platform]] <- data %>%
+            select(app_id, country, date, daily_users)
+        }
+      }
+    } else {
+      if (verbose) {
+        message(sprintf("      Failed to fetch %s DAU: HTTP %d", platform, httr::status_code(response)))
+      }
+    }
+  }
+  
+  # Combine and aggregate DAU data
+  if (length(all_dau_data) > 0) {
+    combined_dau <- dplyr::bind_rows(all_dau_data)
+    
+    # Calculate average DAU across all days and platforms by country
+    aggregated_dau <- combined_dau %>%
+      group_by(country) %>%
+      summarise(
+        # Average DAU = sum of daily users / number of days
+        total_user_days = sum(daily_users, na.rm = TRUE),
+        n_days = n_distinct(date),
+        dau = total_user_days / n_days,
+        .groups = "drop"
+      ) %>%
+      select(country, dau)
+    
+    # Save to cache
+    if (!is.null(cache_dir) && exists("cache_file")) {
+      saveRDS(aggregated_dau, cache_file)
+    }
+    
+    return(list(data = aggregated_dau, api_calls = api_calls))
+  } else {
+    # Return empty data
+    empty_data <- tibble::tibble(
+      country = countries,
+      dau = NA_real_
+    )
+    
+    return(list(data = empty_data, api_calls = api_calls))
+  }
 }
 
 # Optimized data fetching function with intelligent batching
@@ -558,14 +766,18 @@ fetch_optimized_data <- function(
         )
         
         api_calls <- api_calls + 1
-        all_data <- dplyr::bind_rows(all_data, batch_data)
         
+        if (nrow(batch_data) > 0) {
+          all_data <- dplyr::bind_rows(all_data, batch_data)
+        }
+        
+        # Move to next batch
         current_date <- batch_end + 1
       }
     }
   } else {
-    # For non-daily granularities, use the existing batching logic
-    result <- st_metrics(
+    # For non-daily granularities, single call
+    all_data <- st_metrics(
       app_id = app_id,
       ios_app_id = ios_app_id,
       android_app_id = android_app_id,
@@ -577,11 +789,7 @@ fetch_optimized_data <- function(
       verbose = FALSE
     )
     api_calls <- 1
-    all_data <- result
   }
   
-  list(
-    data = all_data,
-    api_calls = api_calls
-  )
+  return(list(data = all_data, api_calls = api_calls))
 }

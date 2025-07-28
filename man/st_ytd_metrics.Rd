@@ -37,8 +37,8 @@ If NULL, defaults to "01-01" (January 1).}
 \item{period_end}{Character string. End date in "MM-DD" format (e.g., "02-28").
 If NULL, defaults to last completed week (ending Saturday) of current year.}
 
-\item{metrics}{Character vector. Metrics to fetch. Currently supports "revenue" and "downloads".
-Default is both metrics.}
+\item{metrics}{Character vector. Metrics to fetch. Supports "revenue", "downloads", and "dau".
+Default is both revenue and downloads. Note: DAU is calculated as average daily active users.}
 
 \item{countries}{Character vector. Country codes (default: "US").}
 
@@ -57,7 +57,7 @@ A tibble in tidy/long format with columns:
   - `date_start`: Start date of the period
   - `date_end`: End date of the period
   - `country`: Country code
-  - `metric`: The metric name (e.g., "revenue", "downloads", etc.)
+  - `metric`: The metric name (e.g., "revenue", "downloads", "dau")
   - `value`: Metric value (units depend on metric type)
 }
 \description{
@@ -72,36 +72,23 @@ This function intelligently handles various scenarios:
 - **Leap years**: Automatically handled (e.g., Feb 29 in leap years)
 - **Entity detection**: Automatically determines if using app or publisher endpoints
 - **Caching**: Reuses cached data for overlapping periods across years
+- **DAU Support**: Daily Active Users are averaged across the period for meaningful comparisons
 }
 \examples{
 \dontrun{
-# Get YTD metrics for a single app across multiple years
+# Get YTD metrics including DAU for a single app
 ytd_metrics <- st_ytd_metrics(
   unified_app_id = "553834731",  # Candy Crush
-  years = c(2023, 2024, 2025)
-)
-
-# Get metrics for multiple apps at once
-multi_app_metrics <- st_ytd_metrics(
-  unified_app_id = c("553834731", "1195621598", "1053012308"),  # Multiple apps
-  years = c(2024, 2025),
-  metrics = c("revenue", "downloads")
-)
-
-# Get February metrics for multiple publishers
-feb_metrics <- st_ytd_metrics(
-  publisher_id = c("pub123", "pub456", "pub789"),
   years = c(2023, 2024, 2025),
-  period_start = "02-01",
-  period_end = "02-28"  # Auto-handles Feb 29 in 2024
+  metrics = c("revenue", "downloads", "dau")
 )
 
-# Mix iOS and Android IDs for complete data
-ytd_metrics <- st_ytd_metrics(
-  ios_app_id = c("1195621598", "553834731"),
-  android_app_id = c("com.playrix.homescapes", "com.king.candycrushsaga"),
-  years = c(2024, 2025),
-  cache_dir = ".cache/ytd"
+# Get DAU only for multiple apps
+dau_metrics <- st_ytd_metrics(
+  ios_app_id = c("553834731", "1195621598"),
+  android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
+  years = 2025,
+  metrics = "dau"
 )
 }
 
