@@ -44,8 +44,8 @@ to beginning of time_range (e.g., Monday for weeks). Defaults to 30 days ago.}
 \item{end_date}{Date or character. Optional end date for aggregating multiple
 periods. Auto-adjusts to end of time_range.}
 
-\item{country}{Character. Country or region code (e.g., "US", "WW" for worldwide).
-Defaults to "WW".}
+\item{country}{Character. Country or region code (e.g., "US", "GB", "WW").
+Defaults to "WW" for worldwide data.}
 
 \item{limit}{Integer. Number of publishers to return (1-100). Defaults to 25.}
 

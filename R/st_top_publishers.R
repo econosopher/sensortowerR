@@ -16,10 +16,25 @@
 #' @param comparison_attribute Character. Data type to return: "absolute"
 #'   (total values), "delta" (growth), or "transformed_delta" (growth rate).
 #'   Defaults to "absolute".
-#' @param date Date or character. Start date in "YYYY-MM-DD" format. Auto-adjusts
-#'   to beginning of time_range (e.g., Monday for weeks). Defaults to 30 days ago.
+#' @param date Date or character. Start date in "YYYY-MM-DD" format. 
+#'   **Important**: Must align with time_range boundaries:
+#'   - `month`: Must be first day of month (e.g., 2025-06-01)
+#'   - `week`: Must be Monday
+#'   - `quarter`: Must be quarter start (Jan 1, Apr 1, Jul 1, Oct 1)
+#'   - `year`: Must be January 1st
+#'   - `day`: Any date allowed
+#'   Function will error if date doesn't align. Defaults to 30 days ago.
 #' @param end_date Date or character. Optional end date for aggregating multiple
-#'   periods. Auto-adjusts to end of time_range.
+#'   periods. If not provided with `time_range = "month"`, "quarter", or "year",
+#'   it will be automatically set to the last day of the period. 
+#'   **Important**: If provided, must align with time_range boundaries:
+#'   - `month`: Must be last day of month (e.g., 2025-06-30, 2025-07-31)
+#'   - `week`: Must be Sunday  
+#'   - `quarter`: Must be quarter end (Mar 31, Jun 30, Sep 30, Dec 31)
+#'   - `year`: Must be December 31st
+#'   - `day`: Any date allowed
+#'   Function will error if date doesn't align. Use `time_range = "day"`
+#'   for custom date ranges.
 #' @param country Character. Country or region code (e.g., "US", "GB", "WW").
 #'   Defaults to "WW" for worldwide data.
 #' @param limit Integer. Number of publishers to return (1-100). Defaults to 25.
@@ -35,7 +50,9 @@
 #' @return A [tibble][tibble::tibble] containing top publishers with columns:
 #'   - `publisher_id`: Unique publisher identifier
 #'   - `publisher_name`: Publisher display name
-#'   - `date`: Date of the metrics
+#'   - `date`: Date of the metrics (as provided by API)
+#'   - `date_start`: Actual start date of the period covered
+#'   - `date_end`: Actual end date of the period covered
 #'   - `units_absolute`: Total downloads for the period
 #'   - `units_delta`: Download growth vs previous period
 #'   - `units_transformed_delta`: Download growth rate
@@ -51,6 +68,13 @@
 #'   - The function adds a `revenue_usd` column for convenience
 #'   - Growth metrics compare to the previous equivalent period
 #'   - Worldwide data may have a 2-3 day lag vs country-specific data
+#'   
+#' @section Date Handling:
+#'   When using `time_range = "month"`, "quarter", or "year":
+#'   - Dates MUST align with period boundaries or the function will error
+#'   - Example: For `time_range = "month"`, use `date = "2025-06-01"`, not `"2025-06-27"`
+#'   - This prevents unexpected data ranges from the API
+#'   - For custom date ranges (e.g., June 27 - July 26), use `time_range = "day"` and aggregate
 #'
 #' @examples
 #' \dontrun{
@@ -69,13 +93,33 @@
 #'   limit = 20
 #' )
 #'
-#' # Get Android publishers in a specific category
-#' android_publishers <- st_top_publishers(
-#'   os = "android",
-#'   category = "game_puzzle",
-#'   country = "US",
-#'   limit = 15
+#' # This will ERROR - dates don't align with month boundaries:
+#' # publishers_custom <- st_top_publishers(
+#' #   date = "2025-06-27",        # ERROR: Not start of month!
+#' #   end_date = "2025-07-26",    # ERROR: Not end of month!
+#' #   time_range = "month"
+#' # )
+#' 
+#' # Correct way for full months (end_date auto-calculated):
+#' publishers_month <- st_top_publishers(
+#'   date = "2025-06-01",      # First day of June
+#'   time_range = "month"      # end_date auto-set to 2025-06-30
 #' )
+#' 
+#' # Or specify multiple months:
+#' publishers_months <- st_top_publishers(
+#'   date = "2025-06-01",      # First day of June
+#'   end_date = "2025-07-31",  # Last day of July
+#'   time_range = "month"
+#' )
+#' 
+#' # For custom date ranges (e.g., June 27 - July 26), use daily:
+#' daily_publishers <- purrr::map_df(
+#'   seq(as.Date("2025-06-27"), as.Date("2025-07-26"), by = "day"),
+#'   ~ st_top_publishers(date = .x, time_range = "day", limit = 50)
+#' ) %>%
+#'   group_by(publisher_id, publisher_name) %>%
+#'   summarise(total_revenue = sum(revenue_usd))
 #' }
 #'
 #' @import dplyr
@@ -108,6 +152,22 @@ st_top_publishers <- function(measure = "revenue",
   comparison_attribute <- match.arg(comparison_attribute, 
                                    c("absolute", "delta", "transformed_delta"))
   
+  # Display parameters being used
+  message("\n=== Sensor Tower API Request ===")
+  message(sprintf("  Endpoint: Top Publishers"))
+  message(sprintf("  Measure: %s", measure))
+  message(sprintf("  OS: %s", os))
+  message(sprintf("  Country: %s", country))
+  message(sprintf("  Time Range: %s", time_range))
+  message(sprintf("  Date: %s", date))
+  if (!is.null(end_date)) {
+    message(sprintf("  End Date: %s", end_date))
+  }
+  message(sprintf("  Category: %s", category))
+  message(sprintf("  Limit: %d", limit))
+  message(sprintf("  Include Apps: %s", include_apps))
+  message("================================\n")
+  
   if (is.null(auth_token) || auth_token == "") {
     rlang::abort(
       paste(
@@ -130,8 +190,8 @@ st_top_publishers <- function(measure = "revenue",
   # Convert dates to proper format
   date <- as.Date(date)
   
-  # Adjust date to beginning of time_range
-  date <- switch(time_range,
+  # Check if date aligns with time_range boundaries
+  expected_date <- switch(time_range,
     day = date,
     week = floor_date(date, "week", week_start = 1),
     month = floor_date(date, "month"),
@@ -139,22 +199,128 @@ st_top_publishers <- function(measure = "revenue",
     year = floor_date(date, "year")
   )
   
-  # Handle end_date if provided
-  if (!is.null(end_date)) {
-    end_date <- as.Date(end_date)
-    end_date <- switch(time_range,
-      day = end_date,
-      week = ceiling_date(end_date, "week", week_start = 1) - 1,
-      month = ceiling_date(end_date, "month") - 1,
-      quarter = ceiling_date(end_date, "quarter") - 1,
-      year = ceiling_date(end_date, "year") - 1
+  # Error if date doesn't align with period boundaries
+  if (time_range != "day" && date != expected_date) {
+    rlang::abort(
+      sprintf(
+        "Date %s does not align with %s boundaries. For time_range='%s', date must be %s (start of %s). Use time_range='day' for custom date ranges.",
+        format(date, "%Y-%m-%d"),
+        time_range,
+        time_range,
+        format(expected_date, "%Y-%m-%d"),
+        time_range
+      )
     )
   }
   
-  # Build API URL
+  # Build API URL early for potential data availability check
   base_url <- "https://api.sensortower.com/v1"
   endpoint_path <- paste0(os, "/top_and_trending/publishers")
   url <- file.path(base_url, endpoint_path)
+  
+  # Auto-set end_date for period-based time_ranges if not provided
+  if (is.null(end_date) && time_range != "day") {
+    # Calculate theoretical end date
+    theoretical_end <- switch(time_range,
+      week = date + 6,  # Sunday of the same week
+      month = ceiling_date(date, "month") - 1,  # Last day of the month
+      quarter = ceiling_date(date, "quarter") - 1,  # Last day of the quarter
+      year = ceiling_date(date, "year") - 1  # December 31st
+    )
+    
+    # For current periods, we need to check actual data availability
+    # The API typically has a 1-2 day lag
+    if (theoretical_end >= Sys.Date() - 3) {
+      # We're dealing with very recent data, need to check availability
+      # Quick check: try yesterday first (most common case)
+      test_date <- Sys.Date() - 1
+      
+      test_response <- tryCatch({
+        httr::GET(
+          url = url,
+          query = list(
+            auth_token = auth_token,
+            comparison_attribute = "absolute",
+            time_range = "day",
+            measure = measure,
+            category = as.character(category),
+            date = format(test_date, "%Y-%m-%d"),
+            limit = 1
+          ),
+          httr::add_headers("Accept" = "application/json")
+        )
+      }, error = function(e) NULL)
+      
+      # Check if yesterday has data
+      if (!is.null(test_response) && httr::status_code(test_response) == 200) {
+        test_content <- httr::content(test_response, "text", encoding = "UTF-8")
+        if (nzchar(test_content) && test_content != "[]") {
+          # Yesterday has data, use it
+          latest_available <- test_date
+        } else {
+          # Yesterday is empty, try day before
+          latest_available <- Sys.Date() - 2
+        }
+      } else {
+        # API call failed, assume 2-day lag
+        latest_available <- Sys.Date() - 2
+      }
+      
+      # Use the minimum of theoretical end and latest available
+      if (theoretical_end > latest_available) {
+        end_date <- latest_available
+        message(sprintf(
+          "Auto-setting end_date to %s (latest available data)",
+          format(end_date, "%Y-%m-%d")
+        ))
+      } else {
+        end_date <- theoretical_end
+        message(sprintf(
+          "Auto-setting end_date to %s (last day of %s starting %s)",
+          format(end_date, "%Y-%m-%d"),
+          time_range,
+          format(date, "%Y-%m-%d")
+        ))
+      }
+    } else {
+      # Historical data, use theoretical end
+      end_date <- theoretical_end
+      message(sprintf(
+        "Auto-setting end_date to %s (last day of %s starting %s)",
+        format(end_date, "%Y-%m-%d"),
+        time_range,
+        format(date, "%Y-%m-%d")
+      ))
+    }
+  } else if (!is.null(end_date)) {
+    # If end_date is provided, validate it
+    end_date <- as.Date(end_date)
+    
+    # For non-day time ranges, check that end_date aligns with period boundaries
+    if (time_range != "day") {
+      expected_end_date <- switch(time_range,
+        week = ceiling_date(end_date, "week", week_start = 1) - 1,
+        month = ceiling_date(floor_date(end_date, "month"), "month") - 1,
+        quarter = ceiling_date(floor_date(end_date, "quarter"), "quarter") - 1,
+        year = ceiling_date(floor_date(end_date, "year"), "year") - 1
+      )
+      
+      # Check if end_date is at period boundary
+      if (end_date != expected_end_date) {
+        rlang::abort(
+          sprintf(
+            "End date %s does not align with %s boundaries. For time_range='%s', end_date must be the last day of a %s. Use time_range='day' for custom date ranges.",
+            format(end_date, "%Y-%m-%d"),
+            time_range,
+            time_range,
+            time_range
+          )
+        )
+      }
+    }
+  }
+  
+  # URL was already built earlier for data availability check
   
   # Build query parameters
   query_params <- list(
@@ -242,6 +408,39 @@ st_top_publishers <- function(measure = "revenue",
   # Process the response
   publishers_df <- tibble::as_tibble(parsed_data)
   
+  # Add date_start and date_end columns to clarify the actual period covered
+  # This is crucial for understanding what data we're actually looking at
+  # Use the validated date objects from earlier in the function
+  actual_start_date <- date  # This was converted to Date earlier
+  actual_end_date <- end_date %||% 
+                     switch(time_range,
+                       day = date,
+                       week = date + 6,
+                       month = ceiling_date(date, "month") - 1,
+                       quarter = ceiling_date(date, "quarter") - 1,
+                       year = ceiling_date(date, "year") - 1
+                     )
+  
+  # For current periods, API might return partial data
+  if (time_range != "day" && actual_end_date > Sys.Date()) {
+    actual_end_date <- Sys.Date() - 1  # Yesterday
+    message(sprintf("Note: Data covers %s to %s (partial %s)\n", 
+                    actual_start_date, actual_end_date, time_range))
+  }
+  
+  publishers_df <- publishers_df %>%
+    mutate(
+      date_start = format(actual_start_date, "%Y-%m-%d"),
+      date_end = format(actual_end_date, "%Y-%m-%d"),
+      # Add a warning column for YTD metrics
+      ytd_warning = if (time_range == "year" && 
+                       comparison_attribute %in% c("delta", "transformed_delta")) {
+        "Use calculate_ytd_change() for accurate YTD metrics"
+      } else {
+        NA_character_
+      }
+    )
+  
   # Add rank based on the measure used
   rank_column <- paste0(measure, "_absolute")
   if (rank_column %in% names(publishers_df)) {
@@ -277,7 +476,8 @@ st_top_publishers <- function(measure = "revenue",
   }
   
   # Reorder columns for better readability
-  col_order <- c("rank", "publisher_id", "publisher_name", "date",
+  col_order <- c("rank", "publisher_id", "publisher_name", "date", 
+                 "date_start", "date_end",
                  "revenue_absolute", "revenue_usd", "revenue_delta", 
                  "revenue_transformed_delta", "units_absolute", "units_delta",
                  "units_transformed_delta")
@@ -313,6 +513,8 @@ st_top_publishers <- function(measure = "revenue",
 #' @param date Date or character. Start date. Defaults to 30 days ago.
 #' @param os Character. Operating system: "ios", "android", or "unified".
 #'   Defaults to "unified".
+#' @param country Character. Country or region code (e.g., "US", "GB", "WW").
+#'   Defaults to "WW" for worldwide data.
 #' @param auth_token Character. Your Sensor Tower API authentication token.
 #'
 #' @return A tibble with publisher revenue broken down by category.
@@ -320,9 +522,10 @@ st_top_publishers <- function(measure = "revenue",
 #' @examples
 #' \dontrun{
 #' # Get category breakdown for top publishers
-#' top_pubs <- st_top_publishers(limit = 5)
+#' top_pubs <- st_top_publishers(limit = 5, country = "US")
 #' breakdown <- st_publisher_category_breakdown(
-#'   publisher_ids = top_pubs$publisher_id
+#'   publisher_ids = top_pubs$publisher_id,
+#'   country = "US"  # Match the country
 #' )
 #' }
 #'
@@ -332,7 +535,18 @@ st_publisher_category_breakdown <- function(publisher_ids,
                                           time_range = "month",
                                           date = Sys.Date() - 30,
                                           os = "unified",
+                                          country = "WW",
                                           auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
+  
+  # Display parameters being used
+  message("\n=== Sensor Tower API Request ===")
+  message(sprintf("  Endpoint: Publisher Category Breakdown"))
+  message(sprintf("  Publishers: %d IDs provided", length(publisher_ids)))
+  message(sprintf("  OS: %s", os))
+  message(sprintf("  Country: %s", country))
+  message(sprintf("  Time Range: %s", time_range))
+  message(sprintf("  Date: %s", date))
+  message("================================\n")
   
   # Default categories if not provided
   if (is.null(categories)) {
@@ -389,6 +603,7 @@ st_publisher_category_breakdown <- function(publisher_ids,
         time_range = time_range,
         comparison_attribute = "absolute",
         date = date,
+        country = country,  # Pass through country parameter
         limit = 100,  # Get more to ensure we find our publishers
         include_apps = FALSE,
         auth_token = auth_token

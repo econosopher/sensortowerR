@@ -49,6 +49,10 @@
 #'   For sales data (revenue/downloads), app names are automatically looked up
 #'   using the app IDs since the sales endpoint doesn't provide app names natively.
 #'   
+#'   **Revenue Units**: Revenue values are standardized to base currency units (dollars,
+#'   euros, etc.) for consistency across all sensortowerR functions. The function provides
+#'   a `revenue` column in base units alongside the original `revenue_absolute` (in cents).
+#'   
 #'   **Data Cleaning**: Numeric metric values are automatically cleaned of special 
 #'   characters (%, $, commas) and converted to proper numeric format for analysis.
 #'   
@@ -238,6 +242,9 @@ st_top_charts <- function(measure = "revenue",
   if (deduplicate_apps && "unified_app_name" %in% names(result)) {
     result <- deduplicate_apps_by_name(result)
   }
+  
+  # --- Standardize Revenue Units ---
+  result <- standardize_revenue_units(result, source = "top_charts")
   
   return(result)
 } 

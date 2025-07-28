@@ -1,6 +1,6 @@
 Package: sensortowerR
 Title: Interface to 'Sensor Tower' Mobile App Intelligence API
-Version: 0.1.6
+Version: 0.3.0
 Description: Interface to the 'Sensor Tower' API <https://app.sensortower.com/api/docs/app_analysis> 
     for mobile app analytics and market intelligence. Provides functions to retrieve 
     app metadata, publisher information, download and revenue estimates, active user 

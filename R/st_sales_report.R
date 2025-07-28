@@ -4,6 +4,7 @@
 #' Note: All revenues are returned in cents and need to be divided by 100 for dollar amounts.
 #'
 #' @param app_ids Character vector. App IDs to query. At least one app ID or publisher ID is required.
+#'   **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.
 #' @param publisher_ids Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.
 #' @param os Character string. Operating system: "ios" or "android".
 #' @param countries Character vector. Country codes (e.g., c("US", "GB", "JP")).
@@ -25,10 +26,15 @@
 #' 
 #' When auto_segment = TRUE, the function automatically breaks up the date range
 #' into appropriate segments and combines the results.
+#' 
+#' **Batch API Support**: This function supports fetching data for multiple apps
+#' in a single API call. This significantly reduces the number of API requests needed
+#' for multi-app analyses. For example, fetching daily data for 10 apps over 30 days
+#' requires only 5 API calls instead of 50 when using batch requests.
 #'
 #' @examples
 #' \dontrun{
-#' # Get daily sales for an app
+#' # Get daily sales for a single app
 #' sales <- st_sales_report(
 #'   app_ids = "553834731",  # Candy Crush
 #'   countries = c("US", "GB"),
@@ -37,9 +43,19 @@
 #'   date_granularity = "daily"
 #' )
 #' 
+#' # Batch request: Get data for multiple apps in one API call
+#' batch_sales <- st_sales_report(
+#'   app_ids = c("553834731", "1195621598", "1053012308"),  # Multiple apps!
+#'   countries = "US",
+#'   start_date = "2024-01-01",
+#'   end_date = "2024-01-07",
+#'   date_granularity = "daily"
+#' )
+#' # This makes 1 API call instead of 3!
+#' 
 #' # Get monthly sales with auto-segmentation
 #' sales <- st_sales_report(
-#'   app_ids = c("553834731", "1621328561"),  # Multiple apps
+#'   app_ids = c("553834731", "1621328561"),  # Batch request
 #'   countries = "US",
 #'   start_date = "2023-01-01",
 #'   end_date = "2024-12-31",

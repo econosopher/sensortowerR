@@ -4,6 +4,36 @@
 
 An R package for interfacing with the Sensor Tower API to fetch mobile app analytics data, including app info, publisher details, revenue/download estimates, active user metrics, and professional dashboard generation.
 
+## What's New
+
+### v0.3.0
+- **YTD Calculation Fix**: Added `calculate_ytd_change()` function for accurate year-to-date metrics
+- **Important**: The API's `time_range = "year"` with delta calculations may not represent simple YTD summation
+- **Warnings**: Added console warnings when using year comparisons that might be misleading
+- **New columns**: Added `ytd_warning` column to flag when metrics need recalculation
+
+### v0.2.2
+- **Country support for category breakdown**: `st_publisher_category_breakdown()` now accepts a `country` parameter, allowing you to get category breakdowns for specific markets
+
+### v0.2.1
+- **Console feedback**: All API functions now display the parameters being used, making it clear what data you're requesting
+- **Transparency**: Shows default values like `country = "WW"` to avoid confusion about data scope
+
+Example output:
+```
+=== Sensor Tower API Request ===
+  Endpoint: Top Publishers
+  Measure: revenue
+  OS: unified
+  Country: WW
+  Time Range: month
+  Date: 2025-06-01
+  Category: 6014
+  Limit: 10
+  Include Apps: TRUE
+================================
+```
+
 ## Installation
 
 ```r
@@ -26,6 +56,134 @@ usethis::edit_r_environ()
 ```
 
 The package automatically uses the `SENSORTOWER_AUTH_TOKEN` environment variable.
+
+## Important API Limitations
+
+### Batch API Capabilities
+
+Many Sensor Tower endpoints support batch requests, allowing you to fetch data for multiple apps in a single API call:
+
+1. **Endpoints Supporting Batch Requests**:
+   - ✅ **iOS Sales Report** (`/v1/ios/sales_report_estimates`) - Pass multiple app IDs
+   - ✅ **Android Sales Report** (`/v1/android/sales_report_estimates`) - Pass multiple app IDs
+   - ❌ **App Details** - Only returns first app
+   - ❌ **Active Users** - Does not support multiple IDs
+   - ❌ **Category Rankings** - Single app only
+
+2. **Using Batch Requests**:
+   ```r
+   # Fetch data for multiple apps at once
+   revenue_data <- st_sales_report(
+     app_ids = c("1195621598", "553834731", "1053012308"),  # Multiple iOS apps
+     countries = "US",
+     start_date = Sys.Date() - 30,
+     end_date = Sys.Date() - 1,
+     date_granularity = "daily"
+   )
+   
+   # This makes 1 API call instead of 3!
+   ```
+
+3. **Performance Benefits**:
+   - Reduces API calls by up to 90% for multi-app analyses
+   - Faster execution time
+   - Lower risk of hitting rate limits
+   - More efficient data processing
+
+### Daily Data Limitations
+
+When requesting daily granularity data from Sensor Tower's API:
+
+1. **Unified endpoints return empty responses for daily data**
+   - The unified sales_report_estimates endpoint does not support daily granularity
+   - Platform-specific endpoints (iOS/Android) must be used instead
+   - The `st_metrics()` function automatically handles this limitation
+
+2. **Working Endpoint Matrix** (as of January 2025):
+   ```
+   ✅ iOS + daily data = SUCCESS
+   ✅ Android + daily data = SUCCESS  
+   ✅ iOS + monthly/weekly/quarterly = SUCCESS
+   ✅ Android + monthly/weekly/quarterly = SUCCESS
+   ❌ Unified + daily data = EMPTY RESPONSE
+   ✅ Unified + monthly/weekly/quarterly = SUCCESS (limited endpoints)
+   ```
+
+3. **The `st_metrics()` function automatically handles this**:
+   - Detects when daily data is requested
+   - Switches to platform-specific endpoints transparently
+   - Combines iOS and Android data for unified view
+   - Shows progress messages to explain what's happening
+
+### Year-to-Date (YTD) Calculations - IMPORTANT
+
+**Critical Issue**: The API's `time_range = "year"` with comparison attributes (delta/transformed_delta) does NOT return simple YTD summation. It may include:
+- Annualized projections
+- Different calculation methods
+- Full year estimates
+
+**Solution**: Use the new `calculate_ytd_change()` function for accurate YTD metrics:
+
+```r
+# WRONG - May give misleading YTD changes
+ytd_data <- st_top_publishers(
+  time_range = "year",
+  comparison_attribute = "delta",  # This won't be accurate YTD!
+  date = "2025-01-01"
+)
+
+# CORRECT - Accurate YTD calculation
+ytd_changes <- calculate_ytd_change(
+  publisher_ids = c("pub1", "pub2"),
+  current_year = 2025,
+  measure = "revenue",
+  country = "US",
+  end_month = 7  # For Jan-Jul YTD
+)
+```
+
+The package now:
+- Shows warnings when using potentially misleading year comparisons
+- Adds `ytd_warning` column to flag these metrics
+- Provides `calculate_ytd_change()` for accurate monthly-based YTD calculations
+
+### Monthly Data with Custom Date Ranges
+
+When using `time_range = "month"` with the `st_top_publishers()` function, be aware that:
+
+1. **Date Alignment Required**: Dates must align with period boundaries
+   - For `month`: Must be first day of month (e.g., 2025-06-01)
+   - For `quarter`: Must be quarter start (Jan 1, Apr 1, Jul 1, Oct 1)
+   - For `year`: Must be January 1st
+   - The function will error if dates don't align properly
+   
+2. **Automatic End Date**: When using monthly/quarterly/yearly time ranges:
+   - If `end_date` is not provided, it's automatically set to the last day of the period
+   - Example: `date = "2025-06-01", time_range = "month"` auto-sets `end_date` to "2025-06-30"
+   - A message will inform you of the auto-calculated end_date
+   
+3. **Accurate Custom Date Ranges**: For precise date ranges that don't align with calendar months:
+   - Use `time_range = "day"` and aggregate the results manually
+   - This ensures you get exactly the date range you request
+
+```r
+# Example: Getting accurate 30-day revenue
+daily_data <- map_df(seq(start_date, end_date, by = "day"), function(d) {
+  st_top_publishers(
+    time_range = "day",
+    date = d,
+    limit = 20
+  )
+})
+
+# Aggregate by publisher
+monthly_summary <- daily_data %>%
+  group_by(publisher_id, publisher_name) %>%
+  summarise(
+    total_revenue = sum(revenue_usd),
+    total_downloads = sum(units_absolute)
+  )
+```
 
 ## Category Codes
 
@@ -55,7 +213,7 @@ For a complete list, use `st_categories()` to see available categories.
 
 - **`st_app_info()`**: Search for apps and get basic information
 - **`st_publisher_apps()`**: Get all apps from a specific publisher  
-- **`st_metrics()`**: Detailed daily metrics for specific apps
+- **`st_metrics()`**: Detailed daily metrics for specific apps (see note below)
 - **`st_top_charts()`**: Unified function for all top charts (revenue, downloads, DAU, WAU, MAU)
 - **`st_game_summary()`**: Game market summary (aggregated downloads/revenue by categories and countries)
 - **`st_category_rankings()`**: **NEW!** Get official app store rankings by category
@@ -63,6 +221,7 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
 - **`st_publisher_category_breakdown()`**: **NEW!** Analyze publisher revenue across categories
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
+- **`st_sales_report()`**: Platform-specific daily revenue and download data
 
 ## Quick Examples
 
@@ -80,13 +239,39 @@ supercell_apps <- st_publisher_apps("560c48b48ac350643900b82d")
 ```
 
 ### App Metrics
+
+The `st_metrics()` function now intelligently handles daily data by automatically using platform-specific endpoints when needed:
+
 ```r
-# Get recent metrics for a specific app
+# Simple usage - auto-detects platform and fetches data
 metrics <- st_metrics(
-  unified_app_id = "your_app_id",
+  app_id = "1195621598",  # Homescapes iOS
   start_date = Sys.Date() - 30,
   end_date = Sys.Date() - 1
 )
+
+# Best practice - provide both platform IDs for complete data
+metrics <- st_metrics(
+  ios_app_id = "1195621598",
+  android_app_id = "com.playrix.homescapes",
+  start_date = Sys.Date() - 30,
+  end_date = Sys.Date() - 1
+)
+
+# Advanced options
+metrics <- st_metrics(
+  app_id = "com.king.candycrushsaga",
+  combine_platforms = FALSE,  # Keep iOS and Android data separate
+  date_granularity = "daily",  # Also supports weekly, monthly, quarterly
+  countries = c("US", "GB"),   # Multiple countries
+  verbose = TRUE               # Show progress messages
+)
+
+# The function automatically:
+# - Detects if app_id is iOS (numeric) or Android (package name)
+# - Uses platform-specific endpoints for daily data (unified endpoint returns empty)
+# - Combines iOS and Android data for true unified metrics
+# - Falls back gracefully when data is unavailable
 ```
 
 ### Category Rankings
@@ -169,19 +354,22 @@ market_trends <- game_market %>%
 
 ### Top Publishers Analysis
 ```r
-# Get top 10 game publishers by revenue
+# Get top 10 game publishers by revenue (end_date auto-calculated)
 top_publishers <- st_top_publishers(
   measure = "revenue",
   os = "unified",
   category = 6014,  # Games
   time_range = "month",
+  date = "2025-01-01",  # Must be first day of month
   limit = 10
 )
+# Message: Auto-setting end_date to 2025-01-31 (last day of month starting 2025-01-01)
 
-# View publisher rankings with revenue
+# View publisher rankings with revenue and date ranges
 top_publishers %>%
-  select(rank, publisher_name, revenue_usd, units_absolute) %>%
+  select(rank, publisher_name, date_start, date_end, revenue_usd) %>%
   head()
+# Shows exact period covered: e.g., date_start: "2025-01-01", date_end: "2025-01-31"
 
 # Get top publishers by downloads with growth metrics
 growth_publishers <- st_top_publishers(
@@ -488,6 +676,26 @@ The package extracts and renames 40+ custom metrics from Sensor Tower's aggregat
 - Gender demographic visualization
 
 ## Recent Changes
+
+### Version 0.2.0 (2025-01-27) 
+- **Major improvement**: Smart API lag detection for current periods
+- `st_top_publishers()` now automatically detects actual data availability
+- For current month/quarter/year, `date_end` reflects the latest available data (not theoretical month-end)
+- Example: In July 2025, returns data through July 26 (not July 31) when API has 1-day lag
+- Prevents overestimating periods and ensures accurate date ranges
+
+### Version 0.1.9 (2025-01-27)
+- **Important**: Added `date_start` and `date_end` columns to `st_top_publishers()` output
+- These columns clarify the exact period covered by the data, regardless of time_range grain
+- Essential for understanding data scope when using week/month/quarter/year aggregations
+- Prevents confusion about what dates are actually included in the results
+
+### Version 0.1.8 (2025-01-27)
+- **Major Update**: Unified `st_metrics()` function now intelligently handles daily data limitations
+- Automatically switches to platform-specific endpoints when daily data is requested
+- Combines iOS and Android data for true unified metrics
+- Added comprehensive endpoint testing documentation
+- Updated README with API limitation matrix
 
 ### Version 0.5.0 (2025-01-26)
 - Enhanced cross-platform testing with rhub v2 GitHub Actions
