@@ -34,19 +34,19 @@ test_that("st_ytd_metrics validates inputs correctly", {
 
   # Mixing app and publisher IDs
   expect_error(
-    st_ytd_metrics(unified_app_id = "123", publisher_id = "456", countries = "US"),
+    st_ytd_metrics(unified_app_id = "5ba4585f539ce75b97db6bcb", publisher_id = "456", countries = "US"),
     "Cannot mix publisher IDs with app IDs"
   )
 
   # Missing countries
   expect_error(
-    st_ytd_metrics(unified_app_id = "123"),
+    st_ytd_metrics(unified_app_id = "5ba4585f539ce75b97db6bcb"),
     "'countries' parameter is required"
   )
 
   # Invalid metrics
   expect_error(
-    st_ytd_metrics(unified_app_id = "123", countries = "US", metrics = "invalid_metric"),
+    st_ytd_metrics(unified_app_id = "5ba4585f539ce75b97db6bcb", countries = "US", metrics = "invalid_metric"),
     "Invalid metrics: invalid_metric"
   )
 
@@ -58,11 +58,11 @@ test_that("st_ytd_metrics validates inputs correctly", {
 
   # Invalid date formats
   expect_error(
-    st_ytd_metrics(unified_app_id = "123", countries = "US", period_start = "2024-01-01"),
+    st_ytd_metrics(unified_app_id = "5ba4585f539ce75b97db6bcb", countries = "US", period_start = "2024-01-01"),
     "period_start must be in MM-DD format"
   )
   expect_error(
-    st_ytd_metrics(unified_app_id = "123", countries = "US", period_end = "2024-12-31"),
+    st_ytd_metrics(unified_app_id = "5ba4585f539ce75b97db6bcb", countries = "US", period_end = "2024-12-31"),
     "period_end must be in MM-DD format"
   )
 })
@@ -74,7 +74,7 @@ test_that("st_ytd_metrics handles default time periods correctly", {
   with_mock(
     `sensortowerR:::st_metrics` = mock_st_metrics,
     {
-      res <- st_ytd_metrics(unified_app_id = "123", countries = "US")
+      res <- st_ytd_metrics(unified_app_id = "5ba4585f539ce75b97db6bcb", countries = "US")
 
       # Check that it defaults to the current year
       expect_equal(unique(res$year), as.integer(format(Sys.Date(), "%Y")))
@@ -95,7 +95,7 @@ test_that("st_ytd_metrics works with custom time periods and leap years", {
     {
       # Test with a leap year
       res_leap <- st_ytd_metrics(
-        unified_app_id = "123",
+        unified_app_id = "5ba4585f539ce75b97db6bcb",
         countries = "US",
         years = 2024,
         period_start = "02-01",
@@ -106,7 +106,7 @@ test_that("st_ytd_metrics works with custom time periods and leap years", {
 
       # Test with a non-leap year (should adjust Feb 29 to Feb 28)
       res_non_leap <- st_ytd_metrics(
-        unified_app_id = "123",
+        unified_app_id = "5ba4585f539ce75b97db6bcb",
         countries = "US",
         years = 2023,
         period_start = "02-01",
@@ -131,7 +131,7 @@ test_that("st_ytd_metrics fetches data for multiple years, metrics, and countrie
     `sensortowerR:::st_metrics` = function(...) mock_data,
     {
       res <- st_ytd_metrics(
-        unified_app_id = "123",
+        unified_app_id = "5ba4585f539ce75b97db6bcb",
         countries = c("US", "GB"),
         years = c(2023, 2024),
         metrics = c("revenue", "downloads"),
@@ -160,7 +160,7 @@ test_that("st_ytd_metrics handles different ID types correctly", {
     `sensortowerR:::st_app_lookup` = mock_lookup,
     {
       # Unified ID
-      res_unified <- st_ytd_metrics(unified_app_id = "12345", countries = "US")
+      res_unified <- st_ytd_metrics(unified_app_id = "5ba4585f539ce75b97db6bcb", countries = "US")
       expect_true(nrow(res_unified) > 0)
 
       # iOS and Android IDs
@@ -189,7 +189,7 @@ test_that("st_ytd_metrics caching works as expected", {
     {
       # First call, should create cache
       res1 <- st_ytd_metrics(
-        unified_app_id = "cache_test",
+        unified_app_id = "5ba4585f539ce75b97db6bcb",  # Valid hex ID
         countries = "US",
         years = 2024,
         period_start = "01-01",
@@ -205,7 +205,7 @@ test_that("st_ytd_metrics caching works as expected", {
         `sensortowerR:::st_metrics` = function(...) stop("API should not be called"),
         {
           res2 <- st_ytd_metrics(
-            unified_app_id = "cache_test",
+            unified_app_id = "5ba4585f539ce75b97db6bcb",  # Valid hex ID
             countries = "US",
             years = 2024,
             period_start = "01-01",
@@ -229,7 +229,7 @@ test_that("st_ytd_metrics validates metrics correctly", {
   # Test invalid metrics
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       metrics = c("revenue", "invalid_metric"),
       countries = "US"
     ),
@@ -238,7 +238,7 @@ test_that("st_ytd_metrics validates metrics correctly", {
   
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       metrics = c("revenue", "retention_d1"),
       countries = "US"
     ),
@@ -248,7 +248,7 @@ test_that("st_ytd_metrics validates metrics correctly", {
   # Valid metrics should not error (would error on API call, but not validation)
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       metrics = c("revenue", "downloads"),
       countries = "US",
       auth_token = "dummy"
@@ -267,7 +267,7 @@ test_that("st_ytd_metrics validates entity inputs", {
   # Mixed entity types
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       publisher_id = "pub456",
       countries = "US"
     ),
@@ -288,7 +288,7 @@ test_that("st_ytd_metrics validates date formats", {
   # Invalid date format
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       period_start = "2024-01-01",  # Should be MM-DD
       countries = "US"
     ),
@@ -297,7 +297,7 @@ test_that("st_ytd_metrics validates date formats", {
   
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       period_end = "Jan 31",  # Should be MM-DD
       countries = "US"
     ),
@@ -340,7 +340,7 @@ test_that("st_ytd_metrics handles multiple entities correctly", {
   # Multiple app IDs should be valid
   expect_error(
     st_ytd_metrics(
-      unified_app_id = c("123", "456", "789"),
+      unified_app_id = c("5ba4585f539ce75b97db6bcb", "5ba4585f539ce75b97db6bcc", "5ba4585f539ce75b97db6bcd"),
       metrics = "revenue",
       countries = "US",
       auth_token = "dummy"
@@ -366,7 +366,7 @@ test_that("st_ytd_metrics handles leap years correctly", {
   
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       years = c(2023, 2024),  # 2024 is leap year
       period_start = "02-01",
       period_end = "02-29",
@@ -381,7 +381,7 @@ test_that("st_ytd_metrics validates countries parameter", {
   # Countries parameter is required
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",
       metrics = "revenue"
     ),
     "'countries' parameter is required"
@@ -390,7 +390,7 @@ test_that("st_ytd_metrics validates countries parameter", {
   # Valid country codes should pass validation
   expect_error(
     st_ytd_metrics(
-      unified_app_id = "123",
+      unified_app_id = "5ba4585f539ce75b97db6bcb",  # Valid 24-char hex ID
       metrics = "revenue",
       countries = c("US", "GB", "JP", "WW"),
       auth_token = "dummy"

@@ -6,6 +6,9 @@
 #' @param unified_app_id Character vector. Sensor Tower unified app ID(s). 
 #'   Must be 24-character hex format (e.g., "5ba4585f539ce75b97db6bcb").
 #'   Do NOT pass iOS app IDs or Android package names here.
+#'   Note: When requesting active user metrics (DAU/WAU/MAU), the function will
+#'   automatically look up platform-specific IDs since these metrics require
+#'   platform-specific API endpoints.
 #' @param ios_app_id Character vector. iOS app ID(s) (e.g., "1234567890").
 #' @param android_app_id Character vector. Android package name(s) (e.g., "com.example.app").
 #' @param publisher_id Character vector. Publisher ID(s) (alternative to app IDs).
@@ -42,6 +45,9 @@
 #' - **Entity detection**: Automatically determines if using app or publisher endpoints
 #' - **Caching**: Reuses cached data for overlapping periods across years
 #' - **Active Users Support**: DAU, WAU, and MAU are averaged across periods for meaningful comparisons
+#' - **Unified ID with Active Users**: When unified_app_id is provided with active user metrics,
+#'   the function automatically looks up platform-specific IDs (iOS/Android) since these
+#'   metrics require platform-specific API endpoints
 #'
 #' @examples
 #' \dontrun{
@@ -116,6 +122,20 @@ st_ytd_metrics <- function(
   # If both app IDs and publisher IDs are provided, throw error
   if (!is.null(publisher_id) && (!is.null(unified_app_id) || !is.null(ios_app_id) || !is.null(android_app_id))) {
     stop("Cannot mix publisher IDs with app IDs. Use either publisher_id OR app IDs.")
+  }
+  
+  # Validate unified_app_id format if provided
+  if (!is.null(unified_app_id)) {
+    invalid_ids <- unified_app_id[!grepl("^[a-f0-9]{24}$", unified_app_id)]
+    if (length(invalid_ids) > 0) {
+      stop(paste0(
+        "Invalid unified_app_id format. Must be 24-character hex ID(s).\n",
+        "Got: '", paste(invalid_ids, collapse = "', '"), "'\n",
+        "Expected format: '5ba4585f539ce75b97db6bcb'\n\n",
+        "If you have iOS app IDs (e.g., '1234567890'), use ios_app_id parameter instead.\n",
+        "If you have Android packages (e.g., 'com.example.app'), use android_app_id parameter instead."
+      ))
+    }
   }
   
   # Default years to current year
@@ -202,15 +222,19 @@ st_ytd_metrics <- function(
     
     # Add iOS/Android pairs if provided
     if (!is.null(ios_app_id) || !is.null(android_app_id)) {
-      max_len <- max(length(ios_app_id), length(android_app_id))
-      ios_ids <- rep(ios_app_id, length.out = max_len)
-      android_ids <- rep(android_app_id, length.out = max_len)
+      max_len <- max(length(ios_app_id) %||% 0, length(android_app_id) %||% 0)
+      ios_ids <- if(!is.null(ios_app_id)) rep(ios_app_id, length.out = max_len) else rep(NA_character_, max_len)
+      android_ids <- if(!is.null(android_app_id)) rep(android_app_id, length.out = max_len) else rep(NA_character_, max_len)
       
       for (i in 1:max_len) {
+        # Handle NA values properly
+        ios_val <- if(is.na(ios_ids[i])) "" else ios_ids[i]
+        android_val <- if(is.na(android_ids[i])) "" else android_ids[i]
+        
         entities <- rbind(entities, data.frame(
-          entity_id = paste0(ios_ids[i] %||% "", "_", android_ids[i] %||% ""),
-          ios_id = ios_ids[i] %||% NA_character_,
-          android_id = android_ids[i] %||% NA_character_,
+          entity_id = paste0(ios_val, "_", android_val),
+          ios_id = if(is.na(ios_ids[i])) NA_character_ else ios_ids[i],
+          android_id = if(is.na(android_ids[i])) NA_character_ else android_ids[i],
           entity_type = "app",
           stringsAsFactors = FALSE
         ))
@@ -272,13 +296,13 @@ st_ytd_metrics <- function(
     
     if (verbose) {
       message(sprintf("\nFetching %s (%s) for %d: %s to %s", 
-                     entity$entity_id, entity$entity_type, year, start_date, end_date))
+                     entity$entity_id[1], entity$entity_type[1], year, start_date, end_date))
     }
     
     # Fetch data based on entity type
-    if (entity$entity_type == "publisher") {
+    if (entity$entity_type[1] == "publisher") {
       year_data <- fetch_publisher_metrics(
-        publisher_id = entity$entity_id,
+        publisher_id = entity$entity_id[1],
         start_date = start_date,
         end_date = end_date,
         countries = countries,
@@ -289,11 +313,11 @@ st_ytd_metrics <- function(
       )
     } else {
       # For apps, use the specific IDs if available
-      if (!is.na(entity$ios_id) || !is.na(entity$android_id)) {
+      if (!is.na(entity$ios_id[1]) || !is.na(entity$android_id[1])) {
         year_data <- fetch_app_metrics(
           unified_app_id = NULL,
-          ios_app_id = entity$ios_id,
-          android_app_id = entity$android_id,
+          ios_app_id = entity$ios_id[1],
+          android_app_id = entity$android_id[1],
           start_date = start_date,
           end_date = end_date,
           countries = countries,
@@ -304,7 +328,7 @@ st_ytd_metrics <- function(
         )
       } else {
         year_data <- fetch_app_metrics(
-          unified_app_id = entity$entity_id,
+          unified_app_id = entity$entity_id[1],
           ios_app_id = NULL,
           android_app_id = NULL,
           start_date = start_date,
@@ -322,8 +346,8 @@ st_ytd_metrics <- function(
     if (nrow(year_data$data) > 0) {
       year_data$data <- year_data$data %>%
         mutate(
-          entity_id = entity$entity_id,
-          entity_type = entity$entity_type,
+          entity_id = entity$entity_id[1],
+          entity_type = entity$entity_type[1],
           year = year,
           date_start = format(start_date, "%Y-%m-%d"),
           date_end = format(end_date, "%Y-%m-%d"),
@@ -331,7 +355,7 @@ st_ytd_metrics <- function(
         )
       
       # Create unique key for storing results
-      result_key <- paste(entity$entity_id, year, sep = "_")
+      result_key <- paste(entity$entity_id[1], year, sep = "_")
       all_results[[result_key]] <- year_data$data
     }
     
@@ -467,11 +491,15 @@ fetch_app_metrics <- function(
   verbose
 ) {
   
+  # Convert NA to NULL for consistent handling
+  if (!is.null(ios_app_id) && is.na(ios_app_id)) ios_app_id <- NULL
+  if (!is.null(android_app_id) && is.na(android_app_id)) android_app_id <- NULL
+  
   # Check cache first
   if (!is.null(cache_dir)) {
     cache_key <- paste(
       "app",
-      unified_app_id %||% paste(ios_app_id, android_app_id, sep = "_"),
+      unified_app_id %||% paste(ios_app_id %||% "", android_app_id %||% "", sep = "_"),
       format(start_date, "%Y%m%d"),
       format(end_date, "%Y%m%d"),
       paste(countries, collapse = "_"),
@@ -567,10 +595,45 @@ fetch_app_metrics <- function(
   
   # Fetch DAU if requested
   if (needs_dau) {
+    # If only unified_app_id is provided, we need platform IDs for active users
+    dau_ios_id <- ios_app_id
+    dau_android_id <- android_app_id
+    
+    if (!is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id)) {
+      if (verbose) {
+        message("    Active user metrics require platform-specific IDs. Looking up platform IDs for unified ID...")
+      }
+      
+      # Try to look up platform IDs for active user metrics
+      app_lookup <- tryCatch({
+        sensortowerR::st_app_lookup(
+          unified_id = unified_app_id,
+          auth_token = auth_token,
+          verbose = verbose
+        )
+      }, error = function(e) {
+        if (verbose) {
+          message("    App lookup failed: ", e$message)
+        }
+        NULL
+      })
+      
+      if (!is.null(app_lookup)) {
+        dau_ios_id <- app_lookup$ios_app_id
+        dau_android_id <- app_lookup$android_app_id
+        api_calls <- api_calls + 1  # For the lookup
+        
+        if (verbose && (!is.null(dau_ios_id) || !is.null(dau_android_id))) {
+          message("    Found platform IDs - iOS: ", dau_ios_id %||% "none", 
+                  ", Android: ", dau_android_id %||% "none")
+        }
+      }
+    }
+    
     dau_result <- fetch_dau_metrics(
-      unified_app_id = unified_app_id,
-      ios_app_id = ios_app_id,
-      android_app_id = android_app_id,
+      unified_app_id = NULL,  # Don't pass unified ID to the function
+      ios_app_id = dau_ios_id,
+      android_app_id = dau_android_id,
       start_date = start_date,
       end_date = end_date,
       countries = countries,
@@ -592,10 +655,40 @@ fetch_app_metrics <- function(
   
   # Fetch WAU if requested
   if (needs_wau) {
+    # Reuse platform IDs from DAU lookup if available
+    wau_ios_id <- if (exists("dau_ios_id")) dau_ios_id else ios_app_id
+    wau_android_id <- if (exists("dau_android_id")) dau_android_id else android_app_id
+    
+    # If we still don't have platform IDs and only have unified_app_id
+    if (!is.null(unified_app_id) && is.null(wau_ios_id) && is.null(wau_android_id)) {
+      if (verbose) {
+        message("    Active user metrics require platform-specific IDs. Looking up platform IDs for unified ID...")
+      }
+      
+      app_lookup <- tryCatch({
+        sensortowerR::st_app_lookup(
+          unified_id = unified_app_id,
+          auth_token = auth_token,
+          verbose = verbose
+        )
+      }, error = function(e) {
+        if (verbose) {
+          message("    App lookup failed: ", e$message)
+        }
+        NULL
+      })
+      
+      if (!is.null(app_lookup)) {
+        wau_ios_id <- app_lookup$ios_app_id
+        wau_android_id <- app_lookup$android_app_id
+        api_calls <- api_calls + 1
+      }
+    }
+    
     wau_result <- fetch_wau_metrics(
-      unified_app_id = unified_app_id,
-      ios_app_id = ios_app_id,
-      android_app_id = android_app_id,
+      unified_app_id = NULL,
+      ios_app_id = wau_ios_id,
+      android_app_id = wau_android_id,
       start_date = start_date,
       end_date = end_date,
       countries = countries,
@@ -617,10 +710,40 @@ fetch_app_metrics <- function(
   
   # Fetch MAU if requested
   if (needs_mau) {
+    # Reuse platform IDs from previous lookups if available
+    mau_ios_id <- if (exists("dau_ios_id")) dau_ios_id else if (exists("wau_ios_id")) wau_ios_id else ios_app_id
+    mau_android_id <- if (exists("dau_android_id")) dau_android_id else if (exists("wau_android_id")) wau_android_id else android_app_id
+    
+    # If we still don't have platform IDs and only have unified_app_id
+    if (!is.null(unified_app_id) && is.null(mau_ios_id) && is.null(mau_android_id)) {
+      if (verbose) {
+        message("    Active user metrics require platform-specific IDs. Looking up platform IDs for unified ID...")
+      }
+      
+      app_lookup <- tryCatch({
+        sensortowerR::st_app_lookup(
+          unified_id = unified_app_id,
+          auth_token = auth_token,
+          verbose = verbose
+        )
+      }, error = function(e) {
+        if (verbose) {
+          message("    App lookup failed: ", e$message)
+        }
+        NULL
+      })
+      
+      if (!is.null(app_lookup)) {
+        mau_ios_id <- app_lookup$ios_app_id
+        mau_android_id <- app_lookup$android_app_id
+        api_calls <- api_calls + 1
+      }
+    }
+    
     mau_result <- fetch_mau_metrics(
-      app_id = unified_app_id,
-      ios_app_id = ios_app_id,
-      android_app_id = android_app_id,
+      app_id = NULL,
+      ios_app_id = mau_ios_id,
+      android_app_id = mau_android_id,
       start_date = start_date,
       end_date = end_date,
       countries = countries,
@@ -692,8 +815,8 @@ fetch_dau_metrics <- function(
   # Determine which platforms to fetch
   platforms_to_fetch <- list()
   
-  # Note: unified_app_id is not used for DAU/WAU/MAU because these endpoints
-  # require platform-specific IDs. Use ios_app_id and android_app_id instead.
+  # Note: unified_app_id is not used here. Active user endpoints require
+  # platform-specific IDs. These should be looked up in fetch_app_metrics.
   
   if (!is.null(ios_app_id)) {
     platforms_to_fetch[["ios"]] <- ios_app_id
@@ -836,8 +959,8 @@ fetch_wau_metrics <- function(
   # Determine which platforms to fetch
   platforms_to_fetch <- list()
   
-  # Note: unified_app_id is not used for DAU/WAU/MAU because these endpoints
-  # require platform-specific IDs. Use ios_app_id and android_app_id instead.
+  # Note: unified_app_id is not used here. Active user endpoints require
+  # platform-specific IDs. These should be looked up in fetch_app_metrics.
   
   if (!is.null(ios_app_id)) {
     platforms_to_fetch[["ios"]] <- ios_app_id

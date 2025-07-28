@@ -58,9 +58,9 @@ st_app_lookup <- function(unified_id,
   
   # Use search to find the app by its unified ID
   if (verbose) message("Looking up Sensor Tower unified ID: ", unified_id)
-    
-    # Try to find the app by searching with the ID
-    search_results <- tryCatch({
+  
+  # Try to find the app by searching with the ID
+  search_results <- tryCatch({
       st_app_info(
         term = unified_id,
         return_all_fields = TRUE,
@@ -103,13 +103,8 @@ st_app_lookup <- function(unified_id,
       ))
     }
     
-    # If we couldn't find by hex ID, return NULL
-    if (verbose) message("Could not find app with unified ID: ", unified_id)
-    return(NULL)
-  }
-  
-  # If we got here, we couldn't find the app
-  if (verbose) message("Could not resolve platform IDs for unified ID: ", unified_id)
+  # If we couldn't find by hex ID, return NULL
+  if (verbose) message("Could not find app with unified ID: ", unified_id)
   
   return(NULL)
 }

@@ -69,7 +69,7 @@ test_that("API calls retrieve data", {
   
   # Test st_ytd_metrics
   ytd_data <- st_ytd_metrics(
-    unified_app_id = "553834731",  # Candy Crush
+    unified_app_id = "5ba4585f539ce75b97db6bcb",  # Valid hex ID
     years = 2024,
     period_start = "03-01",
     period_end = "03-07",  # Just one week to minimize API usage

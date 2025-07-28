@@ -6,6 +6,20 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.5.1 - Strict ID Validation
+- **Unified ID Validation**: `unified_app_id` now strictly validates input format
+  - Only accepts 24-character hexadecimal IDs (e.g., "5ba4585f539ce75b97db6bcb")
+  - Rejects iOS numeric IDs and Android package names with clear error messages
+  - Guides users to use correct parameters (`ios_app_id` or `android_app_id`)
+- **Platform-Specific Parameters**: Enhanced support for single-platform requests
+  - `ios_app_id` and `android_app_id` work correctly with all metrics including MAU
+  - Properly handles NA values when only one platform is specified
+  - Fixed entity creation bugs for platform-specific requests
+- **Improved Error Messages**: Clear guidance when wrong ID types are used
+  - Tells users exactly what format is expected
+  - Suggests the correct parameter for their ID type
+  - No more confusion about which parameter to use
+
 ### v0.5.0 - ID Optimization & Caching
 - **Smart ID Caching**: Dramatically reduce API calls with intelligent ID resolution
   - Persistent cache stores app ID mappings for 30 days
