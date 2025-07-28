@@ -25,11 +25,9 @@ Defaults to "month".}
 
 \item{date}{Date or character. Start date. Defaults to 30 days ago.}
 
-\item{os}{Character. Operating system: "ios", "android", or "unified".
-Defaults to "unified".}
+\item{os}{Character. Operating system: "ios", "android", or "unified". Required.}
 
-\item{country}{Character. Country or region code (e.g., "US", "GB", "WW").
-Defaults to "WW" for worldwide data.}
+\item{country}{Character. Country or region code (e.g., "US", "GB", "WW" for worldwide). Required.}
 
 \item{auth_token}{Character. Your Sensor Tower API authentication token.}
 }

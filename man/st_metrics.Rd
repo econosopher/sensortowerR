@@ -11,8 +11,8 @@ st_metrics(
   unified_app_id = NULL,
   start_date = NULL,
   end_date = NULL,
-  countries = "US",
-  date_granularity = "daily",
+  countries,
+  date_granularity,
   auto_platform_fetch = TRUE,
   combine_platforms = TRUE,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
@@ -32,9 +32,9 @@ st_metrics(
 
 \item{end_date}{Date object or character string (YYYY-MM-DD). End date.}
 
-\item{countries}{Character vector. Country codes (default "US").}
+\item{countries}{Character vector. Country codes (e.g., "US", "GB", "JP", or "WW" for worldwide). Required.}
 
-\item{date_granularity}{Character. One of "daily", "weekly", "monthly", "quarterly".}
+\item{date_granularity}{Character. One of "daily", "weekly", "monthly", "quarterly". Required.}
 
 \item{auto_platform_fetch}{Logical. When TRUE (default), automatically falls back
 to platform-specific endpoints if unified endpoint returns no data.}

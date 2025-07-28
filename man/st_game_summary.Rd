@@ -6,11 +6,11 @@
 \usage{
 st_game_summary(
   categories = 7001,
-  countries = "WW",
-  os = "unified",
-  date_granularity = "daily",
-  start_date = Sys.Date() - 30,
-  end_date = Sys.Date() - 1,
+  countries,
+  os,
+  date_granularity,
+  start_date,
+  end_date,
   auth_token = NULL,
   base_url = "https://api.sensortower.com",
   enrich_response = TRUE
@@ -22,21 +22,19 @@ analyze. Defaults to 7001 (a popular game category). Use `st_categories()`
 to find valid category IDs.}
 
 \item{countries}{Character vector or comma-separated string. Country codes 
-(e.g., `"US"`, `c("US", "GB")`, `"WW"`) to analyze. Defaults to "WW" 
-(worldwide).}
+(e.g., `"US"`, `c("US", "GB")`, `"WW"` for worldwide) to analyze. Required.}
 
 \item{os}{Character string. Operating System. Must be one of "ios", "android", 
-or "unified". Defaults to "unified".}
+or "unified". Required.}
 
 \item{date_granularity}{Character string. Time granularity for aggregation. 
-Must be one of "daily", "weekly", "monthly", or "quarterly". 
-Defaults to "daily".}
+Must be one of "daily", "weekly", "monthly", or "quarterly". Required.}
 
 \item{start_date}{Character string or Date object. Start date for the query 
-in "YYYY-MM-DD" format. Defaults to 30 days ago.}
+in "YYYY-MM-DD" format. Required.}
 
 \item{end_date}{Character string or Date object. End date for the query 
-in "YYYY-MM-DD" format, inclusive. Defaults to yesterday.}
+in "YYYY-MM-DD" format, inclusive. Required.}
 
 \item{auth_token}{Optional. Character string. Your Sensor Tower API token.}
 

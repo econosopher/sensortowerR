@@ -13,7 +13,7 @@ st_ytd_metrics(
   period_start = NULL,
   period_end = NULL,
   metrics = c("revenue", "downloads"),
-  countries = "US",
+  countries,
   cache_dir = NULL,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
   verbose = TRUE
@@ -40,7 +40,7 @@ If NULL, defaults to last completed week (ending Saturday) of current year.}
 \item{metrics}{Character vector. Metrics to fetch. Supports "revenue", "downloads", "dau", "wau", and "mau".
 Default is both revenue and downloads. Note: DAU/WAU/MAU are calculated as averages for fair YoY comparisons.}
 
-\item{countries}{Character vector. Country codes (default: "US").}
+\item{countries}{Character vector. Country codes (e.g., "US", "GB", "JP"). Required.}
 
 \item{cache_dir}{Character. Directory for caching API responses (optional).}
 

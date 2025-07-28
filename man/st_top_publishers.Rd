@@ -6,13 +6,13 @@
 \usage{
 st_top_publishers(
   measure = "revenue",
-  os = "unified",
+  os,
   category = 0,
   time_range = "month",
   comparison_attribute = "absolute",
-  date = Sys.Date() - 30,
+  date,
   end_date = NULL,
-  country = "WW",
+  country,
   limit = 25,
   offset = 0,
   device_type = "total",
@@ -24,8 +24,7 @@ st_top_publishers(
 \item{measure}{Character. Metric to rank by: "revenue" or "units" (downloads).
 Defaults to "revenue".}
 
-\item{os}{Character. Operating system: "ios", "android", or "unified".
-Defaults to "unified".}
+\item{os}{Character. Operating system: "ios", "android", or "unified". Required.}
 
 \item{category}{Integer or character. Category ID to filter publishers.
 For iOS use numeric IDs (e.g., 6014 for Games), for Android use strings
@@ -38,7 +37,7 @@ or "year". Defaults to "month".}
 (total values), "delta" (growth), or "transformed_delta" (growth rate).
 Defaults to "absolute".}
 
-\item{date}{Date or character. Start date in "YYYY-MM-DD" format. 
+\item{date}{Date or character. Start date in "YYYY-MM-DD" format. Required.
 **Important**: Must align with time_range boundaries:
 - `month`: Must be first day of month (e.g., 2025-06-01)
 - `week`: Must be Monday
@@ -59,8 +58,7 @@ it will be automatically set to the last day of the period.
 Function will error if date doesn't align. Use `time_range = "day"`
 for custom date ranges.}
 
-\item{country}{Character. Country or region code (e.g., "US", "GB", "WW").
-Defaults to "WW" for worldwide data.}
+\item{country}{Character. Country or region code (e.g., "US", "GB", "WW" for worldwide). Required.}
 
 \item{limit}{Integer. Number of publishers to return (1-100). Defaults to 25.}
 

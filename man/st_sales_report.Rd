@@ -8,10 +8,10 @@ st_sales_report(
   app_ids = NULL,
   publisher_ids = NULL,
   os = "ios",
-  countries = "US",
-  start_date = Sys.Date() - 30,
-  end_date = Sys.Date() - 1,
-  date_granularity = "daily",
+  countries,
+  start_date,
+  end_date,
+  date_granularity,
   auth_token = NULL,
   auto_segment = TRUE,
   verbose = TRUE
@@ -25,13 +25,13 @@ st_sales_report(
 
 \item{os}{Character string. Operating system: "ios" or "android".}
 
-\item{countries}{Character vector. Country codes (e.g., c("US", "GB", "JP")).}
+\item{countries}{Character vector. Country codes (e.g., c("US", "GB", "JP"), or "WW" for worldwide). Required.}
 
-\item{start_date}{Date or character string. Start date in "YYYY-MM-DD" format.}
+\item{start_date}{Date or character string. Start date in "YYYY-MM-DD" format. Required.}
 
-\item{end_date}{Date or character string. End date in "YYYY-MM-DD" format.}
+\item{end_date}{Date or character string. End date in "YYYY-MM-DD" format. Required.}
 
-\item{date_granularity}{Character string. One of "daily", "weekly", "monthly", "quarterly".}
+\item{date_granularity}{Character string. One of "daily", "weekly", "monthly", "quarterly". Required.}
 
 \item{auth_token}{Optional. Character string. Your Sensor Tower API token.}
 

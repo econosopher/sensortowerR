@@ -6,12 +6,12 @@
 \usage{
 st_top_charts(
   measure = "revenue",
-  os = "unified",
+  os,
   comparison_attribute = "absolute",
   time_range = "month",
   date = NULL,
   category = NULL,
-  regions = "WW",
+  regions,
   end_date = NULL,
   limit = 20,
   offset = NULL,
@@ -31,7 +31,7 @@ st_top_charts(
 - **Active Users**: "DAU", "WAU", "MAU"}
 
 \item{os}{Character string. Operating System. Must be one of
-"ios", "android", or "unified". Defaults to "unified".}
+"ios", "android", or "unified". Required.}
 
 \item{comparison_attribute}{Character string. Comparison attribute
 type. Must be one of "absolute", "delta", or "transformed_delta". 
@@ -49,8 +49,8 @@ filter by. **Required for revenue/downloads and active users**.
 Use `st_categories()` to find valid IDs.}
 
 \item{regions}{Character vector or comma-separated string. Region
-codes (e.g., `"US"`, `c("US", "GB")`, `"WW"`) to filter results. 
-Defaults to "WW" (worldwide).}
+codes (e.g., `"US"`, `c("US", "GB")`, `"WW"` for worldwide) to filter results. 
+Required.}
 
 \item{end_date}{Optional. Character string or Date object. End date for the
 query in "YYYY-MM-DD" format, inclusive. Only used for revenue/downloads.}

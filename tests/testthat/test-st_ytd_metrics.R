@@ -6,17 +6,19 @@ test_that("st_ytd_metrics validates metrics correctly", {
   expect_error(
     st_ytd_metrics(
       unified_app_id = "123",
-      metrics = c("revenue", "mau")
+      metrics = c("revenue", "invalid_metric"),
+      countries = "US"
     ),
-    "Invalid metrics: mau"
+    "Invalid metrics: invalid_metric"
   )
   
   expect_error(
     st_ytd_metrics(
       unified_app_id = "123",
-      metrics = c("dau", "retention_d1")
+      metrics = c("revenue", "retention_d1"),
+      countries = "US"
     ),
-    "Invalid metrics: dau, retention_d1"
+    "Invalid metrics: retention_d1"
   )
   
   # Valid metrics should not error (would error on API call, but not validation)
@@ -24,6 +26,7 @@ test_that("st_ytd_metrics validates metrics correctly", {
     st_ytd_metrics(
       unified_app_id = "123",
       metrics = c("revenue", "downloads"),
+      countries = "US",
       auth_token = "dummy"
     ),
     NA
@@ -33,25 +36,27 @@ test_that("st_ytd_metrics validates metrics correctly", {
 test_that("st_ytd_metrics validates entity inputs", {
   # No entity provided
   expect_error(
-    st_ytd_metrics(metrics = "revenue"),
-    "At least one entity ID must be provided"
+    st_ytd_metrics(metrics = "revenue", countries = "US"),
+    "At least one ID must be provided"
   )
   
   # Mixed entity types
   expect_error(
     st_ytd_metrics(
       unified_app_id = "123",
-      publisher_id = "pub456"
+      publisher_id = "pub456",
+      countries = "US"
     ),
-    "Cannot specify both publisher_id and app IDs"
+    "Cannot mix publisher IDs with app IDs"
   )
   
   expect_error(
     st_ytd_metrics(
       ios_app_id = "123",
-      publisher_id = "pub456"
+      publisher_id = "pub456",
+      countries = "US"
     ),
-    "Cannot specify both publisher_id and app IDs"
+    "Cannot mix publisher IDs with app IDs"
   )
 })
 
@@ -60,7 +65,8 @@ test_that("st_ytd_metrics validates date formats", {
   expect_error(
     st_ytd_metrics(
       unified_app_id = "123",
-      period_start = "2024-01-01"  # Should be MM-DD
+      period_start = "2024-01-01",  # Should be MM-DD
+      countries = "US"
     ),
     "period_start must be in MM-DD format"
   )
@@ -68,7 +74,8 @@ test_that("st_ytd_metrics validates date formats", {
   expect_error(
     st_ytd_metrics(
       unified_app_id = "123",
-      period_end = "Jan 31"  # Should be MM-DD
+      period_end = "Jan 31",  # Should be MM-DD
+      countries = "US"
     ),
     "period_end must be in MM-DD format"
   )
@@ -111,6 +118,7 @@ test_that("st_ytd_metrics handles multiple entities correctly", {
     st_ytd_metrics(
       unified_app_id = c("123", "456", "789"),
       metrics = "revenue",
+      countries = "US",
       auth_token = "dummy"
     ),
     NA  # Should not error on validation
@@ -121,6 +129,7 @@ test_that("st_ytd_metrics handles multiple entities correctly", {
     st_ytd_metrics(
       publisher_id = c("pub1", "pub2"),
       metrics = "downloads",
+      countries = "US",
       auth_token = "dummy"
     ),
     NA  # Should not error on validation
@@ -137,6 +146,7 @@ test_that("st_ytd_metrics handles leap years correctly", {
       years = c(2023, 2024),  # 2024 is leap year
       period_start = "02-01",
       period_end = "02-29",
+      countries = "US",
       auth_token = "dummy"
     ),
     NA  # Should not error - function handles leap years
