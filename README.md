@@ -6,6 +6,34 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.5.0 - ID Optimization & Caching
+- **Smart ID Caching**: Dramatically reduce API calls with intelligent ID resolution
+  - Persistent cache stores app ID mappings for 30 days
+  - Automatic batch resolution minimizes API calls
+  - Cache persists between R sessions
+- **New Function**: `st_smart_metrics()` - Fetch metrics with automatic ID resolution
+  - Accepts mixed ID types (iOS, Android, unified hex)
+  - Uses cache to avoid redundant lookups
+  - Groups compatible requests for efficiency
+- **ID Type Detection**: Automatically identifies ID formats
+  - iOS numeric (e.g., "553834731")
+  - Android package (e.g., "com.king.candycrushsaga")
+  - Unified hex (e.g., "5ba4585f539ce75b97db6bcb")
+- **Cache Management Functions**:
+  - `st_cache_info()` - View cache statistics and contents
+  - `st_clear_id_cache()` - Clear the ID cache
+- **Configuration Options**:
+  ```r
+  # Enable/disable caching (default: TRUE)
+  options(sensortowerR.use_cache = TRUE)
+  
+  # Set cache expiry (default: 30 days)
+  options(sensortowerR.cache_max_age_days = 30)
+  
+  # Enable verbose mode to see optimization in action
+  options(sensortowerR.verbose = TRUE)
+  ```
+
 ### v0.4.2
 - **New Function**: `st_get_unified_mapping()` - Get complete ID mapping between platforms
   - Retrieves the mapping between platform-specific and unified app IDs
@@ -319,6 +347,61 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics (revenue, downloads, DAU, WAU, MAU) across multiple years
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
 - **`st_sales_report()`**: Platform-specific daily revenue and download data
+- **`st_smart_metrics()`**: **NEW!** Fetch metrics with automatic ID resolution and caching
+- **`st_cache_info()`**: **NEW!** View app ID cache statistics
+- **`st_clear_id_cache()`**: **NEW!** Clear the app ID cache
+
+## ID Optimization & Caching
+
+The package now includes intelligent ID caching to minimize API calls:
+
+### Smart Metrics with Automatic ID Resolution
+```r
+# Mix of iOS, Android, and unified IDs - all handled automatically!
+metrics <- st_smart_metrics(
+  app_ids = c(
+    "553834731",                    # Candy Crush iOS
+    "com.king.candycrushsaga",      # Candy Crush Android
+    "5ba4585f539ce75b97db6bcb",     # Star Trek unified
+    "1195621598",                   # Homescapes iOS
+    "com.playrix.homescapes"        # Homescapes Android
+  ),
+  metrics = c("revenue", "downloads", "dau"),
+  start_date = "2024-01-01",
+  end_date = "2024-01-07"
+)
+
+# First call: Makes API calls to resolve IDs
+# Subsequent calls: Uses cached IDs (30-day expiry)
+```
+
+### Cache Management
+```r
+# View cache statistics
+st_cache_info()
+# Output:
+# App ID Cache Statistics:
+#   Total entries: 25
+#   Apps with iOS ID: 20
+#   Apps with Android ID: 22
+#   Apps with both platforms: 17
+#   Average cache age: 5.2 days
+
+# Clear cache if needed
+st_clear_id_cache()
+
+# Configure caching behavior
+options(sensortowerR.use_cache = TRUE)        # Enable/disable caching
+options(sensortowerR.cache_max_age_days = 30) # Cache expiry (days)
+options(sensortowerR.verbose = TRUE)          # See optimization in action
+```
+
+### How It Works
+1. **Automatic ID Detection**: Identifies iOS numeric, Android package, or unified hex IDs
+2. **Cache First**: Checks local cache before making API calls
+3. **Batch Resolution**: Resolves multiple IDs in a single API call when possible
+4. **Persistent Storage**: Cache survives between R sessions
+5. **Smart Grouping**: Groups compatible requests to minimize API calls
 
 ## Quick Examples
 

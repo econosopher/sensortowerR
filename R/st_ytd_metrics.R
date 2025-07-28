@@ -3,9 +3,11 @@
 #' Fetches year-to-date metrics for apps or publishers across multiple years,
 #' with intelligent batching and caching to minimize API calls.
 #'
-#' @param unified_app_id Character vector. Unified app ID(s) that work across iOS and Android platforms.
-#' @param ios_app_id Character vector. iOS app ID(s) (optional).
-#' @param android_app_id Character vector. Android package name(s) (optional).
+#' @param unified_app_id Character vector. Sensor Tower unified app ID(s). 
+#'   Must be 24-character hex format (e.g., "5ba4585f539ce75b97db6bcb").
+#'   Do NOT pass iOS app IDs or Android package names here.
+#' @param ios_app_id Character vector. iOS app ID(s) (e.g., "1234567890").
+#' @param android_app_id Character vector. Android package name(s) (e.g., "com.example.app").
 #' @param publisher_id Character vector. Publisher ID(s) (alternative to app IDs).
 #' @param years Integer vector. Years to fetch data for (e.g., c(2023, 2024, 2025)).
 #'   If NULL, uses current year only.
@@ -45,7 +47,8 @@
 #' \dontrun{
 #' # Get YTD metrics including DAU, WAU, and MAU for a single app
 #' ytd_metrics <- st_ytd_metrics(
-#'   unified_app_id = "553834731",  # Candy Crush
+#'   ios_app_id = "553834731",  # Candy Crush iOS
+#'   android_app_id = "com.king.candycrushsaga",  # Candy Crush Android
 #'   years = c(2023, 2024, 2025),
 #'   metrics = c("revenue", "downloads", "dau", "wau", "mau")
 #' )
@@ -513,7 +516,7 @@ fetch_app_metrics <- function(
       verbose = verbose
     )
     
-    # If using unified ID and got zero data, try to fallback to platform-specific IDs
+    # If using unified ID and got zero data, just report it
     if (!is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id)) {
       # Check if we got zero revenue/downloads
       total_value <- 0
@@ -524,50 +527,10 @@ fetch_app_metrics <- function(
       }
       
       if (total_value == 0 && verbose) {
-        message("    Unified ID returned zero data, attempting platform-specific fallback...")
-      }
-      
-      if (total_value == 0) {
-        # Try to look up platform-specific IDs
-        app_lookup <- tryCatch({
-          sensortowerR::st_app_lookup(
-            unified_id = unified_app_id,
-            auth_token = auth_token,
-            verbose = verbose
-          )
-        }, error = function(e) {
-          if (verbose) {
-            message("    App lookup failed: ", e$message)
-          }
-          NULL
-        })
-        
-        if (!is.null(app_lookup) && (!is.null(app_lookup$ios_app_id) || !is.null(app_lookup$android_app_id))) {
-          if (verbose) {
-            message("    Found platform IDs - iOS: ", app_lookup$ios_app_id %||% "none", 
-                    ", Android: ", app_lookup$android_app_id %||% "none")
-          }
-          
-          # Retry with platform-specific IDs
-          result <- fetch_optimized_data(
-            ios_app_id = app_lookup$ios_app_id,
-            android_app_id = app_lookup$android_app_id,
-            app_id = NULL,
-            start_date = start_date,
-            end_date = end_date,
-            countries = countries,
-            date_granularity = "daily",
-            auth_token = auth_token,
-            verbose = verbose
-          )
-          
-          # Update api_calls count for the additional lookups
-          api_calls <- api_calls + 2  # One for details, one for search
-        } else {
-          if (verbose) {
-            message("    Could not resolve platform IDs for unified ID: ", unified_app_id)
-          }
-        }
+        message("    Unified ID returned zero data. This may indicate:")
+        message("    - The unified ID is not valid")
+        message("    - The app has no data for the specified period")
+        message("    - You may need to use platform-specific ios_app_id/android_app_id instead")
       }
     }
     
@@ -729,18 +692,8 @@ fetch_dau_metrics <- function(
   # Determine which platforms to fetch
   platforms_to_fetch <- list()
   
-  if (!is.null(unified_app_id)) {
-    # Try to detect platform from unified ID
-    if (grepl("^\\d+$", unified_app_id)) {
-      platforms_to_fetch[["ios"]] <- unified_app_id
-    } else if (grepl("^(com|net|org|io)\\.", unified_app_id)) {
-      platforms_to_fetch[["android"]] <- unified_app_id
-    } else {
-      # Try both platforms
-      platforms_to_fetch[["ios"]] <- unified_app_id
-      platforms_to_fetch[["android"]] <- unified_app_id
-    }
-  }
+  # Note: unified_app_id is not used for DAU/WAU/MAU because these endpoints
+  # require platform-specific IDs. Use ios_app_id and android_app_id instead.
   
   if (!is.null(ios_app_id)) {
     platforms_to_fetch[["ios"]] <- ios_app_id
@@ -883,18 +836,8 @@ fetch_wau_metrics <- function(
   # Determine which platforms to fetch
   platforms_to_fetch <- list()
   
-  if (!is.null(unified_app_id)) {
-    # Try to detect platform from unified ID
-    if (grepl("^\\d+$", unified_app_id)) {
-      platforms_to_fetch[["ios"]] <- unified_app_id
-    } else if (grepl("^(com|net|org|io)\\.", unified_app_id)) {
-      platforms_to_fetch[["android"]] <- unified_app_id
-    } else {
-      # Try both platforms
-      platforms_to_fetch[["ios"]] <- unified_app_id
-      platforms_to_fetch[["android"]] <- unified_app_id
-    }
-  }
+  # Note: unified_app_id is not used for DAU/WAU/MAU because these endpoints
+  # require platform-specific IDs. Use ios_app_id and android_app_id instead.
   
   if (!is.null(ios_app_id)) {
     platforms_to_fetch[["ios"]] <- ios_app_id
