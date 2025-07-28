@@ -1,8 +1,8 @@
-#' Fetch Sensor Tower Metrics for Apps (Unified Version)
+#' Fetch Sensor Tower Metrics for Apps
 #'
-#' Retrieves daily metrics for apps. Automatically handles the limitation where
-#' unified endpoints don't return daily data by fetching platform-specific data
-#' when needed.
+#' Retrieves metrics for apps. First attempts to use the unified endpoint,
+#' but if it returns empty (which happens for all granularities currently),
+#' automatically falls back to platform-specific endpoints and combines the results.
 #'
 #' @param app_id Character string. Can be a unified app ID, iOS app ID, or Android package name.
 #' @param ios_app_id Character string. iOS app ID (optional, improves data completeness).
@@ -12,9 +12,8 @@
 #' @param end_date Date object or character string (YYYY-MM-DD). End date.
 #' @param countries Character vector. Country codes (default "US").
 #' @param date_granularity Character. One of "daily", "weekly", "monthly", "quarterly".
-#'   When "daily" is used, automatically switches to platform-specific endpoints.
-#' @param auto_platform_fetch Logical. When TRUE (default) and daily data is requested,
-#'   automatically fetches from platform-specific endpoints.
+#' @param auto_platform_fetch Logical. When TRUE (default), automatically falls back
+#'   to platform-specific endpoints if unified endpoint returns no data.
 #' @param combine_platforms Logical. When TRUE (default), combines iOS and Android data
 #'   into unified totals. The platform column is excluded from results when TRUE.
 #' @param auth_token Character string. Sensor Tower API token.
@@ -25,10 +24,11 @@
 #' @details
 #' This function intelligently handles Sensor Tower's API limitations:
 #' 
-#' - For daily data: Uses platform-specific endpoints (iOS/Android)
-#' - For weekly/monthly/quarterly: Can use unified endpoint
+#' - First attempts the unified sales_report_estimates endpoint
+#' - If unified returns empty (current behavior for all granularities), falls back to platform-specific endpoints
 #' - Automatically detects app ID format and fetches appropriate data
-#' - Combines iOS and Android data for true unified view
+#' - Combines iOS and Android data for true unified view when using fallback
+#' - Set auto_platform_fetch = FALSE to disable automatic fallback
 #'
 #' @examples
 #' \dontrun{
@@ -130,47 +130,40 @@ st_metrics <- function(
     stop("Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
-  # Determine strategy based on granularity and settings
-  use_platform_specific <- FALSE
-  
-  if (date_granularity == "daily" && auto_platform_fetch) {
-    use_platform_specific <- TRUE
-    if (verbose) {
-      message("Daily data requested. Fetching unified data via platform-specific endpoints...")
-    }
-  }
-  
-  # If platform-specific approach
-  if (use_platform_specific) {
-    return(fetch_platform_specific_data(
-      ios_app_id = ios_app_id,
-      android_app_id = android_app_id,
-      start_date = start_date,
-      end_date = end_date,
-      countries = countries,
-      date_granularity = date_granularity,
-      combine_platforms = combine_platforms,
-      auth_token = auth_token,
-      verbose = verbose
-    ))
-  }
-  
-  # Otherwise, try unified endpoint (mainly for non-daily granularities)
+  # First try unified endpoint
   if (verbose) {
     message("Attempting unified endpoint...")
   }
   
-  # Use the original st_metrics logic for unified endpoint
-  result <- fetch_unified_metrics(
-    app_id = app_id %||% ios_app_id %||% android_app_id,
-    start_date = start_date,
-    end_date = end_date,
-    auth_token = auth_token
-  )
-  
-  if (nrow(result) == 0 && date_granularity == "daily") {
+  # Try unified endpoint first
+  unified_result <- tryCatch({
+    fetch_unified_metrics(
+      app_id = app_id %||% ios_app_id %||% android_app_id,
+      start_date = start_date,
+      end_date = end_date,
+      countries = countries,
+      date_granularity = date_granularity,
+      auth_token = auth_token
+    )
+  }, error = function(e) {
     if (verbose) {
-      message("Unified endpoint returned no data. Switching to platform-specific approach...")
+      message(sprintf("Unified endpoint error: %s", e$message))
+    }
+    NULL
+  })
+  
+  # Check if unified returned data
+  if (!is.null(unified_result) && nrow(unified_result) > 0) {
+    if (verbose) {
+      message(sprintf("Unified endpoint successful: %d rows returned", nrow(unified_result)))
+    }
+    return(unified_result)
+  }
+  
+  # If unified failed or returned empty, use platform-specific
+  if (auto_platform_fetch) {
+    if (verbose) {
+      message("Unified endpoint returned no data. Switching to platform-specific endpoints...")
     }
     return(fetch_platform_specific_data(
       ios_app_id = ios_app_id,
@@ -183,9 +176,20 @@ st_metrics <- function(
       auth_token = auth_token,
       verbose = verbose
     ))
+  } else {
+    # If auto_platform_fetch is disabled and unified failed
+    if (verbose) {
+      warning("Unified endpoint returned no data. Set auto_platform_fetch = TRUE to use platform-specific endpoints as fallback.")
+    }
+    
+    # Return empty result
+    return(tibble::tibble(
+      date = as.Date(character()),
+      country = character(),
+      revenue = numeric(),
+      downloads = numeric()
+    ))
   }
-  
-  return(result)
 }
 
 # Helper function for platform-specific fetching
@@ -230,17 +234,17 @@ fetch_platform_specific_data <- function(
         dplyr::mutate(
           platform = "iOS",
           revenue = dplyr::coalesce(
-            .data$total_revenue,
-            .data$iphone_revenue + .data$ipad_revenue,
+            total_revenue,
+            iphone_revenue + ipad_revenue,
             0
           ),
           downloads = dplyr::coalesce(
-            .data$total_downloads,
-            .data$iphone_downloads + .data$ipad_downloads,
+            total_downloads,
+            iphone_downloads + ipad_downloads,
             0
           )
         ) %>%
-        dplyr::select(.data$date, .data$country, .data$revenue, .data$downloads, .data$platform)
+        dplyr::select(date, country, revenue, downloads, platform)
       
       all_data <- dplyr::bind_rows(all_data, ios_clean)
       if (verbose) message(sprintf("  Retrieved %d iOS records", nrow(ios_clean)))
@@ -269,14 +273,13 @@ fetch_platform_specific_data <- function(
     })
     
     if (!is.null(android_data) && nrow(android_data) > 0) {
-      # Standardize columns
+      # Standardize columns - Android already has revenue/downloads columns
       android_clean <- android_data %>%
         dplyr::mutate(
           platform = "Android",
-          revenue = dplyr::coalesce(.data$revenue, .data$total_revenue, 0),
-          downloads = dplyr::coalesce(.data$downloads, .data$total_downloads, 0)
+          country = c  # Android returns 'c' instead of 'country'
         ) %>%
-        dplyr::select(.data$date, .data$country, .data$revenue, .data$downloads, .data$platform)
+        dplyr::select(date, country, revenue, downloads, platform)
       
       all_data <- dplyr::bind_rows(all_data, android_clean)
       if (verbose) message(sprintf("  Retrieved %d Android records", nrow(android_clean)))
@@ -286,10 +289,10 @@ fetch_platform_specific_data <- function(
   # Combine platforms if requested (default behavior for unified view)
   if (combine_platforms && nrow(all_data) > 0) {
     all_data <- all_data %>%
-      dplyr::group_by(.data$date, .data$country) %>%
+      dplyr::group_by(date, country) %>%
       dplyr::summarise(
-        revenue = sum(.data$revenue, na.rm = TRUE),
-        downloads = sum(.data$downloads, na.rm = TRUE),
+        revenue = sum(revenue, na.rm = TRUE),
+        downloads = sum(downloads, na.rm = TRUE),
         .groups = "drop"
       )
     # Note: platform column is intentionally excluded for unified view
@@ -302,19 +305,79 @@ fetch_platform_specific_data <- function(
   return(all_data)
 }
 
-# Helper function for unified endpoint (original st_metrics logic)
-fetch_unified_metrics <- function(app_id, start_date, end_date, auth_token) {
-  # This would contain the original st_metrics implementation
-  # For now, returning empty as we know it doesn't work for daily
+# Helper function for unified endpoint
+fetch_unified_metrics <- function(app_id, start_date, end_date, countries, date_granularity, auth_token) {
   
-  empty_result <- tibble::tibble(
+  # Build the API request
+  base_url <- "https://api.sensortower.com/v1/unified/sales_report_estimates"
+  
+  params <- list(
+    app_ids = app_id,
+    countries = paste(countries, collapse = ","),
+    date_granularity = date_granularity,
+    start_date = format(start_date, "%Y-%m-%d"),
+    end_date = format(end_date, "%Y-%m-%d"),
+    auth_token = auth_token
+  )
+  
+  # Make the API request
+  response <- httr::GET(base_url, query = params)
+  
+  # Check status
+  if (httr::status_code(response) != 200) {
+    stop(sprintf("API error: HTTP %d", httr::status_code(response)))
+  }
+  
+  # Parse response
+  content <- httr::content(response, as = "text", encoding = "UTF-8")
+  
+  if (nchar(content) == 0 || content == "[]" || content == "{}") {
+    # Empty response
+    return(tibble::tibble(
+      date = as.Date(character()),
+      country = character(),
+      revenue = numeric(),
+      downloads = numeric()
+    ))
+  }
+  
+  # Parse JSON
+  result <- jsonlite::fromJSON(content, flatten = TRUE)
+  
+  # Convert to tibble and standardize columns
+  if (is.data.frame(result) && nrow(result) > 0) {
+    result_tbl <- tibble::as_tibble(result)
+    
+    # Standardize column names
+    if ("c" %in% names(result_tbl)) {
+      result_tbl$country <- result_tbl$c
+    }
+    
+    # Ensure required columns exist
+    required_cols <- c("date", "country", "revenue", "downloads")
+    missing_cols <- setdiff(required_cols, names(result_tbl))
+    
+    if (length(missing_cols) > 0) {
+      # Try to find revenue/download columns with different names
+      if ("total_revenue" %in% names(result_tbl)) {
+        result_tbl$revenue <- result_tbl$total_revenue
+      }
+      if ("total_downloads" %in% names(result_tbl)) {
+        result_tbl$downloads <- result_tbl$total_downloads
+      }
+    }
+    
+    # Select only required columns
+    if (all(c("date", "country", "revenue", "downloads") %in% names(result_tbl))) {
+      return(dplyr::select(result_tbl, date, country, revenue, downloads))
+    }
+  }
+  
+  # If we got here, something went wrong
+  return(tibble::tibble(
     date = as.Date(character()),
     country = character(),
     revenue = numeric(),
     downloads = numeric()
-  )
-  
-  # Add actual implementation here if needed for non-daily granularities
-  
-  return(empty_result)
+  ))
 }

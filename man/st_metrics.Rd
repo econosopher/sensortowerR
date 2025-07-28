@@ -2,71 +2,97 @@
 % Please edit documentation in R/st_metrics.R
 \name{st_metrics}
 \alias{st_metrics}
-\title{Fetch Sensor Tower Metrics for a Unified App}
+\title{Fetch Sensor Tower Metrics for Apps}
 \usage{
 st_metrics(
-  unified_app_id,
+  app_id = NULL,
+  ios_app_id = NULL,
+  android_app_id = NULL,
+  unified_app_id = NULL,
   start_date = NULL,
   end_date = NULL,
-  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
+  countries = "US",
+  date_granularity = "daily",
+  auto_platform_fetch = TRUE,
+  combine_platforms = TRUE,
+  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
+  verbose = TRUE
 )
 }
 \arguments{
-\item{unified_app_id}{Character string. The unified app ID for which to fetch
-metrics (required).}
+\item{app_id}{Character string. Can be a unified app ID, iOS app ID, or Android package name.}
 
-\item{start_date}{Date object or character string (YYYY-MM-DD). The start
-date for data collection. Defaults to the start of the current month.}
+\item{ios_app_id}{Character string. iOS app ID (optional, improves data completeness).}
 
-\item{end_date}{Date object or character string (YYYY-MM-DD). The end date
-for data collection. Defaults to the current date.}
+\item{android_app_id}{Character string. Android package name (optional, improves data completeness).}
 
-\item{auth_token}{Character string. Your Sensor Tower API authentication
-token. Defaults to the value stored in the `SENSORTOWER_AUTH_TOKEN`
-environment variable.}
+\item{unified_app_id}{Deprecated. Use `app_id` instead.}
+
+\item{start_date}{Date object or character string (YYYY-MM-DD). Start date.}
+
+\item{end_date}{Date object or character string (YYYY-MM-DD). End date.}
+
+\item{countries}{Character vector. Country codes (default "US").}
+
+\item{date_granularity}{Character. One of "daily", "weekly", "monthly", "quarterly".}
+
+\item{auto_platform_fetch}{Logical. When TRUE (default), uses platform-specific 
+endpoints. Set to FALSE only if you want to attempt the broken unified endpoint.}
+
+\item{combine_platforms}{Logical. When TRUE (default), combines iOS and Android data
+into unified totals. The platform column is excluded from results when TRUE.}
+
+\item{auth_token}{Character string. Sensor Tower API token.}
+
+\item{verbose}{Logical. Print progress messages.}
 }
 \value{
-A [tibble][tibble::tibble] containing combined sales and usage
-  metrics. Columns are: `unified_app_id`, `date` (Date object), `country`
-  (character), `revenue` (numeric, from unified_revenue), `downloads`
-  (numeric, from unified_units), `active_users` (numeric, sum of platform
-  users). Returns an empty tibble with the correct structure if no data is
-  found or an unrecoverable error occurs.
+A tibble with columns: date, country, revenue, downloads, platform (if not combined)
 }
 \description{
-Retrieves daily sales estimates and active user metrics for a specified
-unified application ID from the Sensor Tower API over a given date range.
-It combines these metrics into a single tibble.
+Retrieves metrics for apps. Since the unified sales_report_estimates endpoint
+is completely broken (returns empty for ALL granularities), this function
+ALWAYS uses platform-specific endpoints and combines the results.
 }
-\section{API Endpoints Used}{
+\details{
+This function handles Sensor Tower's broken unified endpoint:
 
-  - `GET /v1/unified/sales_report_estimates`
-  - `GET /v1/unified/usage/active_users`
-  *(Verification needed for exact parameters used by these endpoints)*
+- The unified sales_report_estimates endpoint returns EMPTY for ALL granularities
+- This function ALWAYS uses platform-specific endpoints (iOS/Android) instead
+- Automatically detects app ID format and fetches appropriate data
+- Combines iOS and Android data for true unified view
+- Set auto_platform_fetch = FALSE only if you want to test the broken endpoint
 }
-
 \examples{
 \dontrun{
-# Ensure SENSORTOWER_AUTH_TOKEN is set in your environment
-# Sys.setenv(SENSORTOWER_AUTH_TOKEN = "your_secure_auth_token_here")
-
-# Define the unified app ID (use a real, valid ID)
-unified_app_id <- "YOUR_VALID_UNIFIED_APP_ID"
-
-# Define the date range
-start_date <- Sys.Date() - 30
-end_date <- Sys.Date() - 1
-
-# Fetch the metrics
+# Simple usage - function figures out the platform
 metrics <- st_metrics(
-  unified_app_id = unified_app_id,
-  start_date = start_date,
-  end_date = end_date
+  app_id = "1195621598",  # Homescapes iOS
+  start_date = Sys.Date() - 30,
+  end_date = Sys.Date() - 1
 )
 
-# View the metrics
-print(metrics)
-head(metrics)
+# Best practice - provide both platform IDs
+metrics <- st_metrics(
+  app_id = "1195621598",
+  ios_app_id = "1195621598",
+  android_app_id = "com.playrix.homescapes",
+  start_date = Sys.Date() - 30,
+  end_date = Sys.Date() - 1
+)
+
+# Keep platforms separate
+metrics <- st_metrics(
+  app_id = "com.king.candycrushsaga",
+  combine_platforms = FALSE
+)
+
+# Force unified endpoint (will fail for daily)
+metrics <- st_metrics(
+  app_id = "1195621598",
+  date_granularity = "monthly",
+  auto_platform_fetch = FALSE
+)
 }
 
 }

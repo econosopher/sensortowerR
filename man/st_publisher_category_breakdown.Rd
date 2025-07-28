@@ -10,6 +10,7 @@ st_publisher_category_breakdown(
   time_range = "month",
   date = Sys.Date() - 30,
   os = "unified",
+  country = "WW",
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
 )
 }
@@ -27,6 +28,9 @@ Defaults to "month".}
 \item{os}{Character. Operating system: "ios", "android", or "unified".
 Defaults to "unified".}
 
+\item{country}{Character. Country or region code (e.g., "US", "GB", "WW").
+Defaults to "WW" for worldwide data.}
+
 \item{auth_token}{Character. Your Sensor Tower API authentication token.}
 }
 \value{
@@ -40,9 +44,10 @@ across different categories.
 \examples{
 \dontrun{
 # Get category breakdown for top publishers
-top_pubs <- st_top_publishers(limit = 5)
+top_pubs <- st_top_publishers(limit = 5, country = "US")
 breakdown <- st_publisher_category_breakdown(
-  publisher_ids = top_pubs$publisher_id
+  publisher_ids = top_pubs$publisher_id,
+  country = "US"  # Match the country
 )
 }
 

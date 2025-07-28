@@ -64,6 +64,24 @@ test_that("API calls retrieve data", {
   )
   expect_s3_class(top_active, "tbl_df")
   expect_true(nrow(top_active) > 0)
+  
+  # Test st_ytd_metrics
+  ytd_data <- st_ytd_metrics(
+    unified_app_id = "553834731",  # Candy Crush
+    years = 2024,
+    period_start = "03-01",
+    period_end = "03-07",  # Just one week to minimize API usage
+    metrics = c("revenue", "downloads"),
+    countries = "US",
+    auth_token = auth_token,
+    verbose = FALSE
+  )
+  expect_s3_class(ytd_data, "tbl_df")
+  expect_true(nrow(ytd_data) > 0)
+  expect_equal(names(ytd_data), 
+               c("entity_id", "entity_name", "entity_type", "year", 
+                 "date_start", "date_end", "country", "metric", "value"))
+  expect_true(all(ytd_data$metric %in% c("revenue", "downloads")))
 })
 
 test_that("clean_numeric_values removes special characters correctly", {

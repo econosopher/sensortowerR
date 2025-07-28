@@ -6,11 +6,18 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.3.1
+- **New YTD Metrics Function**: `st_ytd_metrics()` fetches year-to-date metrics across multiple years
+- **Multi-Year Support**: Compare metrics across multiple years with a single function call
+- **Flexible Periods**: Default to YTD through last completed week, or specify custom date ranges
+- **Entity Flexibility**: Works with both individual apps and publishers
+- **Tidy Output**: Returns data in long format for easy analysis and visualization
+
 ### v0.3.0
-- **YTD Calculation Fix**: Added `calculate_ytd_change()` function for accurate year-to-date metrics
+- **YTD Metrics Function**: Added `st_ytd_metrics()` for accurate year-to-date metrics
 - **Important**: The API's `time_range = "year"` with delta calculations may not represent simple YTD summation
-- **Warnings**: Added console warnings when using year comparisons that might be misleading
-- **New columns**: Added `ytd_warning` column to flag when metrics need recalculation
+- **Smart Batching**: Intelligently fetches data in optimal chunks to minimize API calls
+- **Caching Support**: Built-in 24-hour caching to avoid redundant API calls
 
 ### v0.2.2
 - **Country support for category breakdown**: `st_publisher_category_breakdown()` now accepts a `country` parameter, allowing you to get category breakdowns for specific markets
@@ -94,19 +101,19 @@ Many Sensor Tower endpoints support batch requests, allowing you to fetch data f
 
 When requesting daily granularity data from Sensor Tower's API:
 
-1. **Unified endpoints return empty responses for daily data**
-   - The unified sales_report_estimates endpoint does not support daily granularity
-   - Platform-specific endpoints (iOS/Android) must be used instead
-   - The `st_metrics()` function automatically handles this limitation
+1. **Unified endpoints are completely broken for sales_report_estimates**
+   - The unified sales_report_estimates endpoint returns EMPTY for ALL granularities (daily, weekly, monthly, quarterly)
+   - Platform-specific endpoints (iOS/Android) must ALWAYS be used instead
+   - The `st_metrics()` function automatically handles this by using platform-specific endpoints
 
-2. **Working Endpoint Matrix** (as of January 2025):
+2. **Working Endpoint Matrix** (as of July 2025):
    ```
-   ✅ iOS + daily data = SUCCESS
-   ✅ Android + daily data = SUCCESS  
-   ✅ iOS + monthly/weekly/quarterly = SUCCESS
-   ✅ Android + monthly/weekly/quarterly = SUCCESS
-   ❌ Unified + daily data = EMPTY RESPONSE
-   ✅ Unified + monthly/weekly/quarterly = SUCCESS (limited endpoints)
+   ✅ iOS + daily/weekly/monthly/quarterly = SUCCESS
+   ✅ Android + daily/weekly/monthly/quarterly = SUCCESS  
+   ❌ Unified sales_report + ANY granularity = EMPTY RESPONSE
+   ✅ Unified top_publishers = SUCCESS (but limited)
+   ✅ iOS/Android active_users = SUCCESS (with correct params)
+   ❌ Unified active_users = ERROR 422
    ```
 
 3. **The `st_metrics()` function automatically handles this**:
@@ -122,7 +129,7 @@ When requesting daily granularity data from Sensor Tower's API:
 - Different calculation methods
 - Full year estimates
 
-**Solution**: Use the new `calculate_ytd_change()` function for accurate YTD metrics:
+**Solution**: Use the `st_ytd_metrics()` function for accurate YTD metrics:
 
 ```r
 # WRONG - May give misleading YTD changes
@@ -132,20 +139,35 @@ ytd_data <- st_top_publishers(
   date = "2025-01-01"
 )
 
-# CORRECT - Accurate YTD calculation
-ytd_changes <- calculate_ytd_change(
-  publisher_ids = c("pub1", "pub2"),
-  current_year = 2025,
-  measure = "revenue",
-  country = "US",
-  end_month = 7  # For Jan-Jul YTD
+# CORRECT - Use the new st_ytd_metrics() function
+ytd_metrics <- st_ytd_metrics(
+  unified_app_id = "553834731",  # Candy Crush
+  years = c(2023, 2024, 2025),  # Multiple years
+  cache_dir = ".cache/ytd"  # Optional: enable caching
 )
+
+# The function returns tidy data
+# Columns: entity_id, entity_name, entity_type, year, date_start, date_end, country, metric, value
+
+# Calculate growth yourself
+ytd_metrics %>%
+  filter(metric == "revenue") %>%
+  pivot_wider(names_from = year, values_from = value) %>%
+  mutate(yoy_growth = (`2024` - `2023`) / `2023` * 100)
 ```
 
+Key features of `st_ytd_metrics()`:
+- **Multi-year support**: Fetch metrics for multiple years in one call
+- **Smart defaults**: YTD through last completed week (ending Saturday)
+- **Custom periods**: Specify any date range (e.g., "02-01" to "02-28")
+- **Automatic caching**: Reuses data across years to minimize API calls
+- **Works with publishers**: Use `publisher_id` instead of app IDs
+
 The package now:
-- Shows warnings when using potentially misleading year comparisons
-- Adds `ytd_warning` column to flag these metrics
-- Provides `calculate_ytd_change()` for accurate monthly-based YTD calculations
+- Provides `st_ytd_metrics()` for accurate YTD calculations
+- Fetches data in optimal batches (monthly chunks where possible)
+- Supports multiple entities and years in a single function call
+- Returns data in tidy format for easy analysis
 
 ### Monthly Data with Custom Date Ranges
 
@@ -220,6 +242,7 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
 - **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
 - **`st_publisher_category_breakdown()`**: **NEW!** Analyze publisher revenue across categories
+- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics across multiple years with smart defaults
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
 - **`st_sales_report()`**: Platform-specific daily revenue and download data
 
@@ -391,6 +414,40 @@ category_breakdown %>%
   group_by(publisher_name) %>%
   arrange(desc(category_percentage)) %>%
   slice_head(n = 3)  # Top 3 categories per publisher
+```
+
+### Year-to-Date Metrics
+```r
+# Get YTD metrics for multiple apps across multiple years
+ytd_metrics <- st_ytd_metrics(
+  unified_app_id = c("553834731", "1195621598"),  # Candy Crush, Homescapes
+  years = c(2023, 2024, 2025),
+  cache_dir = ".cache/ytd"  # Enable caching
+)
+
+# The function returns tidy data perfect for analysis
+ytd_metrics %>%
+  filter(metric == "revenue") %>%
+  pivot_wider(names_from = year, values_from = value) %>%
+  mutate(
+    yoy_growth_2024 = (`2024` - `2023`) / `2023` * 100,
+    yoy_growth_2025 = (`2025` - `2024`) / `2024` * 100
+  )
+
+# Custom date ranges (e.g., Q1 comparison)
+q1_metrics <- st_ytd_metrics(
+  unified_app_id = "1053012308",  # MONOPOLY GO!
+  years = c(2023, 2024, 2025),
+  period_start = "01-01",
+  period_end = "03-31"
+)
+
+# Works with publishers too
+publisher_ytd <- st_ytd_metrics(
+  publisher_id = c("pub123", "pub456"),
+  years = 2025,
+  metrics = c("revenue", "downloads")
+)
 ```
 
 ## NEW: Professional Dashboard Generation

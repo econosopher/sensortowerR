@@ -38,11 +38,26 @@ or "year". Defaults to "month".}
 (total values), "delta" (growth), or "transformed_delta" (growth rate).
 Defaults to "absolute".}
 
-\item{date}{Date or character. Start date in "YYYY-MM-DD" format. Auto-adjusts
-to beginning of time_range (e.g., Monday for weeks). Defaults to 30 days ago.}
+\item{date}{Date or character. Start date in "YYYY-MM-DD" format. 
+**Important**: Must align with time_range boundaries:
+- `month`: Must be first day of month (e.g., 2025-06-01)
+- `week`: Must be Monday
+- `quarter`: Must be quarter start (Jan 1, Apr 1, Jul 1, Oct 1)
+- `year`: Must be January 1st
+- `day`: Any date allowed
+Function will error if date doesn't align. Defaults to 30 days ago.}
 
 \item{end_date}{Date or character. Optional end date for aggregating multiple
-periods. Auto-adjusts to end of time_range.}
+periods. If not provided with `time_range = "month"`, "quarter", or "year",
+it will be automatically set to the last day of the period. 
+**Important**: If provided, must align with time_range boundaries:
+- `month`: Must be last day of month (e.g., 2025-06-30, 2025-07-31)
+- `week`: Must be Sunday  
+- `quarter`: Must be quarter end (Mar 31, Jun 30, Sep 30, Dec 31)
+- `year`: Must be December 31st
+- `day`: Any date allowed
+Function will error if date doesn't align. Use `time_range = "day"`
+for custom date ranges.}
 
 \item{country}{Character. Country or region code (e.g., "US", "GB", "WW").
 Defaults to "WW" for worldwide data.}
@@ -65,7 +80,9 @@ variable.}
 A [tibble][tibble::tibble] containing top publishers with columns:
   - `publisher_id`: Unique publisher identifier
   - `publisher_name`: Publisher display name
-  - `date`: Date of the metrics
+  - `date`: Date of the metrics (as provided by API)
+  - `date_start`: Actual start date of the period covered
+  - `date_end`: Actual end date of the period covered
   - `units_absolute`: Total downloads for the period
   - `units_delta`: Download growth vs previous period
   - `units_transformed_delta`: Download growth rate
@@ -89,6 +106,15 @@ category, time period, and country. This function uses the
   - Worldwide data may have a 2-3 day lag vs country-specific data
 }
 
+\section{Date Handling}{
+
+  When using `time_range = "month"`, "quarter", or "year":
+  - Dates MUST align with period boundaries or the function will error
+  - Example: For `time_range = "month"`, use `date = "2025-06-01"`, not `"2025-06-27"`
+  - This prevents unexpected data ranges from the API
+  - For custom date ranges (e.g., June 27 - July 26), use `time_range = "day"` and aggregate
+}
+
 \examples{
 \dontrun{
 # Get top 10 game publishers by revenue for last month
@@ -106,13 +132,33 @@ growth_publishers <- st_top_publishers(
   limit = 20
 )
 
-# Get Android publishers in a specific category
-android_publishers <- st_top_publishers(
-  os = "android",
-  category = "game_puzzle",
-  country = "US",
-  limit = 15
+# This will ERROR - dates don't align with month boundaries:
+# publishers_custom <- st_top_publishers(
+#   date = "2025-06-27",        # ERROR: Not start of month!
+#   end_date = "2025-07-26",    # ERROR: Not end of month!
+#   time_range = "month"
+# )
+
+# Correct way for full months (end_date auto-calculated):
+publishers_month <- st_top_publishers(
+  date = "2025-06-01",      # First day of June
+  time_range = "month"      # end_date auto-set to 2025-06-30
 )
+
+# Or specify multiple months:
+publishers_months <- st_top_publishers(
+  date = "2025-06-01",      # First day of June
+  end_date = "2025-07-31",  # Last day of July
+  time_range = "month"
+)
+
+# For custom date ranges (e.g., June 27 - July 26), use daily:
+daily_publishers <- purrr::map_df(
+  seq(as.Date("2025-06-27"), as.Date("2025-07-26"), by = "day"),
+  ~ st_top_publishers(date = .x, time_range = "day", limit = 50)
+) \%>\%
+  group_by(publisher_id, publisher_name) \%>\%
+  summarise(total_revenue = sum(revenue_usd))
 }
 
 }

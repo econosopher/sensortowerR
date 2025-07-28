@@ -435,7 +435,7 @@ st_top_publishers <- function(measure = "revenue",
       # Add a warning column for YTD metrics
       ytd_warning = if (time_range == "year" && 
                        comparison_attribute %in% c("delta", "transformed_delta")) {
-        "Use calculate_ytd_change() for accurate YTD metrics"
+        "Use st_ytd_metrics() for accurate YTD metrics"
       } else {
         NA_character_
       }

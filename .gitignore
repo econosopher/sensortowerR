@@ -78,3 +78,10 @@ man-roxygen/
 # CRAN submission files (keep source but ignore generated)
 sensortowerR_*.tar.gz
 
+# Cache directories
+.cache/
+cache/
+
+# R plot files (unwanted default outputs)
+Rplots.pdf
+
