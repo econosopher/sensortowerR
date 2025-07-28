@@ -13,8 +13,8 @@
 #'   If NULL, defaults to "01-01" (January 1).
 #' @param period_end Character string. End date in "MM-DD" format (e.g., "02-28").
 #'   If NULL, defaults to last completed week (ending Saturday) of current year.
-#' @param metrics Character vector. Metrics to fetch. Supports "revenue", "downloads", and "dau".
-#'   Default is both revenue and downloads. Note: DAU is calculated as average daily active users.
+#' @param metrics Character vector. Metrics to fetch. Supports "revenue", "downloads", "dau", and "wau".
+#'   Default is both revenue and downloads. Note: DAU/WAU are calculated as averages (daily/weekly).
 #' @param countries Character vector. Country codes (default: "US").
 #' @param cache_dir Character. Directory for caching API responses (optional).
 #' @param auth_token Character string. Sensor Tower API token.
@@ -39,23 +39,23 @@
 #' - **Leap years**: Automatically handled (e.g., Feb 29 in leap years)
 #' - **Entity detection**: Automatically determines if using app or publisher endpoints
 #' - **Caching**: Reuses cached data for overlapping periods across years
-#' - **DAU Support**: Daily Active Users are averaged across the period for meaningful comparisons
+#' - **Active Users Support**: DAU and WAU are averaged across periods for meaningful comparisons
 #'
 #' @examples
 #' \dontrun{
-#' # Get YTD metrics including DAU for a single app
+#' # Get YTD metrics including DAU and WAU for a single app
 #' ytd_metrics <- st_ytd_metrics(
 #'   unified_app_id = "553834731",  # Candy Crush
 #'   years = c(2023, 2024, 2025),
-#'   metrics = c("revenue", "downloads", "dau")
+#'   metrics = c("revenue", "downloads", "dau", "wau")
 #' )
 #'
-#' # Get DAU only for multiple apps
-#' dau_metrics <- st_ytd_metrics(
+#' # Get active user metrics only for multiple apps
+#' active_user_metrics <- st_ytd_metrics(
 #'   ios_app_id = c("553834731", "1195621598"),
 #'   android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
 #'   years = 2025,
-#'   metrics = "dau"
+#'   metrics = c("dau", "wau")
 #' )
 #' }
 #'
@@ -83,16 +83,18 @@ st_ytd_metrics <- function(
 ) {
   
   # Validate metrics
-  valid_metrics <- c("revenue", "downloads", "dau")
+  valid_metrics <- c("revenue", "downloads", "dau", "wau")
   if (!all(metrics %in% valid_metrics)) {
     invalid <- metrics[!metrics %in% valid_metrics]
     stop(paste0("Invalid metrics: ", paste(invalid, collapse = ", "), 
                 ". Valid options are: ", paste(valid_metrics, collapse = ", ")))
   }
   
-  # Check if DAU is requested with publishers
-  if ("dau" %in% metrics && !is.null(publisher_id)) {
-    stop("DAU metrics are not available for publishers, only for individual apps.")
+  # Check if DAU/WAU is requested with publishers
+  active_user_metrics <- intersect(metrics, c("dau", "wau"))
+  if (length(active_user_metrics) > 0 && !is.null(publisher_id)) {
+    stop(paste0(paste(active_user_metrics, collapse = " and "), 
+                " metrics are not available for publishers, only for individual apps."))
   }
   
   # Validate inputs
@@ -459,9 +461,10 @@ fetch_app_metrics <- function(
     }
   }
   
-  # Separate regular metrics (revenue, downloads) from DAU
+  # Separate regular metrics from active user metrics
   regular_metrics <- intersect(metrics, c("revenue", "downloads"))
   needs_dau <- "dau" %in% metrics
+  needs_wau <- "wau" %in% metrics
   
   api_calls <- 0
   aggregated_data <- tibble::tibble(country = countries)
@@ -528,6 +531,31 @@ fetch_app_metrics <- function(
     }
     
     api_calls <- api_calls + dau_result$api_calls
+  }
+  
+  # Fetch WAU if requested
+  if (needs_wau) {
+    wau_result <- fetch_wau_metrics(
+      unified_app_id = unified_app_id,
+      ios_app_id = ios_app_id,
+      android_app_id = android_app_id,
+      start_date = start_date,
+      end_date = end_date,
+      countries = countries,
+      cache_dir = cache_dir,
+      auth_token = auth_token,
+      verbose = verbose
+    )
+    
+    # Merge WAU data
+    if (nrow(wau_result$data) > 0) {
+      aggregated_data <- aggregated_data %>%
+        left_join(wau_result$data %>% select(country, wau), by = "country")
+    } else {
+      aggregated_data$wau <- NA_real_
+    }
+    
+    api_calls <- api_calls + wau_result$api_calls
   }
   
   # Save to cache
@@ -686,6 +714,161 @@ fetch_dau_metrics <- function(
     empty_data <- tibble::tibble(
       country = countries,
       dau = NA_real_
+    )
+    
+    return(list(data = empty_data, api_calls = api_calls))
+  }
+}
+
+#' Fetch WAU metrics for apps
+#' @noRd
+fetch_wau_metrics <- function(
+  unified_app_id = NULL,
+  ios_app_id = NULL,
+  android_app_id = NULL,
+  start_date,
+  end_date,
+  countries,
+  cache_dir = NULL,
+  auth_token,
+  verbose = FALSE
+) {
+  
+  # Check cache first
+  if (!is.null(cache_dir)) {
+    cache_key <- paste(
+      "wau",
+      unified_app_id %||% paste(ios_app_id, android_app_id, sep = "_"),
+      format(start_date, "%Y%m%d"),
+      format(end_date, "%Y%m%d"),
+      paste(countries, collapse = "_"),
+      sep = "_"
+    )
+    cache_file <- file.path(cache_dir, paste0(cache_key, ".rds"))
+    
+    if (file.exists(cache_file)) {
+      cache_age <- difftime(Sys.time(), file.mtime(cache_file), units = "hours")
+      if (cache_age < 24) {
+        if (verbose) {
+          message(sprintf("    Using cached WAU data (%.1f hours old)", as.numeric(cache_age)))
+        }
+        cached_data <- readRDS(cache_file)
+        return(list(data = cached_data, api_calls = 0))
+      }
+    }
+  }
+  
+  api_calls <- 0
+  all_wau_data <- list()
+  
+  # Determine which platforms to fetch
+  platforms_to_fetch <- list()
+  
+  if (!is.null(unified_app_id)) {
+    # Try to detect platform from unified ID
+    if (grepl("^\\d+$", unified_app_id)) {
+      platforms_to_fetch[["ios"]] <- unified_app_id
+    } else if (grepl("^(com|net|org|io)\\.", unified_app_id)) {
+      platforms_to_fetch[["android"]] <- unified_app_id
+    } else {
+      # Try both platforms
+      platforms_to_fetch[["ios"]] <- unified_app_id
+      platforms_to_fetch[["android"]] <- unified_app_id
+    }
+  }
+  
+  if (!is.null(ios_app_id)) {
+    platforms_to_fetch[["ios"]] <- ios_app_id
+  }
+  
+  if (!is.null(android_app_id)) {
+    platforms_to_fetch[["android"]] <- android_app_id
+  }
+  
+  # Fetch WAU for each platform
+  for (platform in names(platforms_to_fetch)) {
+    app_id <- platforms_to_fetch[[platform]]
+    
+    if (verbose) {
+      message(sprintf("    Fetching %s WAU for %s", platform, app_id))
+    }
+    
+    # Build API request
+    base_url <- sprintf("https://api.sensortower.com/v1/%s/usage/active_users", platform)
+    
+    params <- list(
+      app_ids = app_id,
+      time_period = "week",  # Weekly instead of daily
+      start_date = format(start_date, "%Y-%m-%d"),
+      end_date = format(end_date, "%Y-%m-%d"),
+      auth_token = auth_token
+    )
+    
+    # Add countries if not WW
+    if (!is.null(countries) && countries != "WW") {
+      params$countries <- countries
+    }
+    
+    # Make API request
+    response <- httr::GET(base_url, query = params)
+    api_calls <- api_calls + 1
+    
+    if (httr::status_code(response) == 200) {
+      content <- httr::content(response, as = "text", encoding = "UTF-8")
+      
+      if (nchar(content) > 0 && content != "[]" && content != "{}") {
+        data <- jsonlite::fromJSON(content, flatten = TRUE)
+        
+        if (is.data.frame(data) && nrow(data) > 0) {
+          # Process platform-specific columns
+          if (platform == "ios") {
+            # Sum iPhone and iPad users
+            data$weekly_users <- rowSums(data[, c("iphone_users", "ipad_users")], na.rm = TRUE)
+          } else {
+            # Android has a single users column
+            data$weekly_users <- data$users
+          }
+          
+          # Store with platform identifier (ensure app_id is character)
+          all_wau_data[[platform]] <- data %>%
+            mutate(app_id = as.character(app_id)) %>%
+            select(app_id, country, date, weekly_users)
+        }
+      }
+    } else {
+      if (verbose) {
+        message(sprintf("      Failed to fetch %s WAU: HTTP %d", platform, httr::status_code(response)))
+      }
+    }
+  }
+  
+  # Combine and aggregate WAU data
+  if (length(all_wau_data) > 0) {
+    combined_wau <- dplyr::bind_rows(all_wau_data)
+    
+    # Calculate average WAU across all weeks and platforms by country
+    aggregated_wau <- combined_wau %>%
+      group_by(country) %>%
+      summarise(
+        # Average WAU = sum of weekly users / number of weeks
+        total_user_weeks = sum(weekly_users, na.rm = TRUE),
+        n_weeks = n_distinct(date),
+        wau = total_user_weeks / n_weeks,
+        .groups = "drop"
+      ) %>%
+      select(country, wau)
+    
+    # Save to cache
+    if (!is.null(cache_dir) && exists("cache_file")) {
+      saveRDS(aggregated_wau, cache_file)
+    }
+    
+    return(list(data = aggregated_wau, api_calls = api_calls))
+  } else {
+    # Return empty data
+    empty_data <- tibble::tibble(
+      country = countries,
+      wau = NA_real_
     )
     
     return(list(data = empty_data, api_calls = api_calls))

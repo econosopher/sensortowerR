@@ -6,6 +6,12 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.3.4
+- **WAU Support Added**: `st_ytd_metrics()` now supports Weekly Active Users (WAU) metrics
+- **Average WAU Calculation**: WAU is calculated as average weekly users for fair comparisons
+- **DAU/WAU Ratio Analysis**: Easily calculate daily engagement rates from active user metrics
+- **Complete Active Users**: Supports both DAU and WAU for comprehensive user analysis
+
 ### v0.3.3
 - **DAU Support in YTD Metrics**: `st_ytd_metrics()` now supports Daily Active Users (DAU) metrics
 - **Average DAU Calculation**: DAU is calculated as average daily users for meaningful YoY comparisons
@@ -169,9 +175,9 @@ Key features of `st_ytd_metrics()`:
 - **Custom periods**: Specify any date range (e.g., "02-01" to "02-28")
 - **Automatic caching**: Reuses data across years to minimize API calls
 - **Works with publishers**: Use `publisher_id` instead of app IDs
-- **DAU Support**: Fetch average Daily Active Users with intelligent batching
+- **DAU/WAU Support**: Fetch average Daily/Weekly Active Users with intelligent batching
 - **Platform-aware**: Automatically handles iOS (iPhone + iPad) and Android users
-- **YoY Comparable**: Average DAU enables fair comparisons across different period lengths
+- **YoY Comparable**: Average DAU/WAU enables fair comparisons across different period lengths
 
 The package now:
 - Provides `st_ytd_metrics()` for accurate YTD calculations
@@ -252,7 +258,7 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
 - **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
 - **`st_publisher_category_breakdown()`**: **NEW!** Analyze publisher revenue across categories
-- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics (revenue, downloads, DAU) across multiple years
+- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics (revenue, downloads, DAU, WAU) across multiple years
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
 - **`st_sales_report()`**: Platform-specific daily revenue and download data
 
@@ -451,6 +457,15 @@ dau_summary <- ytd_metrics %>%
   pivot_wider(names_from = year, values_from = value) %>%
   mutate(
     yoy_change = (`2025` - `2024`) / `2024` * 100
+  )
+
+# Calculate DAU/WAU ratio for engagement analysis
+engagement <- ytd_metrics %>%
+  filter(metric %in% c("dau", "wau"), year == 2025) %>%
+  pivot_wider(names_from = metric, values_from = value) %>%
+  mutate(
+    dau_wau_ratio = dau / wau,
+    daily_engagement_pct = dau_wau_ratio * 100
   )
 
 # Custom date ranges (e.g., Q1 comparison)
