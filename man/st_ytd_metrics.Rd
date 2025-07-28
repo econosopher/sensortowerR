@@ -37,8 +37,8 @@ If NULL, defaults to "01-01" (January 1).}
 \item{period_end}{Character string. End date in "MM-DD" format (e.g., "02-28").
 If NULL, defaults to last completed week (ending Saturday) of current year.}
 
-\item{metrics}{Character vector. Metrics to fetch. Supports "revenue", "downloads", "dau", and "wau".
-Default is both revenue and downloads. Note: DAU/WAU are calculated as averages (daily/weekly).}
+\item{metrics}{Character vector. Metrics to fetch. Supports "revenue", "downloads", "dau", "wau", and "mau".
+Default is both revenue and downloads. Note: DAU/WAU/MAU are calculated as averages for fair YoY comparisons.}
 
 \item{countries}{Character vector. Country codes (default: "US").}
 
@@ -72,15 +72,15 @@ This function intelligently handles various scenarios:
 - **Leap years**: Automatically handled (e.g., Feb 29 in leap years)
 - **Entity detection**: Automatically determines if using app or publisher endpoints
 - **Caching**: Reuses cached data for overlapping periods across years
-- **Active Users Support**: DAU and WAU are averaged across periods for meaningful comparisons
+- **Active Users Support**: DAU, WAU, and MAU are averaged across periods for meaningful comparisons
 }
 \examples{
 \dontrun{
-# Get YTD metrics including DAU and WAU for a single app
+# Get YTD metrics including DAU, WAU, and MAU for a single app
 ytd_metrics <- st_ytd_metrics(
   unified_app_id = "553834731",  # Candy Crush
   years = c(2023, 2024, 2025),
-  metrics = c("revenue", "downloads", "dau", "wau")
+  metrics = c("revenue", "downloads", "dau", "wau", "mau")
 )
 
 # Get active user metrics only for multiple apps

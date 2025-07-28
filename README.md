@@ -6,6 +6,12 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.3.5
+- **MAU Support Added**: `st_ytd_metrics()` now supports Monthly Active Users (MAU) metrics
+- **Average MAU Calculation**: MAU is calculated as average monthly users for YoY comparisons
+- **Complete Engagement Metrics**: DAU/WAU/MAU ratios enable comprehensive engagement analysis
+- **ARPMAU Calculation**: Combine MAU with revenue for monetization insights
+
 ### v0.3.4
 - **WAU Support Added**: `st_ytd_metrics()` now supports Weekly Active Users (WAU) metrics
 - **Average WAU Calculation**: WAU is calculated as average weekly users for fair comparisons
@@ -175,9 +181,9 @@ Key features of `st_ytd_metrics()`:
 - **Custom periods**: Specify any date range (e.g., "02-01" to "02-28")
 - **Automatic caching**: Reuses data across years to minimize API calls
 - **Works with publishers**: Use `publisher_id` instead of app IDs
-- **DAU/WAU Support**: Fetch average Daily/Weekly Active Users with intelligent batching
+- **DAU/WAU/MAU Support**: Fetch average Daily/Weekly/Monthly Active Users with intelligent batching
 - **Platform-aware**: Automatically handles iOS (iPhone + iPad) and Android users
-- **YoY Comparable**: Average DAU/WAU enables fair comparisons across different period lengths
+- **YoY Comparable**: Average DAU/WAU/MAU enables fair comparisons across different period lengths
 
 The package now:
 - Provides `st_ytd_metrics()` for accurate YTD calculations
@@ -258,7 +264,7 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
 - **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
 - **`st_publisher_category_breakdown()`**: **NEW!** Analyze publisher revenue across categories
-- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics (revenue, downloads, DAU, WAU) across multiple years
+- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics (revenue, downloads, DAU, WAU, MAU) across multiple years
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
 - **`st_sales_report()`**: Platform-specific daily revenue and download data
 
@@ -432,13 +438,13 @@ category_breakdown %>%
   slice_head(n = 3)  # Top 3 categories per publisher
 ```
 
-### Year-to-Date Metrics (Now with DAU!)
+### Year-to-Date Metrics (Now with DAU, WAU, and MAU!)
 ```r
-# Get YTD metrics including Daily Active Users
+# Get YTD metrics including all active user metrics
 ytd_metrics <- st_ytd_metrics(
   unified_app_id = c("553834731", "1195621598"),  # Candy Crush, Homescapes
   years = c(2023, 2024, 2025),
-  metrics = c("revenue", "downloads", "dau"),  # Now supports DAU!
+  metrics = c("revenue", "downloads", "dau", "wau", "mau"),  # Full active user support!
   cache_dir = ".cache/ytd"  # Enable caching
 )
 
@@ -459,13 +465,15 @@ dau_summary <- ytd_metrics %>%
     yoy_change = (`2025` - `2024`) / `2024` * 100
   )
 
-# Calculate DAU/WAU ratio for engagement analysis
+# Calculate engagement ratios (DAU/WAU/MAU)
 engagement <- ytd_metrics %>%
-  filter(metric %in% c("dau", "wau"), year == 2025) %>%
+  filter(metric %in% c("dau", "wau", "mau"), year == 2025) %>%
   pivot_wider(names_from = metric, values_from = value) %>%
   mutate(
-    dau_wau_ratio = dau / wau,
-    daily_engagement_pct = dau_wau_ratio * 100
+    dau_mau_ratio = dau / mau,
+    wau_mau_ratio = wau / mau,
+    daily_engagement_pct = dau_mau_ratio * 100,
+    weekly_engagement_pct = wau_mau_ratio * 100
   )
 
 # Custom date ranges (e.g., Q1 comparison)
@@ -477,19 +485,19 @@ q1_metrics <- st_ytd_metrics(
   metrics = c("revenue", "downloads", "dau")
 )
 
-# DAU for multiple apps with platform-specific IDs
-multi_app_dau <- st_ytd_metrics(
+# Active users for multiple apps with platform-specific IDs
+multi_app_users <- st_ytd_metrics(
   ios_app_id = c("553834731", "1195621598"),
   android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
   years = 2025,
-  metrics = "dau"  # DAU only
+  metrics = c("dau", "mau")  # DAU and MAU for engagement analysis
 )
 
-# Works with publishers too (but not for DAU)
+# Works with publishers too (but not for active users)
 publisher_ytd <- st_ytd_metrics(
   publisher_id = c("pub123", "pub456"),
   years = 2025,
-  metrics = c("revenue", "downloads")  # DAU not available for publishers
+  metrics = c("revenue", "downloads")  # DAU/WAU/MAU not available for publishers
 )
 ```
 

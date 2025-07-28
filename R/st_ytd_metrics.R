@@ -13,8 +13,8 @@
 #'   If NULL, defaults to "01-01" (January 1).
 #' @param period_end Character string. End date in "MM-DD" format (e.g., "02-28").
 #'   If NULL, defaults to last completed week (ending Saturday) of current year.
-#' @param metrics Character vector. Metrics to fetch. Supports "revenue", "downloads", "dau", and "wau".
-#'   Default is both revenue and downloads. Note: DAU/WAU are calculated as averages (daily/weekly).
+#' @param metrics Character vector. Metrics to fetch. Supports "revenue", "downloads", "dau", "wau", and "mau".
+#'   Default is both revenue and downloads. Note: DAU/WAU/MAU are calculated as averages for fair YoY comparisons.
 #' @param countries Character vector. Country codes (default: "US").
 #' @param cache_dir Character. Directory for caching API responses (optional).
 #' @param auth_token Character string. Sensor Tower API token.
@@ -39,15 +39,15 @@
 #' - **Leap years**: Automatically handled (e.g., Feb 29 in leap years)
 #' - **Entity detection**: Automatically determines if using app or publisher endpoints
 #' - **Caching**: Reuses cached data for overlapping periods across years
-#' - **Active Users Support**: DAU and WAU are averaged across periods for meaningful comparisons
+#' - **Active Users Support**: DAU, WAU, and MAU are averaged across periods for meaningful comparisons
 #'
 #' @examples
 #' \dontrun{
-#' # Get YTD metrics including DAU and WAU for a single app
+#' # Get YTD metrics including DAU, WAU, and MAU for a single app
 #' ytd_metrics <- st_ytd_metrics(
 #'   unified_app_id = "553834731",  # Candy Crush
 #'   years = c(2023, 2024, 2025),
-#'   metrics = c("revenue", "downloads", "dau", "wau")
+#'   metrics = c("revenue", "downloads", "dau", "wau", "mau")
 #' )
 #'
 #' # Get active user metrics only for multiple apps
@@ -83,15 +83,15 @@ st_ytd_metrics <- function(
 ) {
   
   # Validate metrics
-  valid_metrics <- c("revenue", "downloads", "dau", "wau")
+  valid_metrics <- c("revenue", "downloads", "dau", "wau", "mau")
   if (!all(metrics %in% valid_metrics)) {
     invalid <- metrics[!metrics %in% valid_metrics]
     stop(paste0("Invalid metrics: ", paste(invalid, collapse = ", "), 
                 ". Valid options are: ", paste(valid_metrics, collapse = ", ")))
   }
   
-  # Check if DAU/WAU is requested with publishers
-  active_user_metrics <- intersect(metrics, c("dau", "wau"))
+  # Check if DAU/WAU/MAU is requested with publishers
+  active_user_metrics <- intersect(metrics, c("dau", "wau", "mau"))
   if (length(active_user_metrics) > 0 && !is.null(publisher_id)) {
     stop(paste0(paste(active_user_metrics, collapse = " and "), 
                 " metrics are not available for publishers, only for individual apps."))
@@ -465,6 +465,7 @@ fetch_app_metrics <- function(
   regular_metrics <- intersect(metrics, c("revenue", "downloads"))
   needs_dau <- "dau" %in% metrics
   needs_wau <- "wau" %in% metrics
+  needs_mau <- "mau" %in% metrics
   
   api_calls <- 0
   aggregated_data <- tibble::tibble(country = countries)
@@ -556,6 +557,31 @@ fetch_app_metrics <- function(
     }
     
     api_calls <- api_calls + wau_result$api_calls
+  }
+  
+  # Fetch MAU if requested
+  if (needs_mau) {
+    mau_result <- fetch_mau_metrics(
+      app_id = unified_app_id,
+      ios_app_id = ios_app_id,
+      android_app_id = android_app_id,
+      start_date = start_date,
+      end_date = end_date,
+      countries = countries,
+      cache_dir = cache_dir,
+      auth_token = auth_token,
+      verbose = verbose
+    )
+    
+    # Merge MAU data
+    if (nrow(mau_result$data) > 0) {
+      aggregated_data <- aggregated_data %>%
+        left_join(mau_result$data %>% select(country, mau), by = "country")
+    } else {
+      aggregated_data$mau <- NA_real_
+    }
+    
+    api_calls <- api_calls + mau_result$api_calls
   }
   
   # Save to cache
@@ -869,6 +895,147 @@ fetch_wau_metrics <- function(
     empty_data <- tibble::tibble(
       country = countries,
       wau = NA_real_
+    )
+    
+    return(list(data = empty_data, api_calls = api_calls))
+  }
+}
+
+# Fetch MAU data
+fetch_mau_metrics <- function(
+  app_id, 
+  ios_app_id, 
+  android_app_id, 
+  start_date, 
+  end_date, 
+  countries, 
+  auth_token,
+  cache_dir = NULL,
+  verbose = FALSE
+) {
+  
+  api_calls <- 0
+  all_mau_data <- list()
+  
+  # Check cache first
+  if (!is.null(cache_dir)) {
+    cache_key <- paste0(
+      "mau_",
+      digest::digest(list(app_id, ios_app_id, android_app_id, start_date, end_date, countries))
+    )
+    cache_file <- file.path(cache_dir, paste0(cache_key, ".rds"))
+    
+    if (file.exists(cache_file)) {
+      cache_time <- file.info(cache_file)$mtime
+      if (difftime(Sys.time(), cache_time, units = "hours") < 24) {
+        if (verbose) message("    Using cached MAU data")
+        return(list(data = readRDS(cache_file), api_calls = 0))
+      }
+    }
+  }
+  
+  # Determine which platforms to fetch
+  platforms_to_fetch <- list()
+  
+  if (!is.null(ios_app_id) || (!is.null(app_id) && grepl("^[0-9]+$", app_id[1]))) {
+    platforms_to_fetch$ios <- if (!is.null(ios_app_id)) ios_app_id else app_id
+  }
+  
+  if (!is.null(android_app_id) || (!is.null(app_id) && !grepl("^[0-9]+$", app_id[1]))) {
+    platforms_to_fetch$android <- if (!is.null(android_app_id)) android_app_id else app_id
+  }
+  
+  if (verbose) {
+    message(sprintf("    Fetching MAU for %d platform(s) from %s to %s", 
+                    length(platforms_to_fetch), start_date, end_date))
+  }
+  
+  # Fetch MAU data for each platform
+  for (platform in names(platforms_to_fetch)) {
+    app_ids <- platforms_to_fetch[[platform]]
+    
+    if (verbose) {
+      message(sprintf("      Fetching %s MAU for %d app(s)", platform, length(app_ids)))
+    }
+    
+    # Prepare API parameters
+    base_url <- sprintf("https://api.sensortower.com/v1/%s/usage/active_users", platform)
+    
+    params <- list(
+      app_ids = paste(app_ids, collapse = ","),
+      start_date = as.character(start_date),
+      end_date = as.character(end_date),
+      time_period = "month",
+      auth_token = auth_token
+    )
+    
+    # Add countries if not WW
+    if (!is.null(countries) && countries != "WW") {
+      params$countries <- countries
+    }
+    
+    # Make API request
+    response <- httr::GET(base_url, query = params)
+    api_calls <- api_calls + 1
+    
+    if (httr::status_code(response) == 200) {
+      content <- httr::content(response, as = "text", encoding = "UTF-8")
+      
+      if (nchar(content) > 0 && content != "[]" && content != "{}") {
+        data <- jsonlite::fromJSON(content, flatten = TRUE)
+        
+        if (is.data.frame(data) && nrow(data) > 0) {
+          # Process platform-specific columns
+          if (platform == "ios") {
+            # Sum iPhone and iPad users
+            data$monthly_users <- rowSums(data[, c("iphone_users", "ipad_users")], na.rm = TRUE)
+          } else {
+            # Android has a single users column
+            data$monthly_users <- data$users
+          }
+          
+          # Ensure app_id is character for consistency
+          data$app_id <- as.character(data$app_id)
+          
+          # Store with platform identifier
+          all_mau_data[[platform]] <- data %>%
+            select(app_id, country, date, monthly_users)
+        }
+      }
+    } else {
+      if (verbose) {
+        message(sprintf("      Failed to fetch %s MAU: HTTP %d", platform, httr::status_code(response)))
+      }
+    }
+  }
+  
+  # Combine and aggregate MAU data
+  if (length(all_mau_data) > 0) {
+    combined_mau <- dplyr::bind_rows(all_mau_data)
+    
+    # Calculate average MAU across all months and platforms by country
+    aggregated_mau <- combined_mau %>%
+      group_by(country) %>%
+      summarise(
+        # Average MAU = sum of monthly users / number of months
+        total_user_months = sum(monthly_users, na.rm = TRUE),
+        n_months = n_distinct(date),
+        mau = total_user_months / n_months,
+        .groups = "drop"
+      ) %>%
+      select(country, mau)
+    
+    # Save to cache
+    if (!is.null(cache_dir) && exists("cache_file")) {
+      saveRDS(aggregated_mau, cache_file)
+    }
+    
+    return(list(data = aggregated_mau, api_calls = api_calls))
+  } else {
+    # Return empty data
+    empty_data <- tibble::tibble(
+      country = countries,
+      mau = NA_real_
     )
     
     return(list(data = empty_data, api_calls = api_calls))
