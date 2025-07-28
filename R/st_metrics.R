@@ -10,8 +10,8 @@
 #' @param unified_app_id Deprecated. Use `app_id` instead.
 #' @param start_date Date object or character string (YYYY-MM-DD). Start date.
 #' @param end_date Date object or character string (YYYY-MM-DD). End date.
-#' @param countries Character vector. Country codes (default "US").
-#' @param date_granularity Character. One of "daily", "weekly", "monthly", "quarterly".
+#' @param countries Character vector. Country codes (e.g., "US", "GB", "JP", or "WW" for worldwide). Required.
+#' @param date_granularity Character. One of "daily", "weekly", "monthly", "quarterly". Required.
 #' @param auto_platform_fetch Logical. When TRUE (default), automatically falls back
 #'   to platform-specific endpoints if unified endpoint returns no data.
 #' @param combine_platforms Logical. When TRUE (default), combines iOS and Android data
@@ -74,8 +74,8 @@ st_metrics <- function(
   unified_app_id = NULL,  # Deprecated parameter
   start_date = NULL,
   end_date = NULL,
-  countries = "US",
-  date_granularity = "daily",
+  countries,
+  date_granularity,
   auto_platform_fetch = TRUE,
   combine_platforms = TRUE,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
@@ -86,6 +86,21 @@ st_metrics <- function(
   if (!is.null(unified_app_id) && is.null(app_id)) {
     warning("Parameter 'unified_app_id' is deprecated. Use 'app_id' instead.")
     app_id <- unified_app_id
+  }
+  
+  # Validate required parameters
+  if (missing(countries) || is.null(countries) || length(countries) == 0) {
+    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+  }
+  
+  if (missing(date_granularity) || is.null(date_granularity)) {
+    stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+  }
+  
+  # Validate date_granularity value
+  valid_granularities <- c("daily", "weekly", "monthly", "quarterly")
+  if (!date_granularity %in% valid_granularities) {
+    stop(paste0("Invalid date_granularity: '", date_granularity, "'. Must be one of: ", paste(valid_granularities, collapse = ", ")))
   }
   
   # Validate inputs

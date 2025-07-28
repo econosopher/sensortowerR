@@ -15,7 +15,7 @@
 #'   If NULL, defaults to last completed week (ending Saturday) of current year.
 #' @param metrics Character vector. Metrics to fetch. Supports "revenue", "downloads", "dau", "wau", and "mau".
 #'   Default is both revenue and downloads. Note: DAU/WAU/MAU are calculated as averages for fair YoY comparisons.
-#' @param countries Character vector. Country codes (default: "US").
+#' @param countries Character vector. Country codes (e.g., "US", "GB", "JP"). Required.
 #' @param cache_dir Character. Directory for caching API responses (optional).
 #' @param auth_token Character string. Sensor Tower API token.
 #' @param verbose Logical. Print progress messages.
@@ -76,7 +76,7 @@ st_ytd_metrics <- function(
   period_start = NULL,
   period_end = NULL,
   metrics = c("revenue", "downloads"),
-  countries = "US",
+  countries,
   cache_dir = NULL,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
   verbose = TRUE
@@ -95,6 +95,11 @@ st_ytd_metrics <- function(
   if (length(active_user_metrics) > 0 && !is.null(publisher_id)) {
     stop(paste0(paste(active_user_metrics, collapse = " and "), 
                 " metrics are not available for publishers, only for individual apps."))
+  }
+  
+  # Validate required parameters
+  if (missing(countries) || is.null(countries) || length(countries) == 0) {
+    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
   }
   
   # Validate inputs
@@ -484,6 +489,13 @@ fetch_app_metrics <- function(
       auth_token = auth_token,
       verbose = verbose
     )
+    
+    # Ensure required columns exist in the data
+    for (metric in regular_metrics) {
+      if (!metric %in% colnames(result$data)) {
+        result$data[[metric]] <- 0
+      }
+    }
     
     # Aggregate by country (summing daily data)
     if ("country" %in% colnames(result$data)) {

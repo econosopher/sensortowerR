@@ -8,7 +8,7 @@
 #'   - **Revenue/Downloads**: "revenue" (default), "units" 
 #'   - **Active Users**: "DAU", "WAU", "MAU"
 #' @param os Character string. Operating System. Must be one of
-#'   "ios", "android", or "unified". Defaults to "unified".
+#'   "ios", "android", or "unified". Required.
 #' @param comparison_attribute Character string. Comparison attribute
 #'   type. Must be one of "absolute", "delta", or "transformed_delta". 
 #'   Defaults to "absolute".
@@ -21,8 +21,8 @@
 #'   filter by. **Required for revenue/downloads and active users**.
 #'   Use `st_categories()` to find valid IDs.
 #' @param regions Character vector or comma-separated string. Region
-#'   codes (e.g., `"US"`, `c("US", "GB")`, `"WW"`) to filter results. 
-#'   Defaults to "WW" (worldwide).
+#'   codes (e.g., `"US"`, `c("US", "GB")`, `"WW"` for worldwide) to filter results. 
+#'   Required.
 #' @param end_date Optional. Character string or Date object. End date for the
 #'   query in "YYYY-MM-DD" format, inclusive. Only used for revenue/downloads.
 #' @param limit Optional. Integer. Maximum number of apps to return per call.
@@ -95,12 +95,12 @@
 #'
 #' @export
 st_top_charts <- function(measure = "revenue",
-                          os = "unified",
+                          os,
                           comparison_attribute = "absolute",
                           time_range = "month",
                           date = NULL,
                           category = NULL,
-                          regions = "WW",
+                          regions,
                           end_date = NULL,
                           limit = 20,
                           offset = NULL,
@@ -112,6 +112,15 @@ st_top_charts <- function(measure = "revenue",
                           base_url = "https://api.sensortower.com",
                           enrich_response = TRUE,
                           deduplicate_apps = TRUE) {
+  
+  # Validate required parameters
+  if (missing(os) || is.null(os)) {
+    stop("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
+  }
+  
+  if (missing(regions) || is.null(regions) || length(regions) == 0) {
+    stop("'regions' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+  }
   
   # --- Input Validation ---
   measure <- match.arg(measure, c("revenue", "units", "DAU", "WAU", "MAU"))

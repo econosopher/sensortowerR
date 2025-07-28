@@ -45,3 +45,12 @@ inst/images/logo_creation.R
 ^\.\.\Rcheck$
 ^\.DS_Store$
 ^inst/images$
+^\.cache$
+^CLAUDE\.md$
+^ENDPOINT_REFERENCE\.md$
+^MIGRATION_GUIDE\.md$
+^ST_METRICS_UPDATE_SUMMARY\.md$
+^batch_api_test_results\.rds$
+^endpoint_test_results\.rds$
+^unified_daily_fix_summary\.md$
+^inst/test_scripts$

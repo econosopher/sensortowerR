@@ -6,8 +6,7 @@
 #'
 #' @param measure Character. Metric to rank by: "revenue" or "units" (downloads).
 #'   Defaults to "revenue".
-#' @param os Character. Operating system: "ios", "android", or "unified".
-#'   Defaults to "unified".
+#' @param os Character. Operating system: "ios", "android", or "unified". Required.
 #' @param category Integer or character. Category ID to filter publishers.
 #'   For iOS use numeric IDs (e.g., 6014 for Games), for Android use strings
 #'   (e.g., "game"). Use 0 or "all" for all categories.
@@ -16,7 +15,7 @@
 #' @param comparison_attribute Character. Data type to return: "absolute"
 #'   (total values), "delta" (growth), or "transformed_delta" (growth rate).
 #'   Defaults to "absolute".
-#' @param date Date or character. Start date in "YYYY-MM-DD" format. 
+#' @param date Date or character. Start date in "YYYY-MM-DD" format. Required.
 #'   **Important**: Must align with time_range boundaries:
 #'   - `month`: Must be first day of month (e.g., 2025-06-01)
 #'   - `week`: Must be Monday
@@ -35,8 +34,7 @@
 #'   - `day`: Any date allowed
 #'   Function will error if date doesn't align. Use `time_range = "day"`
 #'   for custom date ranges.
-#' @param country Character. Country or region code (e.g., "US", "GB", "WW").
-#'   Defaults to "WW" for worldwide data.
+#' @param country Character. Country or region code (e.g., "US", "GB", "WW" for worldwide). Required.
 #' @param limit Integer. Number of publishers to return (1-100). Defaults to 25.
 #' @param offset Integer. Number of publishers to skip for pagination. Defaults to 0.
 #' @param device_type Character. For iOS: "iphone", "ipad", or "total".
@@ -132,18 +130,31 @@
 #' @importFrom purrr map map_int
 #' @export
 st_top_publishers <- function(measure = "revenue",
-                             os = "unified",
+                             os,
                              category = 0,
                              time_range = "month",
                              comparison_attribute = "absolute",
-                             date = Sys.Date() - 30,
+                             date,
                              end_date = NULL,
-                             country = "WW",
+                             country,
                              limit = 25,
                              offset = 0,
                              device_type = "total",
                              include_apps = TRUE,
                              auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
+  
+  # Validate required parameters
+  if (missing(os) || is.null(os)) {
+    stop("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
+  }
+  
+  if (missing(date) || is.null(date)) {
+    stop("'date' parameter is required. Specify in YYYY-MM-DD format.")
+  }
+  
+  if (missing(country) || is.null(country)) {
+    stop("'country' parameter is required. Specify country code (e.g., 'US', 'GB', or 'WW' for worldwide).")
+  }
   
   # Input validation
   measure <- match.arg(measure, c("revenue", "units"))
@@ -511,10 +522,8 @@ st_top_publishers <- function(measure = "revenue",
 #' @param time_range Character. Time period: "week", "month", "quarter".
 #'   Defaults to "month".
 #' @param date Date or character. Start date. Defaults to 30 days ago.
-#' @param os Character. Operating system: "ios", "android", or "unified".
-#'   Defaults to "unified".
-#' @param country Character. Country or region code (e.g., "US", "GB", "WW").
-#'   Defaults to "WW" for worldwide data.
+#' @param os Character. Operating system: "ios", "android", or "unified". Required.
+#' @param country Character. Country or region code (e.g., "US", "GB", "WW" for worldwide). Required.
 #' @param auth_token Character. Your Sensor Tower API authentication token.
 #'
 #' @return A tibble with publisher revenue broken down by category.

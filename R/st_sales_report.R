@@ -7,10 +7,10 @@
 #'   **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.
 #' @param publisher_ids Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.
 #' @param os Character string. Operating system: "ios" or "android".
-#' @param countries Character vector. Country codes (e.g., c("US", "GB", "JP")).
-#' @param start_date Date or character string. Start date in "YYYY-MM-DD" format.
-#' @param end_date Date or character string. End date in "YYYY-MM-DD" format.
-#' @param date_granularity Character string. One of "daily", "weekly", "monthly", "quarterly".
+#' @param countries Character vector. Country codes (e.g., c("US", "GB", "JP"), or "WW" for worldwide). Required.
+#' @param start_date Date or character string. Start date in "YYYY-MM-DD" format. Required.
+#' @param end_date Date or character string. End date in "YYYY-MM-DD" format. Required.
+#' @param date_granularity Character string. One of "daily", "weekly", "monthly", "quarterly". Required.
 #' @param auth_token Optional. Character string. Your Sensor Tower API token.
 #' @param auto_segment Logical. If TRUE, automatically segments date ranges to avoid timeouts.
 #' @param verbose Logical. If TRUE, prints progress messages.
@@ -68,13 +68,30 @@
 st_sales_report <- function(app_ids = NULL,
                            publisher_ids = NULL,
                            os = "ios",
-                           countries = "US",
-                           start_date = Sys.Date() - 30,
-                           end_date = Sys.Date() - 1,
-                           date_granularity = "daily",
+                           countries,
+                           start_date,
+                           end_date,
+                           date_granularity,
                            auth_token = NULL,
                            auto_segment = TRUE,
                            verbose = TRUE) {
+  
+  # Validate required parameters
+  if (missing(countries) || is.null(countries) || length(countries) == 0) {
+    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+  }
+  
+  if (missing(start_date) || is.null(start_date)) {
+    stop("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
+  }
+  
+  if (missing(end_date) || is.null(end_date)) {
+    stop("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
+  }
+  
+  if (missing(date_granularity) || is.null(date_granularity)) {
+    stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+  }
   
   # Input validation
   if (is.null(app_ids) && is.null(publisher_ids)) {

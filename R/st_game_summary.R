@@ -8,17 +8,15 @@
 #'   analyze. Defaults to 7001 (a popular game category). Use `st_categories()` 
 #'   to find valid category IDs.
 #' @param countries Character vector or comma-separated string. Country codes 
-#'   (e.g., `"US"`, `c("US", "GB")`, `"WW"`) to analyze. Defaults to "WW" 
-#'   (worldwide).
+#'   (e.g., `"US"`, `c("US", "GB")`, `"WW"` for worldwide) to analyze. Required.
 #' @param os Character string. Operating System. Must be one of "ios", "android", 
-#'   or "unified". Defaults to "unified".
+#'   or "unified". Required.
 #' @param date_granularity Character string. Time granularity for aggregation. 
-#'   Must be one of "daily", "weekly", "monthly", or "quarterly". 
-#'   Defaults to "daily".
+#'   Must be one of "daily", "weekly", "monthly", or "quarterly". Required.
 #' @param start_date Character string or Date object. Start date for the query 
-#'   in "YYYY-MM-DD" format. Defaults to 30 days ago.
+#'   in "YYYY-MM-DD" format. Required.
 #' @param end_date Character string or Date object. End date for the query 
-#'   in "YYYY-MM-DD" format, inclusive. Defaults to yesterday.
+#'   in "YYYY-MM-DD" format, inclusive. Required.
 #' @param auth_token Optional. Character string. Your Sensor Tower API token.
 #' @param base_url Optional. Character string. The base URL for the API.
 #' @param enrich_response Optional. Logical. If `TRUE` (default), enriches
@@ -72,14 +70,35 @@
 #' @seealso [st_categories()], [st_top_charts()], [st_metrics()]
 #' @export
 st_game_summary <- function(categories = 7001,
-                            countries = "WW",
-                            os = "unified",
-                            date_granularity = "daily",
-                            start_date = Sys.Date() - 30,
-                            end_date = Sys.Date() - 1,
+                            countries,
+                            os,
+                            date_granularity,
+                            start_date,
+                            end_date,
                             auth_token = NULL,
                             base_url = "https://api.sensortower.com",
                             enrich_response = TRUE) {
+  
+  # Validate required parameters
+  if (missing(countries) || is.null(countries) || length(countries) == 0) {
+    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+  }
+  
+  if (missing(os) || is.null(os)) {
+    stop("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
+  }
+  
+  if (missing(date_granularity) || is.null(date_granularity)) {
+    stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+  }
+  
+  if (missing(start_date) || is.null(start_date)) {
+    stop("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
+  }
+  
+  if (missing(end_date) || is.null(end_date)) {
+    stop("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
+  }
   
   # Validate inputs
   if (!date_granularity %in% c("daily", "weekly", "monthly", "quarterly")) {

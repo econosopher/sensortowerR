@@ -6,6 +6,15 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.4.0
+- **BREAKING CHANGE**: Key parameters now required instead of defaulting
+  - `countries` must be explicitly specified (no default to "US")
+  - `date_granularity` must be explicitly specified (no default to "daily")
+  - `os` must be explicitly specified (no default to "unified")
+  - `start_date` and `end_date` must be explicitly specified
+- **Test Improvements**: Consolidated test scripts to speed up CRAN checks
+- **Package Cleanup**: Fixed R CMD check warnings and added missing imports
+
 ### v0.3.5
 - **MAU Support Added**: `st_ytd_metrics()` now supports Monthly Active Users (MAU) metrics
 - **Average MAU Calculation**: MAU is calculated as average monthly users for YoY comparisons
