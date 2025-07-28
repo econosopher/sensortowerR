@@ -28,8 +28,10 @@ test_that("API calls retrieve data", {
   # Test st_metrics (updated to use new parameters)
   metrics <- st_metrics(
     app_id = "602c795c912b51622f233ffe", # Pokemon GO
+    countries = "US",
     start_date = "2021-09-22",
     end_date = "2021-09-22",
+    date_granularity = "daily",
     auth_token = auth_token
   )
   expect_s3_class(metrics, "tbl_df")
@@ -80,7 +82,7 @@ test_that("API calls retrieve data", {
   expect_true(nrow(ytd_data) > 0)
   expect_equal(names(ytd_data), 
                c("entity_id", "entity_name", "entity_type", "year", 
-                 "date_start", "date_end", "country", "metric", "value"))
+                 "date_start", "date_end", "country", "metric", "value", "original_unified_id"))
   expect_true(all(ytd_data$metric %in% c("revenue", "downloads")))
 })
 

@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Rscript:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(R CMD build:*)",
+      "Bash(R CMD check:*)",
+      "Bash(R:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(grep:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh api:*)",
+      "Bash(touch:*)",
+      "Bash(cat:*)",
+      "Bash(true)"
+    ],
+    "deny": []
+  }
+}

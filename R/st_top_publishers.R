@@ -143,6 +143,17 @@ st_top_publishers <- function(measure = "revenue",
                              include_apps = TRUE,
                              auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
   
+  # Validate auth token first, as it's the most critical dependency
+  if (is.null(auth_token) || auth_token == "") {
+    rlang::abort(
+      paste(
+        "Authentication token is required.",
+        "Set SENSORTOWER_AUTH_TOKEN environment variable",
+        "or pass via auth_token argument."
+      )
+    )
+  }
+
   # Validate required parameters
   if (missing(os) || is.null(os)) {
     stop("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
@@ -179,19 +190,9 @@ st_top_publishers <- function(measure = "revenue",
   message(sprintf("  Include Apps: %s", include_apps))
   message("================================\n")
   
-  if (is.null(auth_token) || auth_token == "") {
-    rlang::abort(
-      paste(
-        "Authentication token is required.",
-        "Set SENSORTOWER_AUTH_TOKEN environment variable",
-        "or pass via auth_token argument."
-      )
-    )
-  }
-  
   # Validate numeric inputs
-  if (!is.numeric(limit) || limit < 1 || limit > 100) {
-    rlang::abort("limit must be between 1 and 100")
+  if (!is.numeric(limit) || limit < 1 || limit > 10) {
+    rlang::abort("limit must be between 1 and 10")
   }
   
   if (!is.numeric(offset) || offset < 0) {

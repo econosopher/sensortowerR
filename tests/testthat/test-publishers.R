@@ -12,6 +12,8 @@ test_that("st_top_publishers retrieves publisher data", {
     os = "unified",
     category = 6014,  # Games
     time_range = "month",
+    date = "2024-01-01",
+    country = "US",
     limit = 5,
     auth_token = auth_token
   )
@@ -38,6 +40,8 @@ test_that("st_top_publishers retrieves publisher data", {
     os = "ios",
     category = 6000,  # All categories
     time_range = "week",
+    date = "2024-01-01",
+    country = "US",
     limit = 3,
     auth_token = auth_token
   )
@@ -61,6 +65,8 @@ test_that("st_top_publishers handles different parameters", {
     os = "android",
     category = "game",
     time_range = "month",
+    date = "2024-01-01",
+    country = "US",
     limit = 5,
     auth_token = auth_token
   )
@@ -73,6 +79,9 @@ test_that("st_top_publishers handles different parameters", {
     measure = "revenue",
     os = "unified",
     category = 6014,
+    time_range = "month",
+    date = "2024-01-01",
+    country = "US",
     include_apps = FALSE,
     limit = 3,
     auth_token = auth_token
@@ -89,25 +98,47 @@ test_that("st_top_publishers validates input", {
   
   # Test invalid measure
   expect_error(
-    st_top_publishers(measure = "invalid", auth_token = auth_token),
+    st_top_publishers(
+      measure = "invalid",
+      os = "unified",
+      date = "2024-01-01",
+      country = "US",
+      auth_token = auth_token
+    ),
     "should be one of"
   )
   
   # Test invalid OS
   expect_error(
-    st_top_publishers(os = "windows", auth_token = auth_token),
+    st_top_publishers(
+      os = "windows",
+      date = "2024-01-01",
+      country = "US",
+      auth_token = auth_token
+    ),
     "should be one of"
   )
   
   # Test invalid limit
   expect_error(
-    st_top_publishers(limit = 150, auth_token = auth_token),
+    st_top_publishers(
+      limit = 11,
+      os = "unified",
+      date = "2024-01-01",
+      country = "US",
+      auth_token = auth_token
+    ),
     "limit must be between"
   )
   
   # Test missing auth token
   expect_error(
-    st_top_publishers(auth_token = ""),
+    st_top_publishers(
+      os = "unified",
+      date = "2024-01-01",
+      country = "US",
+      auth_token = ""
+    ),
     "Authentication token is required"
   )
 })
@@ -125,6 +156,8 @@ test_that("st_publisher_category_breakdown works correctly", {
     measure = "revenue",
     os = "unified", 
     category = 6014,
+    date = "2024-01-01",
+    country = "US",
     limit = 2,
     auth_token = auth_token
   )
@@ -135,9 +168,10 @@ test_that("st_publisher_category_breakdown works correctly", {
   
   # Test category breakdown
   breakdown <- st_publisher_category_breakdown(
-    publisher_ids = publishers$publisher_id[1:2],
-    time_range = "month",
+    publisher_ids = publishers$publisher_id,
     os = "unified",
+    date = "2024-01-01",
+    country = "US",
     auth_token = auth_token
   )
   

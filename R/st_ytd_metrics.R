@@ -132,14 +132,9 @@ st_ytd_metrics <- function(
     
     # Check if we're asking for current year
     if (current_year %in% years) {
-      # Find last Saturday
-      days_since_saturday <- (lubridate::wday(today) + 5) %% 7
-      last_saturday <- today - days_since_saturday
-      
-      # If last Saturday is in the future (today is Sunday), go back a week
-      if (last_saturday >= today) {
-        last_saturday <- last_saturday - 7
-      }
+      # Find last Saturday using floor_date with week_start = 7 (Sunday)
+      # This ensures we get the last completed week ending on Saturday
+      last_saturday <- lubridate::floor_date(today - 1, "week", week_start = 7)
       
       period_end <- format(last_saturday, "%m-%d")
       
@@ -223,6 +218,10 @@ st_ytd_metrics <- function(
   # Collect results for all entities and years
   all_results <- list()
   total_api_calls <- 0
+  
+  # Store original input IDs for mapping
+  original_unified_ids <- unified_app_id
+  original_publisher_ids <- publisher_id
   
   if (verbose) {
     message("\nFetching metrics for:")
@@ -362,6 +361,30 @@ st_ytd_metrics <- function(
     select(entity_id, entity_name, entity_type, year, date_start, date_end, 
            country, metric, value)
   
+  # Add original ID mapping
+  if (!is.null(original_unified_ids) && entity_type == "app") {
+    # Create mapping from entity_id back to original unified IDs
+    # This helps with downstream joins when users provide unified IDs
+    tidy_data$original_unified_id <- NA_character_
+    
+    # For each row, try to map back to original input
+    for (i in seq_len(nrow(tidy_data))) {
+      entity <- tidy_data$entity_id[i]
+      
+      # Check if this entity_id matches any of the original inputs
+      for (j in seq_along(original_unified_ids)) {
+        orig_id <- original_unified_ids[j]
+        
+        # Check if entity_id contains the original ID (for unified lookups)
+        # or if it matches exactly (for successful unified lookups)
+        if (entity == orig_id || grepl(orig_id, entity, fixed = TRUE)) {
+          tidy_data$original_unified_id[i] <- orig_id
+          break
+        }
+      }
+    }
+  }
+  
   if (verbose) {
     message(sprintf("\nTotal API calls used: %d", total_api_calls))
     message(sprintf("Records retrieved: %d", nrow(tidy_data)))
@@ -477,7 +500,7 @@ fetch_app_metrics <- function(
   
   # Fetch revenue/downloads if requested
   if (length(regular_metrics) > 0) {
-    # Use the optimized data fetching function
+    # First try with whatever IDs we have
     result <- fetch_optimized_data(
       ios_app_id = ios_app_id,
       android_app_id = android_app_id,
@@ -489,6 +512,64 @@ fetch_app_metrics <- function(
       auth_token = auth_token,
       verbose = verbose
     )
+    
+    # If using unified ID and got zero data, try to fallback to platform-specific IDs
+    if (!is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id)) {
+      # Check if we got zero revenue/downloads
+      total_value <- 0
+      for (metric in regular_metrics) {
+        if (metric %in% colnames(result$data)) {
+          total_value <- total_value + sum(result$data[[metric]], na.rm = TRUE)
+        }
+      }
+      
+      if (total_value == 0 && verbose) {
+        message("    Unified ID returned zero data, attempting platform-specific fallback...")
+      }
+      
+      if (total_value == 0) {
+        # Try to look up platform-specific IDs
+        app_lookup <- tryCatch({
+          sensortowerR::st_app_lookup(
+            unified_id = unified_app_id,
+            auth_token = auth_token,
+            verbose = verbose
+          )
+        }, error = function(e) {
+          if (verbose) {
+            message("    App lookup failed: ", e$message)
+          }
+          NULL
+        })
+        
+        if (!is.null(app_lookup) && (!is.null(app_lookup$ios_app_id) || !is.null(app_lookup$android_app_id))) {
+          if (verbose) {
+            message("    Found platform IDs - iOS: ", app_lookup$ios_app_id %||% "none", 
+                    ", Android: ", app_lookup$android_app_id %||% "none")
+          }
+          
+          # Retry with platform-specific IDs
+          result <- fetch_optimized_data(
+            ios_app_id = app_lookup$ios_app_id,
+            android_app_id = app_lookup$android_app_id,
+            app_id = NULL,
+            start_date = start_date,
+            end_date = end_date,
+            countries = countries,
+            date_granularity = "daily",
+            auth_token = auth_token,
+            verbose = verbose
+          )
+          
+          # Update api_calls count for the additional lookups
+          api_calls <- api_calls + 2  # One for details, one for search
+        } else {
+          if (verbose) {
+            message("    Could not resolve platform IDs for unified ID: ", unified_app_id)
+          }
+        }
+      }
+    }
     
     # Ensure required columns exist in the data
     for (metric in regular_metrics) {

@@ -6,6 +6,46 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.4.2
+- **New Function**: `st_get_unified_mapping()` - Get complete ID mapping between platforms
+  - Retrieves the mapping between platform-specific and unified app IDs
+  - Uses the comparison attributes endpoint for rich entity data
+  - Falls back to `st_app_lookup()` when needed
+  - Returns unified_app_id, ios_app_id, android_app_id, and publisher info
+- **Enhanced ID Tracking**: Functions now preserve original input IDs
+  - `st_ytd_metrics()` adds `original_unified_id` column for easier joins
+  - `st_batch_metrics()` maintains `original_id` throughout processing
+  - Helps with downstream analysis when using unified IDs
+- **Improved Fallback Logic**: `st_batch_metrics()` now has smarter fallbacks
+  - Automatically detects when unified IDs return zero revenue
+  - Attempts to resolve and retry with platform-specific IDs
+  - Shows warnings in verbose mode to help diagnose issues
+
+### v0.4.1
+- **Bug Fix**: Fixed `st_ytd_metrics()` error when data columns were missing
+  - Now ensures required columns exist before aggregation
+  - Handles empty data responses gracefully
+- **Automatic Fallback**: When unified app IDs return zero data, attempts fallback to platform-specific IDs
+  - Automatically detects Sensor Tower hex IDs and resolves platform-specific IDs
+  - Works transparently - no code changes needed
+- **New Function**: `st_app_lookup()` - Resolve platform IDs from unified IDs
+  - Accepts Sensor Tower hex IDs, iOS numeric IDs, or Android package names
+  - Returns both iOS and Android IDs for use with other API functions
+  - Helpful when unified endpoints don't work with certain ID types
+- **New Function**: `st_api_diagnostics()` - Diagnose API issues systematically
+  - Detects ID type and tests various endpoints
+  - Provides specific recommendations for each app
+  - Helps debug why certain IDs aren't working
+- **New Function**: `st_batch_metrics()` - Efficiently fetch metrics for multiple apps
+  - Automatically resolves mixed ID types (iOS, Android, hex IDs)
+  - Groups compatible requests to minimize API calls
+  - Supports parallel processing for large batches
+  - **Full active user support**: Works with DAU, WAU, and MAU metrics
+  - Perfect for dashboards and bulk analysis
+- **Important Note**: For best results, always use platform-specific IDs when available
+  - Use `ios_app_id` and `android_app_id` parameters for most accurate results
+  - Platform-specific fetching correctly combines iOS and Android data
+
 ### v0.4.0
 - **BREAKING CHANGE**: Key parameters now required instead of defaulting
   - `countries` must be explicitly specified (no default to "US")
@@ -265,6 +305,9 @@ For a complete list, use `st_categories()` to see available categories.
 ## Core Functions
 
 - **`st_app_info()`**: Search for apps and get basic information
+- **`st_app_lookup()`**: **NEW!** Resolve platform-specific IDs from unified IDs
+- **`st_api_diagnostics()`**: **NEW!** Diagnose why app IDs aren't working and get recommendations
+- **`st_batch_metrics()`**: **NEW!** Efficiently fetch metrics for multiple apps with mixed ID types
 - **`st_publisher_apps()`**: Get all apps from a specific publisher  
 - **`st_metrics()`**: Detailed daily metrics for specific apps (see note below)
 - **`st_top_charts()`**: Unified function for all top charts (revenue, downloads, DAU, WAU, MAU)
@@ -284,6 +327,90 @@ For a complete list, use `st_categories()` to see available categories.
 # Search for apps
 monopoly_info <- st_app_info("Monopoly Go")
 pokemon_info <- st_app_info("Pokemon GO", limit = 1)
+```
+
+### App ID Lookup & Diagnostics
+```r
+# Resolve platform IDs from unified ID
+app_ids <- st_app_lookup("5ba4585f539ce75b97db6bcb")  # Star Trek Fleet Command
+
+# Use the resolved IDs with other functions
+if (!is.null(app_ids)) {
+  metrics <- st_ytd_metrics(
+    ios_app_id = app_ids$ios_app_id,
+    android_app_id = app_ids$android_app_id,
+    years = 2025,
+    metrics = "revenue",
+    countries = "WW"
+  )
+}
+
+# Diagnose why an app ID isn't working
+diagnosis <- st_api_diagnostics("5ba4585f539ce75b97db6bcb")
+# Returns detailed analysis and recommendations
+```
+
+### ID Mapping & Resolution
+```r
+# Get complete ID mapping for apps
+mapping <- st_get_unified_mapping(c("1427744264", "com.scopely.startrek"))
+
+# View the mapping
+mapping %>% 
+  select(input_id, unified_app_id, ios_app_id, android_app_id, unified_app_name)
+
+# Example output:
+# input_id              unified_app_id           ios_app_id  android_app_id         unified_app_name
+# 1427744264            5ba4585f539ce75b97db6bcb 1427744264  com.scopely.startrek   Star Trek Fleet Command
+# com.scopely.startrek  5ba4585f539ce75b97db6bcb 1427744264  com.scopely.startrek   Star Trek Fleet Command
+
+# Use mapping with other functions
+for (i in 1:nrow(mapping)) {
+  metrics <- st_ytd_metrics(
+    ios_app_id = mapping$ios_app_id[i],
+    android_app_id = mapping$android_app_id[i],
+    years = 2025,
+    metrics = c("revenue", "downloads"),
+    countries = "WW"
+  )
+}
+```
+
+### Batch Processing
+```r
+# Efficiently fetch metrics for multiple apps with mixed ID types
+apps <- c(
+  "553834731",                    # Candy Crush iOS
+  "com.supercell.clashofclans",   # Clash of Clans Android
+  "5ba4585f539ce75b97db6bcb"      # Star Trek hex ID
+)
+
+# Batch fetch with automatic ID resolution (now supports DAU/WAU/MAU!)
+batch_metrics <- st_batch_metrics(
+  app_list = apps,
+  metrics = c("revenue", "downloads"),
+  date_range = list(start_date = "2025-01-01", end_date = "2025-06-30"),
+  countries = "US",
+  granularity = "monthly"
+)
+
+# Batch fetch with active user metrics
+user_metrics_batch <- st_batch_metrics(
+  app_list = apps,
+  metrics = c("revenue", "downloads", "dau", "wau", "mau"),
+  date_range = list(start_date = "2025-01-01", end_date = "2025-01-31"),
+  countries = "US",
+  granularity = "monthly",
+  verbose = TRUE
+)
+
+# Or use year-to-date mode with all metrics
+ytd_batch <- st_batch_metrics(
+  app_list = apps,
+  metrics = c("revenue", "downloads", "dau", "wau", "mau"),
+  date_range = "ytd",
+  countries = "WW"
+)
 ```
 
 ### Publisher Apps
@@ -448,12 +575,26 @@ category_breakdown %>%
 ```
 
 ### Year-to-Date Metrics (Now with DAU, WAU, and MAU!)
+
+**Important**: For most accurate results, use platform-specific IDs instead of unified app IDs:
+
 ```r
-# Get YTD metrics including all active user metrics
+# RECOMMENDED: Use platform-specific IDs for accurate data
+ytd_metrics <- st_ytd_metrics(
+  ios_app_id = c("553834731", "1195621598"),     # iOS app IDs
+  android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),  # Android package names
+  years = c(2023, 2024, 2025),
+  metrics = c("revenue", "downloads", "dau", "wau", "mau"),
+  countries = "WW",  # Required parameter
+  cache_dir = ".cache/ytd"  # Enable caching
+)
+
+# Alternative: Unified app IDs (may return zero for some apps)
 ytd_metrics <- st_ytd_metrics(
   unified_app_id = c("553834731", "1195621598"),  # Candy Crush, Homescapes
   years = c(2023, 2024, 2025),
   metrics = c("revenue", "downloads", "dau", "wau", "mau"),  # Full active user support!
+  countries = "WW",  # Required parameter
   cache_dir = ".cache/ytd"  # Enable caching
 )
 
