@@ -6,6 +6,9 @@
 \usage{
 st_clear_app_cache()
 }
+\value{
+No return value, called for side effects (clearing the cache).
+}
 \description{
 Clears the internal cache of app name lookups. Useful for testing or when
 you want to refresh app name data.

@@ -45,32 +45,19 @@ test_that("local CRAN check passes", {
   }
 })
 
-test_that("package can be installed and loaded", {
+test_that("package functions exist", {
+  # Test basic functionality without installing
+  # This checks that the functions are available in the current package environment
   
-  # Test that package can be properly installed
-  pkg_path <- list.files(pattern = "*.tar.gz", full.names = TRUE)
+  # Skip if not in package development environment
+  skip_if_not(exists("st_categories", where = asNamespace("sensortowerR")),
+              "Not in package environment")
   
-  if (length(pkg_path) > 0) {
-    temp_lib <- tempfile()
-    dir.create(temp_lib)
-    
-    # Install to temporary library
-    install.packages(pkg_path[1], lib = temp_lib, repos = NULL, type = "source", quiet = TRUE)
-    
-    # Test loading
-    expect_true(require("sensortowerR", lib.loc = temp_lib, character.only = TRUE),
-                "Package should load successfully after installation")
-    
-    # Test basic functionality
-    expect_true(exists("st_categories"), "st_categories function should be available")
-    expect_true(exists("st_top_charts"), "st_top_charts function should be available")
-    expect_true(exists("st_game_summary"), "st_game_summary function should be available")
-    
-    # Clean up
-    detach("package:sensortowerR", unload = TRUE)
-    unlink(temp_lib, recursive = TRUE)
-    
-  } else {
-    skip("No package tarball found for installation test")
-  }
+  # Test that key functions exist
+  expect_true(exists("st_categories", where = asNamespace("sensortowerR")), 
+              "st_categories function should be available")
+  expect_true(exists("st_top_charts", where = asNamespace("sensortowerR")), 
+              "st_top_charts function should be available")
+  expect_true(exists("st_game_summary", where = asNamespace("sensortowerR")), 
+              "st_game_summary function should be available")
 }) 

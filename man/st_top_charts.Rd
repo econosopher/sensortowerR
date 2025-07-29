@@ -125,16 +125,31 @@ selects the appropriate API endpoint based on the measure specified.
 \examples{
 \dontrun{
 # Top apps by revenue (default)
-top_revenue <- st_top_charts(category = 6000)  # iOS Games
+top_revenue <- st_top_charts(
+  os = "ios",
+  category = 6000,  # iOS Games
+  regions = "WW"
+)
 
 # Top apps by downloads
-top_downloads <- st_top_charts(measure = "units", category = 6000)
+top_downloads <- st_top_charts(
+  os = "android",
+  measure = "units", 
+  category = 6000,
+  regions = "US"
+)
 
 # Top apps by Monthly Active Users
-top_mau <- st_top_charts(measure = "MAU", category = 7014)  # Role Playing
+top_mau <- st_top_charts(
+  os = "unified",
+  measure = "MAU", 
+  category = 7014,  # Role Playing
+  regions = c("US", "GB", "JP")
+)
 
 # Custom time range and region
 top_quarter <- st_top_charts(
+  os = "ios",
   measure = "revenue",
   time_range = "quarter", 
   regions = "US",

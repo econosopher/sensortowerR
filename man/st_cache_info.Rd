@@ -6,6 +6,9 @@
 \usage{
 st_cache_info()
 }
+\value{
+No return value, called for side effects (displaying cache statistics).
+}
 \description{
 Display information about the current app ID cache
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/st_app_lookup.R
 \name{st_app_lookup}
 \alias{st_app_lookup}
-\title{Look up app by unified ID}
+\title{Look up app by Sensor Tower unified ID}
 \usage{
 st_app_lookup(
   unified_id,
@@ -11,7 +11,7 @@ st_app_lookup(
 )
 }
 \arguments{
-\item{unified_id}{Character string. The unified app ID to look up.}
+\item{unified_id}{Character string. The Sensor Tower unified app ID (24-char hex format).}
 
 \item{auth_token}{Character string. Your Sensor Tower API authentication token.}
 
@@ -26,9 +26,14 @@ A list with components:
   Returns NULL if app cannot be found.
 }
 \description{
-This function attempts to find app information when you have a unified app ID
-(which could be a Sensor Tower internal ID, iOS numeric ID, or Android package name).
-It returns platform-specific IDs that can be used with other API functions.
+This function looks up app information using Sensor Tower's internal unified app ID
+(24-character hex format like "5ba4585f539ce75b97db6bcb"). It returns platform-specific
+IDs that can be used with other API functions.
+}
+\details{
+IMPORTANT: This function only works with Sensor Tower's internal unified IDs.
+Do not pass iOS app IDs or Android package names - use the appropriate
+platform-specific parameters in other functions instead.
 }
 \examples{
 \dontrun{

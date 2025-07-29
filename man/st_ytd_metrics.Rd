@@ -5,11 +5,13 @@
 \title{Fetch Year-to-Date Metrics for Apps or Publishers}
 \usage{
 st_ytd_metrics(
+  os,
   unified_app_id = NULL,
   ios_app_id = NULL,
   android_app_id = NULL,
   publisher_id = NULL,
   years = NULL,
+  end_dates = NULL,
   period_start = NULL,
   period_end = NULL,
   metrics = c("revenue", "downloads"),
@@ -20,16 +22,23 @@ st_ytd_metrics(
 )
 }
 \arguments{
-\item{unified_app_id}{Character vector. Unified app ID(s) that work across iOS and Android platforms.}
+\item{os}{Character. Required. Operating system: "ios", "android", or "unified".
+This determines which platform's data is returned.}
 
-\item{ios_app_id}{Character vector. iOS app ID(s) (optional).}
+\item{unified_app_id}{Character vector. Sensor Tower unified app ID(s). 
+Must be 24-character hex format (e.g., "5ba4585f539ce75b97db6bcb").}
 
-\item{android_app_id}{Character vector. Android package name(s) (optional).}
+\item{ios_app_id}{Character vector. iOS app ID(s) (e.g., "1234567890").}
+
+\item{android_app_id}{Character vector. Android package name(s) (e.g., "com.example.app").}
 
 \item{publisher_id}{Character vector. Publisher ID(s) (alternative to app IDs).}
 
-\item{years}{Integer vector. Years to fetch data for (e.g., c(2023, 2024, 2025)).
-If NULL, uses current year only.}
+\item{years}{Integer vector. **Deprecated** - use `end_dates` instead. Years to fetch data for.}
+
+\item{end_dates}{Date vector or character vector. End dates for each period to fetch.
+Each date will fetch data from period_start (or Jan 1) of that year to the specified date.
+Can be Date objects or strings in "YYYY-MM-DD" format.}
 
 \item{period_start}{Character string. Start date in "MM-DD" format (e.g., "02-01" for Feb 1).
 If NULL, defaults to "01-01" (January 1).}
@@ -50,6 +59,8 @@ Default is both revenue and downloads. Note: DAU/WAU/MAU are calculated as avera
 }
 \value{
 A tibble in tidy/long format with columns:
+  - `app_id`: The app ID used for fetching data
+  - `app_id_type`: Type of app ID ("ios", "android", or "unified")
   - `entity_id`: App or publisher ID
   - `entity_name`: App or publisher name
   - `entity_type`: "app" or "publisher"
@@ -62,7 +73,8 @@ A tibble in tidy/long format with columns:
 }
 \description{
 Fetches year-to-date metrics for apps or publishers across multiple years,
-with intelligent batching and caching to minimize API calls.
+with intelligent batching and caching to minimize API calls. The OS parameter
+controls which platform's data is returned.
 }
 \details{
 This function intelligently handles various scenarios:
@@ -73,21 +85,37 @@ This function intelligently handles various scenarios:
 - **Entity detection**: Automatically determines if using app or publisher endpoints
 - **Caching**: Reuses cached data for overlapping periods across years
 - **Active Users Support**: DAU, WAU, and MAU are averaged across periods for meaningful comparisons
+- **Unified ID with Active Users**: When unified_app_id is provided with active user metrics,
+  the function automatically looks up platform-specific IDs (iOS/Android) since these
+  metrics require platform-specific API endpoints
 }
 \examples{
 \dontrun{
-# Get YTD metrics including DAU, WAU, and MAU for a single app
+# Get YTD metrics using end_dates (recommended)
 ytd_metrics <- st_ytd_metrics(
-  unified_app_id = "553834731",  # Candy Crush
-  years = c(2023, 2024, 2025),
-  metrics = c("revenue", "downloads", "dau", "wau", "mau")
+  os = "ios",
+  ios_app_id = "553834731",  # Candy Crush iOS
+  countries = "US",
+  end_dates = c("2024-06-30", "2025-06-30"),
+  metrics = c("revenue", "downloads")
 )
 
-# Get active user metrics only for multiple apps
-active_user_metrics <- st_ytd_metrics(
-  ios_app_id = c("553834731", "1195621598"),
-  android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
-  years = 2025,
+# Get metrics for specific date ranges
+custom_periods <- st_ytd_metrics(
+  os = "unified",
+  unified_app_id = "5ba4585f539ce75b97db6bcb",
+  countries = "WW",
+  end_dates = as.Date(c("2024-03-31", "2024-09-30", "2025-03-31")),
+  period_start = "01-01",  # Start from Jan 1 each year
+  metrics = c("revenue", "downloads")
+)
+
+# Backward compatibility: using years (deprecated)
+android_ytd <- st_ytd_metrics(
+  os = "android",
+  android_app_id = "com.king.candycrushsaga",
+  countries = "US",
+  years = c(2024, 2025),
   metrics = c("dau", "wau")
 )
 }

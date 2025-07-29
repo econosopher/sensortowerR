@@ -774,6 +774,7 @@ clean_date_values <- function(data) {
 #' Clears the internal cache of app name lookups. Useful for testing or when
 #' you want to refresh app name data.
 #'
+#' @return No return value, called for side effects (clearing the cache).
 #' @export
 st_clear_app_cache <- function() {
   rm(list = ls(envir = .app_name_cache), envir = .app_name_cache)

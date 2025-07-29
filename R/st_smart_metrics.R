@@ -268,6 +268,7 @@ st_smart_metrics <- function(
 #' Clears the in-memory and on-disk cache of app ID mappings
 #' 
 #' @param disk Logical. Also remove the on-disk cache file (default TRUE).
+#' @return No return value, called for side effects (clearing the cache).
 #' 
 #' @export
 st_clear_id_cache <- function(disk = TRUE) {
@@ -291,6 +292,7 @@ st_clear_id_cache <- function(disk = TRUE) {
 #' 
 #' Display information about the current app ID cache
 #' 
+#' @return No return value, called for side effects (displaying cache statistics).
 #' @export
 st_cache_info <- function() {
   cache <- get_id_cache()

@@ -9,6 +9,9 @@ st_clear_id_cache(disk = TRUE)
 \arguments{
 \item{disk}{Logical. Also remove the on-disk cache file (default TRUE).}
 }
+\value{
+No return value, called for side effects (clearing the cache).
+}
 \description{
 Clears the in-memory and on-disk cache of app ID mappings
 }

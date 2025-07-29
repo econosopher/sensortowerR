@@ -6,6 +6,7 @@
 \title{Fetch Sensor Tower Metrics for Apps}
 \usage{
 st_metrics(
+  os,
   app_id = NULL,
   ios_app_id = NULL,
   android_app_id = NULL,
@@ -14,8 +15,6 @@ st_metrics(
   end_date = NULL,
   countries,
   date_granularity,
-  auto_platform_fetch = TRUE,
-  combine_platforms = TRUE,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
   verbose = TRUE
 )
@@ -36,13 +35,16 @@ st_metrics_smart(
 )
 }
 \arguments{
+\item{os}{Character. Required. Operating system: "ios", "android", or "unified".
+This determines which platform's data is returned.}
+
 \item{app_id}{Character string. Can be a unified app ID, iOS app ID, or Android package name.}
 
-\item{ios_app_id}{Character string. iOS app ID (optional, improves data completeness).}
+\item{ios_app_id}{Character string. iOS app ID (optional).}
 
-\item{android_app_id}{Character string. Android package name (optional, improves data completeness).}
+\item{android_app_id}{Character string. Android package name (optional).}
 
-\item{unified_app_id}{Deprecated. Use `app_id` instead.}
+\item{unified_app_id}{Character string. Sensor Tower unified ID (24-char hex).}
 
 \item{start_date}{Date object or character string (YYYY-MM-DD). Start date.}
 
@@ -52,64 +54,66 @@ st_metrics_smart(
 
 \item{date_granularity}{Character. One of "daily", "weekly", "monthly", "quarterly". Required.}
 
-\item{auto_platform_fetch}{Logical. When TRUE (default), automatically falls back
-to platform-specific endpoints if unified endpoint returns no data.}
-
-\item{combine_platforms}{Logical. When TRUE (default), combines iOS and Android data
-into unified totals. The platform column is excluded from results when TRUE.}
-
 \item{auth_token}{Character string. Sensor Tower API token.}
 
 \item{verbose}{Logical. Print progress messages.}
 }
 \value{
-A tibble with columns: date, country, revenue, downloads, platform (if not combined)
+A tibble with columns: app_id, app_id_type, date, country, revenue, downloads
 }
 \description{
-Retrieves metrics for apps. First attempts to use the unified endpoint,
-but if it returns empty (which happens for all granularities currently),
-automatically falls back to platform-specific endpoints and combines the results.
+Retrieves metrics for apps. The OS parameter controls which platform's data is returned,
+regardless of which app IDs are provided. The function will automatically look up
+the appropriate IDs if needed.
 
 Override the default st_metrics to use smart ID resolution
 }
 \details{
-This function intelligently handles Sensor Tower's API limitations:
+The OS parameter controls what data is returned:
 
-- First attempts the unified sales_report_estimates endpoint
-- If unified returns empty (current behavior for all granularities), falls back to platform-specific endpoints
-- Automatically detects app ID format and fetches appropriate data
-- Combines iOS and Android data for true unified view when using fallback
-- Set auto_platform_fetch = FALSE to disable automatic fallback
+- os = "ios": Returns iOS data only
+- os = "android": Returns Android data only
+- os = "unified": Returns combined iOS + Android data
+
+The function will automatically look up the appropriate IDs based on the OS parameter.
+For example, if you provide a unified_app_id but set os = "ios", it will look up
+the iOS app ID and return iOS-only data.
 }
 \examples{
 \dontrun{
-# Simple usage - function figures out the platform
-metrics <- st_metrics(
-  app_id = "1195621598",  # Homescapes iOS
+# Get iOS data only
+ios_metrics <- st_metrics(
+  os = "ios",
+  ios_app_id = "1195621598",  # Homescapes iOS
+  countries = "US",
+  date_granularity = "daily",
   start_date = Sys.Date() - 30,
   end_date = Sys.Date() - 1
 )
 
-# Best practice - provide both platform IDs
-metrics <- st_metrics(
-  app_id = "1195621598",
+# Get unified data from a unified ID
+unified_metrics <- st_metrics(
+  os = "unified",
+  unified_app_id = "5ba4585f539ce75b97db6bcb",
+  countries = "US",
+  date_granularity = "daily"
+)
+
+# Get iOS data from Android ID (automatic lookup)
+ios_from_android <- st_metrics(
+  os = "ios",
+  android_app_id = "com.king.candycrushsaga",
+  countries = "WW",
+  date_granularity = "monthly"
+)
+
+# Get unified data from platform IDs
+unified_from_platforms <- st_metrics(
+  os = "unified",
   ios_app_id = "1195621598",
   android_app_id = "com.playrix.homescapes",
-  start_date = Sys.Date() - 30,
-  end_date = Sys.Date() - 1
-)
-
-# Keep platforms separate
-metrics <- st_metrics(
-  app_id = "com.king.candycrushsaga",
-  combine_platforms = FALSE
-)
-
-# Force unified endpoint (will fail for daily)
-metrics <- st_metrics(
-  app_id = "1195621598",
-  date_granularity = "monthly",
-  auto_platform_fetch = FALSE
+  countries = "US",
+  date_granularity = "daily"
 )
 }
 

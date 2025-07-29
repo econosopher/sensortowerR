@@ -1,16 +1,18 @@
 #' Batch Fetch Metrics for Multiple Apps
 #'
 #' Efficiently fetch metrics for multiple apps by batching API calls and
-#' automatically handling platform-specific requirements. This function
-#' minimizes API calls by grouping compatible requests.
+#' automatically handling platform-specific requirements. The OS parameter
+#' controls which platform's data is returned for all apps.
 #'
+#' @param os Character. Required. Operating system: "ios", "android", or "unified".
+#'   This determines which platform's data is returned for all apps.
 #' @param app_list List or data frame containing app information. Can be:
 #'   - Character vector of app IDs
 #'   - Data frame with columns: app_id, app_name (optional), platform (optional)
 #'   - List of lists with app_id and optional metadata
 #' @param metrics Character vector. Metrics to fetch (e.g., "revenue", "downloads", "dau")
 #' @param date_range List with start_date and end_date, or "ytd" for year-to-date
-#' @param countries Character vector. Country codes (default "WW")
+#' @param countries Character vector. Country codes. Required.
 #' @param granularity Character. Date granularity (default "monthly")
 #' @param parallel Logical. Use parallel processing (default TRUE)
 #' @param cache_dir Character. Directory for caching results (optional)
@@ -18,16 +20,22 @@
 #' @param auth_token Character string. Your Sensor Tower API authentication token.
 #'
 #' @return A tibble with all metrics for all apps, with columns:
-#'   - app_id, app_name, platform, date, country, metric, value
+#'   - original_id: The app ID as provided in the input
+#'   - app_name: App name (if available)
+#'   - app_id: The app ID used for the API call (based on OS parameter)
+#'   - app_id_type: Type of app_id returned ("ios", "android", or "unified")
+#'   - date, country, metric, value: Metric data
 #'
 #' @examples
 #' \dontrun{
 #' # Simple usage with app IDs
 #' apps <- c("553834731", "com.supercell.clashofclans", "5ba4585f539ce75b97db6bcb")
 #' metrics <- st_batch_metrics(
+#'   os = "unified",
 #'   app_list = apps,
 #'   metrics = c("revenue", "downloads"),
-#'   date_range = list(start_date = "2025-01-01", end_date = "2025-06-30")
+#'   date_range = list(start_date = "2025-01-01", end_date = "2025-06-30"),
+#'   countries = "WW"
 #' )
 #' 
 #' # With app metadata
@@ -36,7 +44,12 @@
 #'   app_name = c("Candy Crush iOS", "Candy Crush Android"),
 #'   platform = c("ios", "android")
 #' )
-#' metrics <- st_batch_metrics(app_df, metrics = c("revenue", "dau"))
+#' metrics <- st_batch_metrics(
+#'   os = "unified",
+#'   app_list = app_df,
+#'   metrics = c("revenue", "downloads"),
+#'   countries = "US"
+#' )
 #' }
 #' 
 #' @importFrom dplyr bind_rows select distinct left_join %>%
@@ -44,26 +57,37 @@
 #' @importFrom stats na.omit
 #' @importFrom rlang .data
 #' @export
-st_batch_metrics <- function(app_list,
+st_batch_metrics <- function(os,
+                           app_list,
                            metrics = c("revenue", "downloads"),
                            date_range = list(start_date = Sys.Date() - 90, 
                                            end_date = Sys.Date() - 1),
-                           countries = "WW",
+                           countries,
                            granularity = "monthly",
                            parallel = TRUE,
                            cache_dir = NULL,
                            verbose = TRUE,
                            auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
   
+  # Validate OS parameter
+  if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
+    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+  }
+  
   # Validate auth token
   if (is.null(auth_token) || auth_token == "") {
     stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
+  # Validate countries parameter
+  if (missing(countries) || is.null(countries)) {
+    stop("'countries' parameter is required")
+  }
+  
   # Step 1: Normalize app list
   if (verbose) message("Processing ", length(app_list), " apps...")
   
-  apps_df <- normalize_app_list(app_list, auth_token, verbose)
+  apps_df <- normalize_app_list(app_list, os, auth_token, verbose)
   
   if (verbose) {
     message("Resolved apps:")
@@ -107,6 +131,7 @@ st_batch_metrics <- function(app_list,
       
       if (group_name == "both") {
         st_ytd_metrics(
+          os = os,
           ios_app_id = group$ios_id,
           android_app_id = group$android_id,
           years = as.numeric(format(Sys.Date(), "%Y")),
@@ -117,6 +142,7 @@ st_batch_metrics <- function(app_list,
         )
       } else if (group_name == "ios") {
         st_ytd_metrics(
+          os = os,
           ios_app_id = group$ios_id,
           years = as.numeric(format(Sys.Date(), "%Y")),
           metrics = metrics,
@@ -126,6 +152,7 @@ st_batch_metrics <- function(app_list,
         )
       } else if (group_name == "android") {
         st_ytd_metrics(
+          os = os,
           android_app_id = group$android_id,
           years = as.numeric(format(Sys.Date(), "%Y")),
           metrics = metrics,
@@ -137,6 +164,7 @@ st_batch_metrics <- function(app_list,
         # Unified - try each one with automatic fallback
         dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
           result <- st_ytd_metrics(
+            os = os,
             unified_app_id = group$unified_id[i],
             years = as.numeric(format(Sys.Date(), "%Y")),
             metrics = metrics,
@@ -159,6 +187,7 @@ st_batch_metrics <- function(app_list,
               if (!is.null(lookup) && (!is.null(lookup$ios_app_id) || !is.null(lookup$android_app_id))) {
                 message("  Retrying with platform IDs...")
                 result <- st_ytd_metrics(
+                  os = os,
                   ios_app_id = lookup$ios_app_id,
                   android_app_id = lookup$android_app_id,
                   years = as.numeric(format(Sys.Date(), "%Y")),
@@ -192,6 +221,7 @@ st_batch_metrics <- function(app_list,
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
             result <- st_metrics(
+              os = os,
               ios_app_id = group$ios_id[i],
               android_app_id = group$android_id[i],
               date_granularity = granularity,
@@ -223,6 +253,7 @@ st_batch_metrics <- function(app_list,
             
             # Use st_ytd_metrics approach but for custom date range
             ytd_result <- st_ytd_metrics(
+              os = os,
               ios_app_id = group$ios_id[i],
               android_app_id = group$android_id[i],
               years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
@@ -257,6 +288,7 @@ st_batch_metrics <- function(app_list,
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
             result <- st_metrics(
+              os = os,
               ios_app_id = group$ios_id[i],
               date_granularity = granularity,
               start_date = as.character(date_range$start_date),
@@ -282,6 +314,7 @@ st_batch_metrics <- function(app_list,
           # Fetch active user metrics if requested
           if (length(active_user_metrics) > 0) {
             ytd_result <- st_ytd_metrics(
+              os = os,
               ios_app_id = group$ios_id[i],
               years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
               period_start = format(as.Date(date_range$start_date), "%m-%d"),
@@ -314,6 +347,7 @@ st_batch_metrics <- function(app_list,
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
             result <- st_metrics(
+              os = os,
               android_app_id = group$android_id[i],
               date_granularity = granularity,
               start_date = as.character(date_range$start_date),
@@ -339,6 +373,7 @@ st_batch_metrics <- function(app_list,
           # Fetch active user metrics if requested
           if (length(active_user_metrics) > 0) {
             ytd_result <- st_ytd_metrics(
+              os = os,
               android_app_id = group$android_id[i],
               years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
               period_start = format(as.Date(date_range$start_date), "%m-%d"),
@@ -371,7 +406,8 @@ st_batch_metrics <- function(app_list,
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
             result <- st_metrics(
-              app_id = group$unified_id[i],
+              os = os,
+              unified_app_id = group$unified_id[i],
               date_granularity = granularity,
               start_date = as.character(date_range$start_date),
               end_date = as.character(date_range$end_date),
@@ -396,6 +432,7 @@ st_batch_metrics <- function(app_list,
           # Fetch active user metrics if requested
           if (length(active_user_metrics) > 0) {
             ytd_result <- st_ytd_metrics(
+              os = os,
               unified_app_id = group$unified_id[i],
               years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
               period_start = format(as.Date(date_range$start_date), "%m-%d"),
@@ -499,8 +536,19 @@ st_batch_metrics <- function(app_list,
 
   # Reorder and clean columns
   if (nrow(all_results) > 0) {
+    # Add app_id and app_id_type columns based on OS parameter
     all_results <- all_results %>%
-      dplyr::select(.data$original_id, .data$app_name, everything(), -.data$entity_id) %>%
+      dplyr::mutate(
+        app_id = .data$entity_id,  # Use entity_id as app_id for now
+        app_id_type = dplyr::case_when(
+          os == "ios" ~ "ios",
+          os == "android" ~ "android",
+          os == "unified" ~ "unified",
+          TRUE ~ NA_character_
+        )
+      ) %>%
+      dplyr::select(.data$original_id, .data$app_name, .data$app_id, .data$app_id_type, 
+                    everything(), -.data$entity_id) %>%
       dplyr::arrange(.data$original_id)
   }
   
@@ -514,7 +562,7 @@ st_batch_metrics <- function(app_list,
 }
 
 # Helper function to normalize app list input
-normalize_app_list <- function(app_list, auth_token, verbose) {
+normalize_app_list <- function(app_list, os, auth_token, verbose) {
   
   # Handle different input types
   if (is.character(app_list)) {
@@ -544,30 +592,79 @@ normalize_app_list <- function(app_list, auth_token, verbose) {
   apps_df$ios_id <- NA_character_
   apps_df$android_id <- NA_character_
   
-  for (i in seq_len(nrow(apps_df))) {
-    id <- apps_df$app_id[i]
-    
-    # Quick detection
-    if (grepl("^\\d+$", id)) {
-      apps_df$ios_id[i] <- id
-    } else if (grepl("^(com|net|org|io)\\.", id)) {
-      apps_df$android_id[i] <- id
-    } else if (grepl("^[a-f0-9]{24}$", id)) {
-      # Hex ID - try to resolve
-      if (verbose) message("  Resolving hex ID: ", id)
-      lookup <- tryCatch({
-        st_app_lookup(id, auth_token = auth_token, verbose = FALSE)
-      }, error = function(e) NULL)
+  # Load the resolve_ids_for_os function if available
+  if (exists("resolve_ids_for_os", mode = "function")) {
+    # Use centralized ID resolution for each app
+    for (i in seq_len(nrow(apps_df))) {
+      id <- apps_df$app_id[i]
       
-      if (!is.null(lookup)) {
-        apps_df$ios_id[i] <- lookup$ios_app_id
-        apps_df$android_id[i] <- lookup$android_app_id
-        # Initialize app_name column if it doesn't exist
-        if (!"app_name" %in% names(apps_df)) {
-          apps_df$app_name <- NA_character_
+      # Quick detection of ID type
+      unified_id <- NULL
+      ios_id <- NULL
+      android_id <- NULL
+      
+      if (grepl("^\\d+$", id)) {
+        ios_id <- id
+      } else if (grepl("^(com|net|org|io)\\.", id)) {
+        android_id <- id
+      } else if (grepl("^[a-f0-9]{24}$", id)) {
+        unified_id <- id
+      }
+      
+      # Resolve IDs based on OS
+      resolved <- resolve_ids_for_os(
+        unified_app_id = unified_id,
+        ios_app_id = ios_id,
+        android_app_id = android_id,
+        os = os,
+        auth_token = auth_token,
+        verbose = FALSE
+      )
+      
+      if (!is.null(resolved$app_id)) {
+        # Store the resolved IDs based on OS
+        if (os == "ios") {
+          apps_df$ios_id[i] <- resolved$app_id
+        } else if (os == "android") {
+          apps_df$android_id[i] <- resolved$app_id
+        } else {
+          # For unified, we need both platform IDs
+          if (!is.null(resolved$ios_app_id)) {
+            apps_df$ios_id[i] <- resolved$ios_app_id
+          }
+          if (!is.null(resolved$android_app_id)) {
+            apps_df$android_id[i] <- resolved$android_app_id
+          }
         }
-        if (!is.null(lookup$app_name)) {
-          apps_df$app_name[i] <- lookup$app_name
+      }
+    }
+  } else {
+    # Fallback to original logic if resolve_ids_for_os is not available
+    for (i in seq_len(nrow(apps_df))) {
+      id <- apps_df$app_id[i]
+      
+      # Quick detection
+      if (grepl("^\\d+$", id)) {
+        apps_df$ios_id[i] <- id
+      } else if (grepl("^(com|net|org|io)\\.", id)) {
+        apps_df$android_id[i] <- id
+      } else if (grepl("^[a-f0-9]{24}$", id)) {
+        # Hex ID - try to resolve
+        if (verbose) message("  Resolving hex ID: ", id)
+        lookup <- tryCatch({
+          st_app_lookup(id, auth_token = auth_token, verbose = FALSE)
+        }, error = function(e) NULL)
+        
+        if (!is.null(lookup)) {
+          apps_df$ios_id[i] <- lookup$ios_app_id
+          apps_df$android_id[i] <- lookup$android_app_id
+          # Initialize app_name column if it doesn't exist
+          if (!"app_name" %in% names(apps_df)) {
+            apps_df$app_name <- NA_character_
+          }
+          if (!is.null(lookup$app_name)) {
+            apps_df$app_name[i] <- lookup$app_name
+          }
         }
       }
     }

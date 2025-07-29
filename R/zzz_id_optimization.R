@@ -64,8 +64,22 @@ st_metrics_smart <- function(
     }
   }
   
-  # Call original st_metrics
+  # Determine OS from the provided IDs
+  os <- if (!is.null(unified_app_id)) {
+    "unified"
+  } else if (!is.null(ios_app_id) && !is.null(android_app_id)) {
+    "unified"
+  } else if (!is.null(ios_app_id)) {
+    "ios"
+  } else if (!is.null(android_app_id)) {
+    "android"
+  } else {
+    "unified"  # Default
+  }
+  
+  # Call updated st_metrics with OS parameter
   st_metrics(
+    os = os,
     app_id = app_id,
     ios_app_id = ios_app_id,
     android_app_id = android_app_id,
@@ -74,8 +88,6 @@ st_metrics_smart <- function(
     end_date = end_date,
     countries = countries,
     date_granularity = date_granularity,
-    auto_platform_fetch = auto_platform_fetch,
-    combine_platforms = combine_platforms,
     auth_token = auth_token,
     verbose = verbose
   )

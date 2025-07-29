@@ -5,10 +5,11 @@
 \title{Batch Fetch Metrics for Multiple Apps}
 \usage{
 st_batch_metrics(
+  os,
   app_list,
   metrics = c("revenue", "downloads"),
   date_range = list(start_date = Sys.Date() - 90, end_date = Sys.Date() - 1),
-  countries = "WW",
+  countries,
   granularity = "monthly",
   parallel = TRUE,
   cache_dir = NULL,
@@ -17,6 +18,9 @@ st_batch_metrics(
 )
 }
 \arguments{
+\item{os}{Character. Required. Operating system: "ios", "android", or "unified".
+This determines which platform's data is returned for all apps.}
+
 \item{app_list}{List or data frame containing app information. Can be:
 - Character vector of app IDs
 - Data frame with columns: app_id, app_name (optional), platform (optional)
@@ -26,7 +30,7 @@ st_batch_metrics(
 
 \item{date_range}{List with start_date and end_date, or "ytd" for year-to-date}
 
-\item{countries}{Character vector. Country codes (default "WW")}
+\item{countries}{Character vector. Country codes. Required.}
 
 \item{granularity}{Character. Date granularity (default "monthly")}
 
@@ -40,21 +44,27 @@ st_batch_metrics(
 }
 \value{
 A tibble with all metrics for all apps, with columns:
-  - app_id, app_name, platform, date, country, metric, value
+  - original_id: The app ID as provided in the input
+  - app_name: App name (if available)
+  - app_id: The app ID used for the API call (based on OS parameter)
+  - app_id_type: Type of app_id returned ("ios", "android", or "unified")
+  - date, country, metric, value: Metric data
 }
 \description{
 Efficiently fetch metrics for multiple apps by batching API calls and
-automatically handling platform-specific requirements. This function
-minimizes API calls by grouping compatible requests.
+automatically handling platform-specific requirements. The OS parameter
+controls which platform's data is returned for all apps.
 }
 \examples{
 \dontrun{
 # Simple usage with app IDs
 apps <- c("553834731", "com.supercell.clashofclans", "5ba4585f539ce75b97db6bcb")
 metrics <- st_batch_metrics(
+  os = "unified",
   app_list = apps,
   metrics = c("revenue", "downloads"),
-  date_range = list(start_date = "2025-01-01", end_date = "2025-06-30")
+  date_range = list(start_date = "2025-01-01", end_date = "2025-06-30"),
+  countries = "WW"
 )
 
 # With app metadata
@@ -63,7 +73,12 @@ app_df <- data.frame(
   app_name = c("Candy Crush iOS", "Candy Crush Android"),
   platform = c("ios", "android")
 )
-metrics <- st_batch_metrics(app_df, metrics = c("revenue", "dau"))
+metrics <- st_batch_metrics(
+  os = "unified",
+  app_list = app_df,
+  metrics = c("revenue", "downloads"),
+  countries = "US"
+)
 }
 
 }

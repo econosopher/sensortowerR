@@ -1,64 +1,70 @@
 #' Fetch Sensor Tower Metrics for Apps
 #'
-#' Retrieves metrics for apps. First attempts to use the unified endpoint,
-#' but if it returns empty (which happens for all granularities currently),
-#' automatically falls back to platform-specific endpoints and combines the results.
+#' Retrieves metrics for apps. The OS parameter controls which platform's data is returned,
+#' regardless of which app IDs are provided. The function will automatically look up
+#' the appropriate IDs if needed.
 #'
+#' @param os Character. Required. Operating system: "ios", "android", or "unified".
+#'   This determines which platform's data is returned.
 #' @param app_id Character string. Can be a unified app ID, iOS app ID, or Android package name.
-#' @param ios_app_id Character string. iOS app ID (optional, improves data completeness).
-#' @param android_app_id Character string. Android package name (optional, improves data completeness).
-#' @param unified_app_id Deprecated. Use `app_id` instead.
+#' @param ios_app_id Character string. iOS app ID (optional).
+#' @param android_app_id Character string. Android package name (optional).
+#' @param unified_app_id Character string. Sensor Tower unified ID (24-char hex).
 #' @param start_date Date object or character string (YYYY-MM-DD). Start date.
 #' @param end_date Date object or character string (YYYY-MM-DD). End date.
 #' @param countries Character vector. Country codes (e.g., "US", "GB", "JP", or "WW" for worldwide). Required.
 #' @param date_granularity Character. One of "daily", "weekly", "monthly", "quarterly". Required.
-#' @param auto_platform_fetch Logical. When TRUE (default), automatically falls back
-#'   to platform-specific endpoints if unified endpoint returns no data.
-#' @param combine_platforms Logical. When TRUE (default), combines iOS and Android data
-#'   into unified totals. The platform column is excluded from results when TRUE.
 #' @param auth_token Character string. Sensor Tower API token.
 #' @param verbose Logical. Print progress messages.
 #'
-#' @return A tibble with columns: date, country, revenue, downloads, platform (if not combined)
+#' @return A tibble with columns: app_id, app_id_type, date, country, revenue, downloads
 #'
 #' @details
-#' This function intelligently handles Sensor Tower's API limitations:
+#' The OS parameter controls what data is returned:
 #' 
-#' - First attempts the unified sales_report_estimates endpoint
-#' - If unified returns empty (current behavior for all granularities), falls back to platform-specific endpoints
-#' - Automatically detects app ID format and fetches appropriate data
-#' - Combines iOS and Android data for true unified view when using fallback
-#' - Set auto_platform_fetch = FALSE to disable automatic fallback
+#' - os = "ios": Returns iOS data only
+#' - os = "android": Returns Android data only
+#' - os = "unified": Returns combined iOS + Android data
+#' 
+#' The function will automatically look up the appropriate IDs based on the OS parameter.
+#' For example, if you provide a unified_app_id but set os = "ios", it will look up
+#' the iOS app ID and return iOS-only data.
 #'
 #' @examples
 #' \dontrun{
-#' # Simple usage - function figures out the platform
-#' metrics <- st_metrics(
-#'   app_id = "1195621598",  # Homescapes iOS
+#' # Get iOS data only
+#' ios_metrics <- st_metrics(
+#'   os = "ios",
+#'   ios_app_id = "1195621598",  # Homescapes iOS
+#'   countries = "US",
+#'   date_granularity = "daily",
 #'   start_date = Sys.Date() - 30,
 #'   end_date = Sys.Date() - 1
 #' )
 #'
-#' # Best practice - provide both platform IDs
-#' metrics <- st_metrics(
-#'   app_id = "1195621598",
+#' # Get unified data from a unified ID
+#' unified_metrics <- st_metrics(
+#'   os = "unified",
+#'   unified_app_id = "5ba4585f539ce75b97db6bcb",
+#'   countries = "US",
+#'   date_granularity = "daily"
+#' )
+#'
+#' # Get iOS data from Android ID (automatic lookup)
+#' ios_from_android <- st_metrics(
+#'   os = "ios",
+#'   android_app_id = "com.king.candycrushsaga",
+#'   countries = "WW",
+#'   date_granularity = "monthly"
+#' )
+#'
+#' # Get unified data from platform IDs
+#' unified_from_platforms <- st_metrics(
+#'   os = "unified",
 #'   ios_app_id = "1195621598",
 #'   android_app_id = "com.playrix.homescapes",
-#'   start_date = Sys.Date() - 30,
-#'   end_date = Sys.Date() - 1
-#' )
-#'
-#' # Keep platforms separate
-#' metrics <- st_metrics(
-#'   app_id = "com.king.candycrushsaga",
-#'   combine_platforms = FALSE
-#' )
-#'
-#' # Force unified endpoint (will fail for daily)
-#' metrics <- st_metrics(
-#'   app_id = "1195621598",
-#'   date_granularity = "monthly",
-#'   auto_platform_fetch = FALSE
+#'   countries = "US",
+#'   date_granularity = "daily"
 #' )
 #' }
 #'
@@ -68,24 +74,22 @@
 #' @importFrom rlang %||% .data
 #' @export
 st_metrics <- function(
+  os,
   app_id = NULL,
   ios_app_id = NULL,
   android_app_id = NULL,
-  unified_app_id = NULL,  # Deprecated parameter
+  unified_app_id = NULL,
   start_date = NULL,
   end_date = NULL,
   countries,
   date_granularity,
-  auto_platform_fetch = TRUE,
-  combine_platforms = TRUE,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
   verbose = TRUE
 ) {
   
-  # Handle deprecated parameter
-  if (!is.null(unified_app_id) && is.null(app_id)) {
-    warning("Parameter 'unified_app_id' is deprecated. Use 'app_id' instead.")
-    app_id <- unified_app_id
+  # Validate OS parameter
+  if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
+    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
   
   # Validate required parameters
@@ -103,26 +107,32 @@ st_metrics <- function(
     stop(paste0("Invalid date_granularity: '", date_granularity, "'. Must be one of: ", paste(valid_granularities, collapse = ", ")))
   }
   
-  # Validate inputs
-  if (is.null(app_id) && is.null(ios_app_id) && is.null(android_app_id)) {
-    stop("At least one app ID must be provided (app_id, ios_app_id, or android_app_id)")
-  }
-  
-  # If only app_id provided, use it as the primary ID
-  if (is.null(ios_app_id) && is.null(android_app_id)) {
-    if (!is.null(app_id)) {
-      # Detect platform from app_id format
-      if (grepl("^\\d+$", app_id)) {
-        ios_app_id <- app_id
-        if (verbose) message("Detected iOS app ID format")
-      } else if (grepl("^(com|net|org|io)\\.", app_id)) {
-        android_app_id <- app_id
-        if (verbose) message("Detected Android package name format")
-      } else {
-        warning("Could not determine platform from app_id format. Results may be incomplete.")
-      }
+  # Handle app_id parameter - try to determine what type it is
+  if (!is.null(app_id)) {
+    if (grepl("^\\d+$", app_id) && is.null(ios_app_id)) {
+      ios_app_id <- app_id
+      if (verbose) message("Detected iOS app ID format in app_id parameter")
+    } else if (grepl("^(com|net|org|io)\\.", app_id) && is.null(android_app_id)) {
+      android_app_id <- app_id
+      if (verbose) message("Detected Android package name format in app_id parameter")
+    } else if (grepl("^[a-f0-9]{24}$", app_id) && is.null(unified_app_id)) {
+      unified_app_id <- app_id
+      if (verbose) message("Detected unified app ID format in app_id parameter")
     }
   }
+  
+  # Resolve IDs based on OS parameter
+  id_resolution <- resolve_ids_for_os(
+    unified_app_id = unified_app_id,
+    ios_app_id = ios_app_id,
+    android_app_id = android_app_id,
+    os = os,
+    auth_token = auth_token,
+    verbose = verbose
+  )
+  
+  resolved_ids <- id_resolution$resolved_ids
+  app_id_type <- id_resolution$app_id_type
   
   # Handle dates
   if (is.null(start_date)) {
@@ -145,68 +155,234 @@ st_metrics <- function(
     stop("Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
-  # First try unified endpoint
-  if (verbose) {
-    message("Attempting unified endpoint...")
-  }
+  # Now fetch data based on the resolved IDs and OS
+  result <- NULL
   
-  # Try unified endpoint first
-  unified_result <- tryCatch({
-    fetch_unified_metrics(
-      app_id = app_id %||% ios_app_id %||% android_app_id,
-      start_date = start_date,
-      end_date = end_date,
-      countries = countries,
-      date_granularity = date_granularity,
-      auth_token = auth_token
-    )
-  }, error = function(e) {
-    if (verbose) {
-      message(sprintf("Unified endpoint error: %s", e$message))
-    }
-    NULL
-  })
-  
-  # Check if unified returned data
-  if (!is.null(unified_result) && nrow(unified_result) > 0) {
-    if (verbose) {
-      message(sprintf("Unified endpoint successful: %d rows returned", nrow(unified_result)))
-    }
-    # Add platform information for unified data
-    unified_result$platform <- "unified"
-    return(unified_result)
-  }
-  
-  # If unified failed or returned empty, use platform-specific
-  if (auto_platform_fetch) {
-    if (verbose) {
-      message("Unified endpoint returned no data. Switching to platform-specific endpoints...")
-    }
-    return(fetch_platform_specific_data(
-      ios_app_id = ios_app_id,
-      android_app_id = android_app_id,
-      start_date = start_date,
-      end_date = end_date,
-      countries = countries,
-      date_granularity = date_granularity,
-      combine_platforms = combine_platforms,
-      auth_token = auth_token,
-      verbose = verbose
-    ))
-  } else {
-    # If auto_platform_fetch is disabled and unified failed
-    if (verbose) {
-      warning("Unified endpoint returned no data. Set auto_platform_fetch = TRUE to use platform-specific endpoints as fallback.")
+  if (os == "unified") {
+    # For unified data, we need both iOS and Android IDs
+    # Users must provide either:
+    # 1. Both iOS and Android IDs directly, OR
+    # 2. A unified ID that we can resolve to both platforms
+    
+    final_ios_id <- ios_app_id
+    final_android_id <- android_app_id
+    
+    # If we have a unified ID, look up the platform IDs
+    if (!is.null(unified_app_id)) {
+      if (verbose) message("Looking up platform IDs from unified ID...")
+      
+      lookup_result <- tryCatch({
+        st_app_lookup(unified_app_id, auth_token = auth_token, verbose = FALSE)
+      }, error = function(e) {
+        stop(paste("Failed to lookup app details for unified ID", unified_app_id, ":", e$message))
+      })
+      
+      if (!is.null(lookup_result)) {
+        # Override any provided platform IDs with the lookup results
+        final_ios_id <- lookup_result$ios_app_id
+        final_android_id <- lookup_result$android_app_id
+        
+        if (verbose) {
+          message("  App name: ", lookup_result$app_name)
+          message("  iOS ID: ", final_ios_id %||% "not found")
+          message("  Android ID: ", final_android_id %||% "not found")
+        }
+      }
     }
     
-    # Return empty result
-    return(tibble::tibble(
+    # Validate we have both platform IDs
+    if (is.null(final_ios_id) || is.null(final_android_id)) {
+      missing <- c()
+      if (is.null(final_ios_id)) missing <- c(missing, "iOS")
+      if (is.null(final_android_id)) missing <- c(missing, "Android")
+      
+      stop(sprintf(
+        "Cannot fetch unified data: %s app ID(s) missing. For unified data, you must provide either:\n  1. Both ios_app_id and android_app_id, OR\n  2. A unified_app_id that resolves to both platforms\n\nThis app may not be available on all platforms.",
+        paste(missing, collapse = " and ")
+      ))
+    }
+    
+    # Fetch and combine data from both platforms
+    if (verbose) message("Fetching unified data by combining iOS and Android...")
+    
+    result <- fetch_and_combine_platforms(
+      ios_app_id = final_ios_id,
+      android_app_id = final_android_id,
+      start_date = start_date,
+      end_date = end_date,
+      countries = countries,
+      date_granularity = date_granularity,
+      auth_token = auth_token,
+      verbose = verbose
+    )
+  } else if (os == "ios") {
+    # Fetch iOS data only
+    if (!is.null(resolved_ids$ios_app_id)) {
+      if (verbose) message("Fetching iOS data for: ", resolved_ids$ios_app_id)
+      
+      result <- tryCatch({
+        st_sales_report(
+          app_ids = resolved_ids$ios_app_id,
+          os = "ios",
+          countries = countries,
+          start_date = start_date,
+          end_date = end_date,
+          date_granularity = date_granularity,
+          auth_token = auth_token
+        )
+      }, error = function(e) {
+        if (verbose) message("iOS fetch error: ", e$message)
+        NULL
+      })
+    }
+  } else if (os == "android") {
+    # Fetch Android data only
+    if (!is.null(resolved_ids$android_app_id)) {
+      if (verbose) message("Fetching Android data for: ", resolved_ids$android_app_id)
+      
+      result <- tryCatch({
+        st_sales_report(
+          app_ids = resolved_ids$android_app_id,
+          os = "android",
+          countries = countries,
+          start_date = start_date,
+          end_date = end_date,
+          date_granularity = date_granularity,
+          auth_token = auth_token
+        )
+      }, error = function(e) {
+        if (verbose) message("Android fetch error: ", e$message)
+        NULL
+      })
+    }
+  }
+  
+  # Handle empty results
+  if (is.null(result) || nrow(result) == 0) {
+    if (verbose) message("No data returned")
+    result <- tibble::tibble(
       date = as.Date(character()),
       country = character(),
       revenue = numeric(),
       downloads = numeric()
-    ))
+    )
+  } else {
+    # Standardize iOS data if needed
+    if (os == "ios" && "total_revenue" %in% names(result)) {
+      result <- result %>%
+        dplyr::mutate(
+          revenue = total_revenue,
+          downloads = if ("total_downloads" %in% names(.)) total_downloads else 0
+        ) %>%
+        dplyr::select(date, country, revenue, downloads)
+    } else if (os == "android" && "c" %in% names(result)) {
+      # Fix Android country column
+      result <- result %>%
+        dplyr::mutate(country = c) %>%
+        dplyr::select(date, country, revenue, downloads)
+    }
   }
+  
+  # Add app_id and app_id_type metadata
+  if (!is.null(resolved_ids)) {
+    app_id_value <- resolved_ids[[1]]  # Get the first (and only) ID
+    result <- add_app_id_metadata(result, app_id_value, app_id_type)
+  }
+  
+  return(result)
+}
+
+# Helper function to fetch and combine platform data
+fetch_and_combine_platforms <- function(
+  ios_app_id = NULL,
+  android_app_id = NULL,
+  start_date,
+  end_date,
+  countries,
+  date_granularity,
+  auth_token,
+  verbose
+) {
+  all_data <- tibble::tibble()
+  
+  # Track what we requested vs what we got
+  ios_requested <- !is.null(ios_app_id)
+  android_requested <- !is.null(android_app_id)
+  ios_has_data <- FALSE
+  android_has_data <- FALSE
+  
+  # Fetch iOS data
+  if (ios_requested) {
+    ios_result <- tryCatch({
+      st_sales_report(
+        app_ids = ios_app_id,
+        os = "ios",
+        countries = countries,
+        start_date = start_date,
+        end_date = end_date,
+        date_granularity = date_granularity,
+        auth_token = auth_token
+      )
+    }, error = function(e) NULL)
+    
+    if (!is.null(ios_result) && nrow(ios_result) > 0) {
+      ios_has_data <- TRUE
+      # Ensure app_id is character to prevent type conflicts
+      if ("app_id" %in% names(ios_result)) {
+        ios_result$app_id <- as.character(ios_result$app_id)
+      }
+      all_data <- bind_rows(all_data, ios_result)
+    }
+  }
+  
+  # Fetch Android data
+  if (android_requested) {
+    android_result <- tryCatch({
+      st_sales_report(
+        app_ids = android_app_id,
+        os = "android",
+        countries = countries,
+        start_date = start_date,
+        end_date = end_date,
+        date_granularity = date_granularity,
+        auth_token = auth_token
+      )
+    }, error = function(e) NULL)
+    
+    if (!is.null(android_result) && nrow(android_result) > 0) {
+      android_has_data <- TRUE
+      # Ensure app_id is character to prevent type conflicts
+      if ("app_id" %in% names(android_result)) {
+        android_result$app_id <- as.character(android_result$app_id)
+      }
+      all_data <- bind_rows(all_data, android_result)
+    }
+  }
+  
+  # For unified requests, both platforms must have data
+  if (ios_requested && android_requested) {
+    if (!ios_has_data && !android_has_data) {
+      stop("No data available for either iOS or Android platform")
+    } else if (!ios_has_data) {
+      stop("Unified data requested but iOS data is not available")
+    } else if (!android_has_data) {
+      stop("Unified data requested but Android data is not available")
+    }
+  }
+  
+  # Combine by date and country
+  if (nrow(all_data) > 0) {
+    combined <- all_data %>%
+      group_by(date, country) %>%
+      summarise(
+        revenue = sum(revenue, na.rm = TRUE),
+        downloads = sum(downloads, na.rm = TRUE),
+        .groups = "drop"
+      )
+    return(combined)
+  }
+  
+  return(all_data)
 }
 
 # Helper function for platform-specific fetching
@@ -246,22 +422,35 @@ fetch_platform_specific_data <- function(
     })
     
     if (!is.null(ios_data) && nrow(ios_data) > 0) {
-      # Standardize columns
+      # Standardize columns - check which columns exist
       ios_clean <- ios_data %>%
         dplyr::mutate(
           platform = "iOS",
-          revenue = dplyr::coalesce(
-            total_revenue,
-            iphone_revenue + ipad_revenue,
+          # Use conditional logic to handle missing columns
+          revenue = if ("total_revenue" %in% names(.)) {
+            total_revenue
+          } else if (all(c("iphone_revenue", "ipad_revenue") %in% names(.))) {
+            iphone_revenue + ipad_revenue
+          } else if ("revenue" %in% names(.)) {
+            revenue
+          } else {
             0
-          ),
-          downloads = dplyr::coalesce(
-            total_downloads,
-            iphone_downloads + ipad_downloads,
+          },
+          downloads = if ("total_downloads" %in% names(.)) {
+            total_downloads
+          } else if (all(c("iphone_downloads", "ipad_downloads") %in% names(.))) {
+            iphone_downloads + ipad_downloads
+          } else if ("downloads" %in% names(.)) {
+            downloads
+          } else {
             0
-          )
+          }
         ) %>%
         dplyr::select(date, country, revenue, downloads, platform)
+      
+      # Add app_id info
+      ios_clean$app_id <- ios_app_id
+      ios_clean$app_id_type <- "ios"
       
       all_data <- dplyr::bind_rows(all_data, ios_clean)
       if (verbose) message(sprintf("  Retrieved %d iOS records", nrow(ios_clean)))
@@ -297,6 +486,10 @@ fetch_platform_specific_data <- function(
           country = c  # Android returns 'c' instead of 'country'
         ) %>%
         dplyr::select(date, country, revenue, downloads, platform)
+      
+      # Add app_id info
+      android_clean$app_id <- android_app_id
+      android_clean$app_id_type <- "android"
       
       all_data <- dplyr::bind_rows(all_data, android_clean)
       if (verbose) message(sprintf("  Retrieved %d Android records", nrow(android_clean)))

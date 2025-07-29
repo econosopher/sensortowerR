@@ -1,19 +1,20 @@
 #' Fetch Year-to-Date Metrics for Apps or Publishers
 #'
 #' Fetches year-to-date metrics for apps or publishers across multiple years,
-#' with intelligent batching and caching to minimize API calls.
+#' with intelligent batching and caching to minimize API calls. The OS parameter
+#' controls which platform's data is returned.
 #'
+#' @param os Character. Required. Operating system: "ios", "android", or "unified".
+#'   This determines which platform's data is returned.
 #' @param unified_app_id Character vector. Sensor Tower unified app ID(s). 
 #'   Must be 24-character hex format (e.g., "5ba4585f539ce75b97db6bcb").
-#'   Do NOT pass iOS app IDs or Android package names here.
-#'   Note: When requesting active user metrics (DAU/WAU/MAU), the function will
-#'   automatically look up platform-specific IDs since these metrics require
-#'   platform-specific API endpoints.
 #' @param ios_app_id Character vector. iOS app ID(s) (e.g., "1234567890").
 #' @param android_app_id Character vector. Android package name(s) (e.g., "com.example.app").
 #' @param publisher_id Character vector. Publisher ID(s) (alternative to app IDs).
-#' @param years Integer vector. Years to fetch data for (e.g., c(2023, 2024, 2025)).
-#'   If NULL, uses current year only.
+#' @param years Integer vector. **Deprecated** - use `end_dates` instead. Years to fetch data for.
+#' @param end_dates Date vector or character vector. End dates for each period to fetch.
+#'   Each date will fetch data from period_start (or Jan 1) of that year to the specified date.
+#'   Can be Date objects or strings in "YYYY-MM-DD" format.
 #' @param period_start Character string. Start date in "MM-DD" format (e.g., "02-01" for Feb 1).
 #'   If NULL, defaults to "01-01" (January 1).
 #' @param period_end Character string. End date in "MM-DD" format (e.g., "02-28").
@@ -26,6 +27,8 @@
 #' @param verbose Logical. Print progress messages.
 #'
 #' @return A tibble in tidy/long format with columns:
+#'   - `app_id`: The app ID used for fetching data
+#'   - `app_id_type`: Type of app ID ("ios", "android", or "unified")
 #'   - `entity_id`: App or publisher ID
 #'   - `entity_name`: App or publisher name
 #'   - `entity_type`: "app" or "publisher"
@@ -51,19 +54,31 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Get YTD metrics including DAU, WAU, and MAU for a single app
+#' # Get YTD metrics using end_dates (recommended)
 #' ytd_metrics <- st_ytd_metrics(
+#'   os = "ios",
 #'   ios_app_id = "553834731",  # Candy Crush iOS
-#'   android_app_id = "com.king.candycrushsaga",  # Candy Crush Android
-#'   years = c(2023, 2024, 2025),
-#'   metrics = c("revenue", "downloads", "dau", "wau", "mau")
+#'   countries = "US",
+#'   end_dates = c("2024-06-30", "2025-06-30"),
+#'   metrics = c("revenue", "downloads")
 #' )
 #'
-#' # Get active user metrics only for multiple apps
-#' active_user_metrics <- st_ytd_metrics(
-#'   ios_app_id = c("553834731", "1195621598"),
-#'   android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
-#'   years = 2025,
+#' # Get metrics for specific date ranges
+#' custom_periods <- st_ytd_metrics(
+#'   os = "unified",
+#'   unified_app_id = "5ba4585f539ce75b97db6bcb",
+#'   countries = "WW",
+#'   end_dates = as.Date(c("2024-03-31", "2024-09-30", "2025-03-31")),
+#'   period_start = "01-01",  # Start from Jan 1 each year
+#'   metrics = c("revenue", "downloads")
+#' )
+#'
+#' # Backward compatibility: using years (deprecated)
+#' android_ytd <- st_ytd_metrics(
+#'   os = "android",
+#'   android_app_id = "com.king.candycrushsaga",
+#'   countries = "US",
+#'   years = c(2024, 2025),
 #'   metrics = c("dau", "wau")
 #' )
 #' }
@@ -77,11 +92,13 @@
 #' @importFrom jsonlite fromJSON
 #' @export
 st_ytd_metrics <- function(
+  os,
   unified_app_id = NULL,
   ios_app_id = NULL,
   android_app_id = NULL,
   publisher_id = NULL,
   years = NULL,
+  end_dates = NULL,
   period_start = NULL,
   period_end = NULL,
   metrics = c("revenue", "downloads"),
@@ -90,6 +107,11 @@ st_ytd_metrics <- function(
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
   verbose = TRUE
 ) {
+  
+  # Validate OS parameter
+  if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
+    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+  }
   
   # Validate metrics
   valid_metrics <- c("revenue", "downloads", "dau", "wau", "mau")
@@ -111,36 +133,76 @@ st_ytd_metrics <- function(
     stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
   }
   
-  # Validate inputs
-  if (is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id) && is.null(publisher_id)) {
-    stop("At least one ID must be provided (unified_app_id, ios_app_id, android_app_id, or publisher_id)")
-  }
-  
   # Determine entity type
   entity_type <- if (!is.null(publisher_id)) "publisher" else "app"
   
-  # If both app IDs and publisher IDs are provided, throw error
-  if (!is.null(publisher_id) && (!is.null(unified_app_id) || !is.null(ios_app_id) || !is.null(android_app_id))) {
-    stop("Cannot mix publisher IDs with app IDs. Use either publisher_id OR app IDs.")
-  }
-  
-  # Validate unified_app_id format if provided
-  if (!is.null(unified_app_id)) {
-    invalid_ids <- unified_app_id[!grepl("^[a-f0-9]{24}$", unified_app_id)]
-    if (length(invalid_ids) > 0) {
-      stop(paste0(
-        "Invalid unified_app_id format. Must be 24-character hex ID(s).\n",
-        "Got: '", paste(invalid_ids, collapse = "', '"), "'\n",
-        "Expected format: '5ba4585f539ce75b97db6bcb'\n\n",
-        "If you have iOS app IDs (e.g., '1234567890'), use ios_app_id parameter instead.\n",
-        "If you have Android packages (e.g., 'com.example.app'), use android_app_id parameter instead."
-      ))
+  # Publishers don't need OS-based resolution (they work across platforms)
+  if (entity_type == "publisher") {
+    if (is.null(publisher_id)) {
+      stop("publisher_id is required when fetching publisher metrics")
     }
+    # Publishers will be handled separately
+    app_id_type <- "publisher"
+  } else {
+    # For apps, resolve IDs based on OS
+    if (is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id)) {
+      stop("At least one app ID must be provided (unified_app_id, ios_app_id, or android_app_id)")
+    }
+    
+    # Resolve app IDs based on OS parameter
+    id_resolution <- resolve_ids_for_os(
+      unified_app_id = unified_app_id,
+      ios_app_id = ios_app_id,
+      android_app_id = android_app_id,
+      os = os,
+      auth_token = auth_token,
+      verbose = verbose
+    )
+    
+    resolved_ids <- id_resolution$resolved_ids
+    app_id_type <- id_resolution$app_id_type
   }
   
-  # Default years to current year
-  if (is.null(years)) {
-    years <- as.integer(format(Sys.Date(), "%Y"))
+  # Handle end_dates vs years parameter
+  if (!is.null(end_dates) && !is.null(years)) {
+    warning("Both 'end_dates' and 'years' specified. Using 'end_dates' and ignoring 'years'.")
+    years <- NULL
+  }
+  
+  # Process end_dates or years
+  if (!is.null(end_dates)) {
+    # Convert to Date objects if needed
+    end_dates <- as.Date(end_dates)
+    
+    # Extract unique years from end_dates
+    years_from_dates <- unique(as.integer(format(end_dates, "%Y")))
+    
+    # Create a data frame mapping years to their end dates
+    date_mapping <- data.frame(
+      year = as.integer(format(end_dates, "%Y")),
+      end_date = end_dates,
+      stringsAsFactors = FALSE
+    )
+  } else if (!is.null(years)) {
+    # Deprecation warning
+    if (verbose) {
+      message("Note: The 'years' parameter is deprecated. Consider using 'end_dates' instead.")
+    }
+    
+    # Create date mapping from years (backward compatibility)
+    date_mapping <- data.frame(
+      year = years,
+      end_date = as.Date(NA),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    # Default to current year
+    current_date <- Sys.Date()
+    date_mapping <- data.frame(
+      year = as.integer(format(current_date, "%Y")),
+      end_date = current_date,
+      stringsAsFactors = FALSE
+    )
   }
   
   # Default period_start to January 1
@@ -195,49 +257,35 @@ st_ytd_metrics <- function(
     entities <- data.frame(
       entity_id = publisher_id,
       entity_type = "publisher",
+      app_id = publisher_id,
+      app_id_type = "publisher",
       stringsAsFactors = FALSE
     )
   } else {
-    # Combine all app IDs into a single list
+    # For apps, use the resolved IDs
+    app_id_value <- resolved_ids[[1]]  # Get the resolved ID
+    
     entities <- data.frame(
-      entity_id = character(),
-      ios_id = character(),
-      android_id = character(),
-      entity_type = character(),
+      entity_id = app_id_value,
+      entity_type = "app",
+      app_id = app_id_value,
+      app_id_type = app_id_type,
       stringsAsFactors = FALSE
     )
     
-    # Add unified app IDs
-    if (!is.null(unified_app_id)) {
-      for (id in unified_app_id) {
-        entities <- rbind(entities, data.frame(
-          entity_id = id,
-          ios_id = NA_character_,
-          android_id = NA_character_,
-          entity_type = "app",
-          stringsAsFactors = FALSE
-        ))
-      }
-    }
-    
-    # Add iOS/Android pairs if provided
-    if (!is.null(ios_app_id) || !is.null(android_app_id)) {
-      max_len <- max(length(ios_app_id) %||% 0, length(android_app_id) %||% 0)
-      ios_ids <- if(!is.null(ios_app_id)) rep(ios_app_id, length.out = max_len) else rep(NA_character_, max_len)
-      android_ids <- if(!is.null(android_app_id)) rep(android_app_id, length.out = max_len) else rep(NA_character_, max_len)
-      
-      for (i in 1:max_len) {
-        # Handle NA values properly
-        ios_val <- if(is.na(ios_ids[i])) "" else ios_ids[i]
-        android_val <- if(is.na(android_ids[i])) "" else android_ids[i]
-        
-        entities <- rbind(entities, data.frame(
-          entity_id = paste0(ios_val, "_", android_val),
-          ios_id = if(is.na(ios_ids[i])) NA_character_ else ios_ids[i],
-          android_id = if(is.na(android_ids[i])) NA_character_ else android_ids[i],
-          entity_type = "app",
-          stringsAsFactors = FALSE
-        ))
+    # Store the resolved IDs for use in fetch_app_metrics
+    if (os == "ios") {
+      entities$ios_id <- resolved_ids$ios_app_id
+      entities$android_id <- NA_character_
+    } else if (os == "android") {
+      entities$ios_id <- NA_character_
+      entities$android_id <- resolved_ids$android_app_id
+    } else if (os == "unified") {
+      # For unified, we might need to look up platform IDs
+      if (!is.null(resolved_ids$unified_app_id)) {
+        entities$unified_id <- resolved_ids$unified_app_id
+        entities$ios_id <- NA_character_
+        entities$android_id <- NA_character_
       }
     }
   }
@@ -253,8 +301,16 @@ st_ytd_metrics <- function(
   if (verbose) {
     message("\nFetching metrics for:")
     message("  Entities: ", nrow(entities))
-    message("  Years: ", paste(years, collapse = ", "))
-    message(sprintf("  Period: %s to %s for each year", period_start, period_end))
+    if (!is.na(date_mapping$end_date[1])) {
+      message("  Date ranges: ")
+      for (i in 1:nrow(date_mapping)) {
+        message(sprintf("    %s-%s to %s", date_mapping$year[i], period_start, 
+                       format(date_mapping$end_date[i], "%m-%d")))
+      }
+    } else {
+      message("  Years: ", paste(date_mapping$year, collapse = ", "))
+      message(sprintf("  Period: %s to %s for each year", period_start, period_end))
+    }
     message("  Metrics: ", paste(metrics, collapse = ", "))
   }
   
@@ -262,21 +318,29 @@ st_ytd_metrics <- function(
   for (i in 1:nrow(entities)) {
     entity <- entities[i, ]
     
-    for (year in years) {
+    for (j in 1:nrow(date_mapping)) {
+    year <- date_mapping$year[j]
+    
     # Construct full dates for this year
     start_date <- as.Date(paste(year, period_start, sep = "-"))
     
-    # Handle end date with leap year consideration
-    end_date_str <- paste(year, period_end, sep = "-")
-    end_date <- tryCatch(
-      as.Date(end_date_str),
-      error = function(e) {
-        # If date is invalid (e.g., Feb 29 in non-leap year), use last day of month
-        month <- as.integer(substr(period_end, 1, 2))
-        last_day <- lubridate::ceiling_date(as.Date(paste(year, month, "01", sep = "-")), "month") - 1
-        last_day
-      }
-    )
+    # Handle end date
+    if (!is.na(date_mapping$end_date[j])) {
+      # Use the specific end date provided
+      end_date <- date_mapping$end_date[j]
+    } else {
+      # Use period_end (backward compatibility)
+      end_date_str <- paste(year, period_end, sep = "-")
+      end_date <- tryCatch(
+        as.Date(end_date_str),
+        error = function(e) {
+          # If date is invalid (e.g., Feb 29 in non-leap year), use last day of month
+          month <- as.integer(substr(period_end, 1, 2))
+          last_day <- lubridate::ceiling_date(as.Date(paste(year, month, "01", sep = "-")), "month") - 1
+          last_day
+        }
+      )
+    }
     
     # Don't fetch future data
     if (end_date > Sys.Date()) {
@@ -312,11 +376,26 @@ st_ytd_metrics <- function(
         verbose = verbose
       )
     } else {
-      # For apps, use the specific IDs if available
-      if (!is.na(entity$ios_id[1]) || !is.na(entity$android_id[1])) {
+      # For apps, fetch based on OS type
+      if (app_id_type == "ios") {
         year_data <- fetch_app_metrics(
+          os = os,
           unified_app_id = NULL,
           ios_app_id = entity$ios_id[1],
+          android_app_id = NULL,
+          start_date = start_date,
+          end_date = end_date,
+          countries = countries,
+          metrics = metrics,
+          cache_dir = cache_dir,
+          auth_token = auth_token,
+          verbose = verbose
+        )
+      } else if (app_id_type == "android") {
+        year_data <- fetch_app_metrics(
+          os = os,
+          unified_app_id = NULL,
+          ios_app_id = NULL,
           android_app_id = entity$android_id[1],
           start_date = start_date,
           end_date = end_date,
@@ -326,9 +405,11 @@ st_ytd_metrics <- function(
           auth_token = auth_token,
           verbose = verbose
         )
-      } else {
+      } else if (app_id_type == "unified") {
+        # For unified, we need to fetch and combine both platforms
         year_data <- fetch_app_metrics(
-          unified_app_id = entity$entity_id[1],
+          os = os,
+          unified_app_id = entity$unified_id[1],
           ios_app_id = NULL,
           android_app_id = NULL,
           start_date = start_date,
@@ -383,42 +464,31 @@ st_ytd_metrics <- function(
       values_to = "value"
     ) %>%
     mutate(
-      entity_name = NA_character_,  # Could be populated from API response
-      # Add platform information based on input parameters
-      platform = case_when(
-        !is.null(ios_app_id) && !is.null(android_app_id) ~ "unified",
-        !is.null(ios_app_id) && is.null(android_app_id) ~ "ios",
-        is.null(ios_app_id) && !is.null(android_app_id) ~ "android",
-        !is.null(unified_app_id) ~ "unified",
-        TRUE ~ "unknown"
-      )
-    ) %>%
-    select(entity_id, entity_name, entity_type, year, date_start, date_end, 
-           country, metric, value, platform)
+      entity_name = NA_character_  # Could be populated from API response
+    )
   
-  # Add original ID mapping
-  if (!is.null(original_unified_ids) && entity_type == "app") {
-    # Create mapping from entity_id back to original unified IDs
-    # This helps with downstream joins when users provide unified IDs
-    tidy_data$original_unified_id <- NA_character_
-    
-    # For each row, try to map back to original input
-    for (i in seq_len(nrow(tidy_data))) {
-      entity <- tidy_data$entity_id[i]
-      
-      # Check if this entity_id matches any of the original inputs
-      for (j in seq_along(original_unified_ids)) {
-        orig_id <- original_unified_ids[j]
-        
-        # Check if entity_id contains the original ID (for unified lookups)
-        # or if it matches exactly (for successful unified lookups)
-        if (entity == orig_id || grepl(orig_id, entity, fixed = TRUE)) {
-          tidy_data$original_unified_id[i] <- orig_id
-          break
-        }
-      }
-    }
+  # Add app_id and app_id_type columns at the beginning
+  if (entity_type == "app") {
+    tidy_data <- tidy_data %>%
+      mutate(
+        app_id = entities$app_id[1],
+        app_id_type = entities$app_id_type[1],
+        .before = 1
+      )
+  } else {
+    # For publishers
+    tidy_data <- tidy_data %>%
+      mutate(
+        app_id = entities$entity_id[1],
+        app_id_type = "publisher",
+        .before = 1
+      )
   }
+  
+  # Select final columns in order
+  tidy_data <- tidy_data %>%
+    select(app_id, app_id_type, entity_id, entity_name, entity_type, 
+           year, date_start, date_end, country, metric, value)
   
   if (verbose) {
     message(sprintf("\nTotal API calls used: %d", total_api_calls))
@@ -487,6 +557,7 @@ fetch_publisher_metrics <- function(
 #' Fetch metrics for an app
 #' @noRd
 fetch_app_metrics <- function(
+  os,
   unified_app_id,
   ios_app_id,
   android_app_id,
@@ -541,6 +612,7 @@ fetch_app_metrics <- function(
   if (length(regular_metrics) > 0) {
     # First try with whatever IDs we have
     result <- fetch_optimized_data(
+      os = os,
       ios_app_id = ios_app_id,
       android_app_id = android_app_id,
       app_id = unified_app_id,
@@ -1211,6 +1283,7 @@ fetch_mau_metrics <- function(
 
 # Optimized data fetching function with intelligent batching
 fetch_optimized_data <- function(
+  os,
   ios_app_id = NULL,
   android_app_id = NULL,
   app_id = NULL,
@@ -1233,7 +1306,8 @@ fetch_optimized_data <- function(
     if (days_span <= 7) {
       # Single call for short periods
       batch_data <- st_metrics(
-        app_id = app_id,
+        os = os,
+        unified_app_id = app_id,
         ios_app_id = ios_app_id,
         android_app_id = android_app_id,
         start_date = start_date,
@@ -1271,7 +1345,8 @@ fetch_optimized_data <- function(
         }
         
         batch_data <- st_metrics(
-          app_id = app_id,
+          os = os,
+          unified_app_id = app_id,
           ios_app_id = ios_app_id,
           android_app_id = android_app_id,
           start_date = current_date,
@@ -1295,7 +1370,8 @@ fetch_optimized_data <- function(
   } else {
     # For non-daily granularities, single call
     all_data <- st_metrics(
-      app_id = app_id,
+      os = os,
+      unified_app_id = app_id,
       ios_app_id = ios_app_id,
       android_app_id = android_app_id,
       start_date = start_date,
