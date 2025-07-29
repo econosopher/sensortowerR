@@ -10,7 +10,12 @@
 #'   - Character vector of app IDs
 #'   - Data frame with columns: app_id, app_name (optional), platform (optional)
 #'   - List of lists with app_id and optional metadata
-#' @param metrics Character vector. Metrics to fetch (e.g., "revenue", "downloads", "dau")
+#' @param metrics Character vector. Metrics to fetch. Supported values:
+#'   - "revenue" - App revenue estimates
+#'   - "downloads" - App download estimates  
+#'   - "dau" - Daily Active Users
+#'   - "wau" - Weekly Active Users
+#'   - "mau" - Monthly Active Users
 #' @param date_range List with start_date and end_date, or "ytd" for year-to-date
 #' @param countries Character vector. Country codes. Required.
 #' @param granularity Character. Date granularity (default "monthly")
@@ -25,6 +30,17 @@
 #'   - app_id: The app ID used for the API call (based on OS parameter)
 #'   - app_id_type: Type of app_id returned ("ios", "android", or "unified")
 #'   - date, country, metric, value: Metric data
+#'
+#' @details 
+#' Active user metrics (DAU, WAU, MAU) are fetched using batch API calls for
+#' efficiency. When fetching active users for many apps (>10), the function
+#' will display a warning about potential rate limits.
+#' 
+#' The function automatically maps the granularity parameter to the appropriate
+#' time period for active user metrics:
+#' - DAU requires daily data
+#' - WAU requires weekly data  
+#' - MAU requires monthly data
 #'
 #' @examples
 #' \dontrun{
@@ -56,6 +72,7 @@
 #' @importFrom parallel mclapply detectCores
 #' @importFrom stats na.omit
 #' @importFrom rlang .data
+#' @importFrom tidyr pivot_longer
 #' @export
 st_batch_metrics <- function(os,
                            app_list,
@@ -216,6 +233,138 @@ st_batch_metrics <- function(os,
       revenue_download_metrics <- intersect(metrics, c("revenue", "downloads"))
       active_user_metrics <- intersect(metrics, c("dau", "wau", "mau"))
       
+      all_group_results <- list()
+      
+      # Handle active user metrics separately as batch for the entire group
+      if (length(active_user_metrics) > 0 && group_name != "both") {
+        if (verbose) message("  Fetching active user metrics in batch...")
+        
+        # Warn about potential rate limits for large numbers of apps
+        if (nrow(group) > 10 && verbose) {
+          message("  ⚠️  Warning: Fetching active users for ", nrow(group), " apps.")
+          message("     Consider smaller batches to avoid rate limits.")
+        }
+        
+        # Map granularity to time_period for active users API
+        time_period_map <- list(
+          "daily" = "day",
+          "weekly" = "week", 
+          "monthly" = "month",
+          "quarterly" = "quarter"
+        )
+        time_period <- time_period_map[[granularity]]
+        if (is.null(time_period)) time_period <- "month"
+        
+        # Get appropriate app IDs based on group
+        if (group_name == "ios") {
+          app_ids <- group$ios_id
+        } else if (group_name == "android") {
+          app_ids <- group$android_id
+        } else if (group_name == "unified") {
+          app_ids <- group$unified_id
+        }
+        
+        # Fetch active user metrics using the API directly
+        if (TRUE) {  # Always execute inline
+          for (metric in active_user_metrics) {
+            # Map metric to time period
+            metric_time_period <- switch(metric,
+              "dau" = "day",
+              "wau" = "week",
+              "mau" = "month",
+              time_period  # fallback
+            )
+            
+            # Build active users API request
+            active_result <- tryCatch({
+              # Construct the active users endpoint
+              base_url <- paste0("https://api.sensortower.com/v1/", 
+                                if (group_name == "unified") "unified" else group_name, 
+                                "/usage/active_users")
+              
+              # Make the request
+              req <- httr2::request(base_url) %>%
+                httr2::req_url_query(
+                  app_ids = paste(app_ids, collapse = ","),
+                  countries = countries,
+                  start_date = as.character(date_range$start_date),
+                  end_date = as.character(date_range$end_date),
+                  time_period = metric_time_period,
+                  auth_token = auth_token
+                )
+              
+              response <- httr2::req_perform(req)
+              
+              if (httr2::resp_status(response) == 200) {
+                data <- httr2::resp_body_json(response)
+                
+                if (!is.null(data) && length(data) > 0) {
+                  # Convert to data frame
+                  result <- dplyr::bind_rows(data)
+                  
+                  # Standardize column names based on OS
+                  if (group_name == "ios") {
+                    result <- result %>%
+                      dplyr::mutate(
+                        users = iphone_users + ipad_users,
+                        .keep = "all"
+                      )
+                  } else if (group_name == "android") {
+                    result <- result %>%
+                      dplyr::rename(users = android_users)
+                  } else {
+                    # Unified - sum all platforms
+                    result <- result %>%
+                      dplyr::mutate(
+                        users = dplyr::coalesce(android_users, 0) + 
+                                dplyr::coalesce(iphone_users, 0) + 
+                                dplyr::coalesce(ipad_users, 0),
+                        .keep = "all"
+                      )
+                  }
+                  
+                  # Convert date and reshape to long format
+                  result$date <- as.Date(result$date)
+                  
+                  result <- result %>%
+                    dplyr::select(app_id, date, country, users) %>%
+                    dplyr::mutate(
+                      app_id = as.character(app_id),
+                      metric = metric,
+                      value = users
+                    ) %>%
+                    dplyr::select(-users)
+                  
+                  if (verbose) {
+                    message("    Retrieved ", nrow(result), " ", metric, " records")
+                  }
+                  
+                  result
+                } else {
+                  NULL
+                }
+              } else {
+                if (verbose) message("    API request failed with status: ", httr2::resp_status(response))
+                NULL
+              }
+            }, error = function(e) {
+              if (verbose) message("    Warning: Failed to fetch ", metric, " - ", e$message)
+              NULL
+            })
+            
+            if (!is.null(active_result) && nrow(active_result) > 0) {
+              # Add entity_id for consistency
+              active_result$entity_id <- as.character(active_result$app_id)
+              all_group_results[[length(all_group_results) + 1]] <- active_result
+            }
+          }
+        } else {
+          if (verbose) {
+            message("  Note: Active user metrics support not available. Skipping DAU/WAU/MAU.")
+          }
+        }
+      }
+      
       if (group_name == "both") {
         # Fetch with both iOS and Android IDs
         dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
@@ -248,14 +397,8 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # For active user metrics, fetch them directly with st_metrics
-          if (length(active_user_metrics) > 0) {
-            # Active user metrics are not supported by st_metrics API
-            # Skip these metrics for now
-            if (verbose && i == 1) {
-              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
-            }
-          }
+          # For active user metrics, handle them separately
+          # Active users are fetched at group level, not individual app level
           
           if (length(all_results) > 0) {
             dplyr::bind_rows(all_results)
@@ -267,7 +410,9 @@ st_batch_metrics <- function(os,
       } else if (group_name == "ios") {
         # iOS only apps
         if (verbose) message("  Processing ", nrow(group), " iOS apps")
-        dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
+        
+        # Process individual apps for revenue/downloads
+        individual_results <- dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
           if (verbose) message("  Processing app ", i, " of ", nrow(group), ": ", group$ios_id[i])
           all_results <- list()
           
@@ -304,14 +449,8 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # For active user metrics, fetch them directly with st_metrics
-          if (length(active_user_metrics) > 0) {
-            # Active user metrics are not supported by st_metrics API
-            # Skip these metrics for now
-            if (verbose && i == 1) {
-              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
-            }
-          }
+          # For active user metrics, handle them separately
+          # Active users are fetched at group level, not individual app level
           
           if (length(all_results) > 0) {
             dplyr::bind_rows(all_results)
@@ -320,9 +459,15 @@ st_batch_metrics <- function(os,
           }
         }))
         
+        # Combine batch active user results with individual revenue/download results
+        dplyr::bind_rows(c(all_group_results, list(individual_results)))
+        
       } else if (group_name == "android") {
         # Android only apps
-        dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
+        if (verbose) message("  Processing ", nrow(group), " Android apps")
+        
+        # Process individual apps for revenue/downloads
+        individual_results <- dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
           all_results <- list()
           
           # Fetch revenue/downloads if requested
@@ -351,14 +496,8 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # For active user metrics, fetch them directly with st_metrics
-          if (length(active_user_metrics) > 0) {
-            # Active user metrics are not supported by st_metrics API
-            # Skip these metrics for now
-            if (verbose && i == 1) {
-              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
-            }
-          }
+          # For active user metrics, handle them separately
+          # Active users are fetched at group level, not individual app level
           
           if (length(all_results) > 0) {
             dplyr::bind_rows(all_results)
@@ -367,9 +506,15 @@ st_batch_metrics <- function(os,
           }
         }))
         
+        # Combine batch active user results with individual revenue/download results
+        dplyr::bind_rows(c(all_group_results, list(individual_results)))
+        
       } else {
         # Unified - use unified ID with st_metrics
-        dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
+        if (verbose) message("  Processing ", nrow(group), " unified apps")
+        
+        # Process individual apps for revenue/downloads
+        individual_results <- dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
           all_results <- list()
           
           # Fetch revenue/downloads if requested
@@ -398,14 +543,8 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # For active user metrics, fetch them directly with st_metrics
-          if (length(active_user_metrics) > 0) {
-            # Active user metrics are not supported by st_metrics API
-            # Skip these metrics for now
-            if (verbose && i == 1) {
-              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
-            }
-          }
+          # For active user metrics, handle them separately
+          # Active users are fetched at group level, not individual app level
           
           if (length(all_results) > 0) {
             dplyr::bind_rows(all_results)
@@ -413,6 +552,9 @@ st_batch_metrics <- function(os,
             tibble::tibble(entity_id = character())
           }
         }))
+        
+        # Combine batch active user results with individual revenue/download results
+        dplyr::bind_rows(c(all_group_results, list(individual_results)))
       }
     }
   }

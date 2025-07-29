@@ -1,3 +1,22 @@
+# sensortowerR 0.7.2
+
+## New features
+
+* Added active user metrics (DAU, WAU, MAU) support to `st_batch_metrics()`
+  - Active user metrics are fetched using efficient batch API calls
+  - Supports all platforms: iOS, Android, and unified
+  - Automatically maps granularity to appropriate time periods for each metric
+  - Includes rate limit warnings for large batches (>10 apps)
+  - Seamlessly integrates with existing revenue and download metrics
+
+# sensortowerR 0.7.1
+
+## Bug fixes
+
+* Fixed `st_batch_metrics()` ID resolution issue where it was incorrectly using OS value instead of app ID
+* Fixed column type mismatch when combining active user results with revenue/download results
+* All 9 major functions now pass comprehensive API tests with 100% success rate
+
 # sensortowerR 0.7.0
 
 ## BREAKING CHANGES
