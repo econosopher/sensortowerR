@@ -243,7 +243,7 @@ st_batch_metrics <- function(os,
                   names_to = "metric",
                   values_to = "value"
                 ) %>%
-                dplyr::mutate(entity_id = paste0(group$ios_id[i], "_", group$android_id[i]))
+                dplyr::mutate(entity_id = as.character(paste0(group$ios_id[i], "_", group$android_id[i])))
               all_results[[length(all_results) + 1]] <- result
             }
           }
@@ -257,16 +257,23 @@ st_batch_metrics <- function(os,
             }
           }
           
-          dplyr::bind_rows(all_results)
+          if (length(all_results) > 0) {
+            dplyr::bind_rows(all_results)
+          } else {
+            tibble::tibble(entity_id = character())
+          }
         }))
         
       } else if (group_name == "ios") {
         # iOS only apps
+        if (verbose) message("  Processing ", nrow(group), " iOS apps")
         dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
+          if (verbose) message("  Processing app ", i, " of ", nrow(group), ": ", group$ios_id[i])
           all_results <- list()
           
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
+            if (verbose) message("    Fetching metrics: ", paste(revenue_download_metrics, collapse = ", "))
             result <- st_metrics(
               os = os,
               ios_app_id = group$ios_id[i],
@@ -280,13 +287,19 @@ st_batch_metrics <- function(os,
             
             # Transform to long format
             if (!is.null(result) && nrow(result) > 0) {
+              if (verbose) {
+                message("  Got ", nrow(result), " rows from st_metrics")
+                message("  Columns: ", paste(names(result), collapse = ", "))
+                message("  revenue_download_metrics: ", paste(revenue_download_metrics, collapse = ", "))
+                message("  Intersection: ", paste(intersect(revenue_download_metrics, names(result)), collapse = ", "))
+              }
               result <- result %>%
                 tidyr::pivot_longer(
                   cols = dplyr::all_of(intersect(revenue_download_metrics, names(result))),
                   names_to = "metric",
                   values_to = "value"
                 ) %>%
-                dplyr::mutate(entity_id = group$ios_id[i])
+                dplyr::mutate(entity_id = as.character(group$ios_id[i]))
               all_results[[length(all_results) + 1]] <- result
             }
           }
@@ -300,7 +313,11 @@ st_batch_metrics <- function(os,
             }
           }
           
-          dplyr::bind_rows(all_results)
+          if (length(all_results) > 0) {
+            dplyr::bind_rows(all_results)
+          } else {
+            tibble::tibble(entity_id = character())
+          }
         }))
         
       } else if (group_name == "android") {
@@ -329,7 +346,7 @@ st_batch_metrics <- function(os,
                   names_to = "metric",
                   values_to = "value"
                 ) %>%
-                dplyr::mutate(entity_id = group$android_id[i])
+                dplyr::mutate(entity_id = as.character(group$android_id[i]))
               all_results[[length(all_results) + 1]] <- result
             }
           }
@@ -343,7 +360,11 @@ st_batch_metrics <- function(os,
             }
           }
           
-          dplyr::bind_rows(all_results)
+          if (length(all_results) > 0) {
+            dplyr::bind_rows(all_results)
+          } else {
+            tibble::tibble(entity_id = character())
+          }
         }))
         
       } else {
@@ -372,7 +393,7 @@ st_batch_metrics <- function(os,
                   names_to = "metric",
                   values_to = "value"
                 ) %>%
-                dplyr::mutate(entity_id = group$unified_id[i])
+                dplyr::mutate(entity_id = as.character(group$unified_id[i]))
               all_results[[length(all_results) + 1]] <- result
             }
           }
@@ -386,7 +407,11 @@ st_batch_metrics <- function(os,
             }
           }
           
-          dplyr::bind_rows(all_results)
+          if (length(all_results) > 0) {
+            dplyr::bind_rows(all_results)
+          } else {
+            tibble::tibble(entity_id = character())
+          }
         }))
       }
     }
@@ -432,35 +457,66 @@ st_batch_metrics <- function(os,
   # Create a mapping table for all possible entity_id values
   id_mapping <- apps_df %>%
     dplyr::mutate(
+      # Ensure all IDs are character type
+      app_id = as.character(app_id),
+      unified_id = as.character(unified_id),
+      ios_id = as.character(ios_id),
+      android_id = as.character(android_id),
       # For apps with both platforms, entity_id will be ios_android
       both_id = ifelse(!is.na(ios_id) & !is.na(android_id), 
                        paste0(ios_id, "_", android_id), 
-                       NA),
+                       NA_character_),
       # Keep individual platform IDs
-      ios_only = ios_id,
-      android_only = android_id
+      ios_only = as.character(ios_id),
+      android_only = as.character(android_id)
     ) %>%
     dplyr::select(original_id = app_id, unified_id = unified_id, both_id = both_id, ios_only = ios_only, android_only = android_only, everything())
   
   # Create lookup for all possible entity_id formats
-  lookup_df <- dplyr::bind_rows(
-    # Both platforms
-    id_mapping %>% 
-      dplyr::filter(!is.na(both_id)) %>%
-      dplyr::select(entity_id = both_id, original_id = original_id, app_name = app_name),
-    # iOS only
-    id_mapping %>% 
-      dplyr::filter(!is.na(ios_only)) %>%
-      dplyr::select(entity_id = ios_only, original_id = original_id, app_name = app_name),
-    # Android only  
-    id_mapping %>% 
-      dplyr::filter(!is.na(android_only)) %>%
-      dplyr::select(entity_id = android_only, original_id = original_id, app_name = app_name),
-    # Unified ID (unchanged)
-    id_mapping %>%
-      dplyr::select(entity_id = unified_id, original_id = original_id, app_name = app_name)
-  ) %>%
-    dplyr::distinct(entity_id, original_id, app_name)
+  # Check if app_name column exists
+  has_app_name <- "app_name" %in% names(id_mapping)
+  
+  if (has_app_name) {
+    lookup_df <- dplyr::bind_rows(
+      # Both platforms
+      id_mapping %>% 
+        dplyr::filter(!is.na(both_id)) %>%
+        dplyr::select(entity_id = both_id, original_id, app_name),
+      # iOS only
+      id_mapping %>% 
+        dplyr::filter(!is.na(ios_only)) %>%
+        dplyr::select(entity_id = ios_only, original_id, app_name),
+      # Android only  
+      id_mapping %>% 
+        dplyr::filter(!is.na(android_only)) %>%
+        dplyr::select(entity_id = android_only, original_id, app_name),
+      # Unified ID (unchanged)
+      id_mapping %>%
+        dplyr::select(entity_id = unified_id, original_id, app_name)
+    ) %>%
+      dplyr::distinct(entity_id, original_id, app_name) %>%
+      dplyr::mutate(entity_id = as.character(entity_id), original_id = as.character(original_id))
+  } else {
+    lookup_df <- dplyr::bind_rows(
+      # Both platforms
+      id_mapping %>% 
+        dplyr::filter(!is.na(both_id)) %>%
+        dplyr::select(entity_id = both_id, original_id),
+      # iOS only
+      id_mapping %>% 
+        dplyr::filter(!is.na(ios_only)) %>%
+        dplyr::select(entity_id = ios_only, original_id),
+      # Android only  
+      id_mapping %>% 
+        dplyr::filter(!is.na(android_only)) %>%
+        dplyr::select(entity_id = android_only, original_id),
+      # Unified ID (unchanged)
+      id_mapping %>%
+        dplyr::select(entity_id = unified_id, original_id)
+    ) %>%
+      dplyr::distinct(entity_id, original_id) %>%
+      dplyr::mutate(entity_id = as.character(entity_id), original_id = as.character(original_id))
+  }
   
   # Merge results back with original app identifiers
   all_results <- all_results %>%
@@ -479,8 +535,8 @@ st_batch_metrics <- function(os,
           TRUE ~ NA_character_
         )
       ) %>%
-      dplyr::select(original_id, app_name, app_id, app_id_type, 
-                    everything(), -entity_id) %>%
+      dplyr::select(original_id, dplyr::any_of("app_name"), app_id, app_id_type, 
+                    dplyr::everything(), -entity_id) %>%
       dplyr::arrange(original_id)
   }
   
@@ -520,6 +576,11 @@ normalize_app_list <- function(app_list, os, auth_token, verbose) {
   # Add unified_id column
   apps_df$unified_id <- apps_df$app_id
   
+  # Ensure app_name column exists
+  if (!"app_name" %in% names(apps_df)) {
+    apps_df$app_name <- NA_character_
+  }
+  
   # Detect and resolve platform IDs
   apps_df$ios_id <- NA_character_
   apps_df$android_id <- NA_character_
@@ -553,19 +614,19 @@ normalize_app_list <- function(app_list, os, auth_token, verbose) {
         verbose = FALSE
       )
       
-      if (!is.null(resolved$app_id)) {
+      if (!is.null(resolved$resolved_ids)) {
         # Store the resolved IDs based on OS
-        if (os == "ios") {
-          apps_df$ios_id[i] <- resolved$app_id
-        } else if (os == "android") {
-          apps_df$android_id[i] <- resolved$app_id
-        } else {
+        if (os == "ios" && !is.null(resolved$resolved_ids$ios_app_id)) {
+          apps_df$ios_id[i] <- resolved$resolved_ids$ios_app_id
+        } else if (os == "android" && !is.null(resolved$resolved_ids$android_app_id)) {
+          apps_df$android_id[i] <- resolved$resolved_ids$android_app_id
+        } else if (os == "unified") {
           # For unified, we need both platform IDs
-          if (!is.null(resolved$ios_app_id)) {
-            apps_df$ios_id[i] <- resolved$ios_app_id
+          if (!is.null(resolved$resolved_ids$ios_app_id)) {
+            apps_df$ios_id[i] <- resolved$resolved_ids$ios_app_id
           }
-          if (!is.null(resolved$android_app_id)) {
-            apps_df$android_id[i] <- resolved$android_app_id
+          if (!is.null(resolved$resolved_ids$android_app_id)) {
+            apps_df$android_id[i] <- resolved$resolved_ids$android_app_id
           }
         }
       }
