@@ -143,55 +143,6 @@ test_that("st_top_publishers validates input", {
   )
 })
 
-test_that("st_publisher_category_breakdown works correctly", {
-  skip_on_cran()
-  
-  auth_token <- Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token == "") {
-    skip("Authentication token not found, skipping tests")
-  }
-  
-  # First get some publishers
-  publishers <- st_top_publishers(
-    measure = "revenue",
-    os = "unified", 
-    category = 6014,
-    date = "2024-01-01",
-    country = "US",
-    limit = 2,
-    auth_token = auth_token
-  )
-  
-  if (nrow(publishers) == 0) {
-    skip("No publishers returned from API")
-  }
-  
-  # Test category breakdown
-  breakdown <- st_publisher_category_breakdown(
-    publisher_ids = publishers$publisher_id,
-    os = "unified",
-    date = "2024-01-01",
-    country = "US",
-    auth_token = auth_token
-  )
-  
-  expect_s3_class(breakdown, "tbl_df")
-  
-  # Check columns if data returned
-  if (nrow(breakdown) > 0) {
-    expect_true("publisher_id" %in% names(breakdown))
-    expect_true("publisher_name" %in% names(breakdown))
-    expect_true("category_id" %in% names(breakdown))
-    expect_true("revenue_absolute" %in% names(breakdown))
-    expect_true("revenue_usd" %in% names(breakdown))
-    expect_true("category_percentage" %in% names(breakdown))
-    
-    # Check percentages sum to ~100 for each publisher
-    publisher_totals <- breakdown %>%
-      group_by(publisher_id) %>%
-      summarise(total_pct = sum(category_percentage, na.rm = TRUE))
-    
-    # Allow some tolerance due to rounding
-    expect_true(all(abs(publisher_totals$total_pct - 100) < 5))
-  }
+test_that("st_publisher_category_breakdown has been removed", {
+  skip("st_publisher_category_breakdown has been removed from the package")
 })

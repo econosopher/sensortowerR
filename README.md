@@ -6,6 +6,39 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.6.0 - Year-over-Year Metrics
+- **New Function**: `st_yoy_metrics()` - Flexible year-over-year comparisons
+  - Compare any date range across multiple years (e.g., Q1, holiday season, custom periods)
+  - Automatic YoY calculations with both percentage and absolute changes
+  - Works with Date objects or "MM-DD" format for easy period specification
+  - Smart leap year handling (Feb 29 automatically adjusted)
+  - Defaults to current and previous year when years not specified
+- **New Helper**: `calculate_yoy_growth()` - Calculate growth rates from baseline year
+  - Compute growth relative to any baseline year
+  - Returns both percentage growth and index values (base year = 100)
+  - Perfect for multi-year trend analysis
+- **Example Use Cases**:
+  ```r
+  # Compare Q1 performance across 3 years
+  q1_metrics <- st_yoy_metrics(
+    os = "ios",
+    ios_app_id = "553834731",
+    years = c(2022, 2023, 2024),
+    period_start = "01-01",
+    period_end = "03-31",
+    countries = "US"
+  )
+  
+  # Compare holiday season with automatic YoY calculations
+  holiday_metrics <- st_yoy_metrics(
+    os = "unified",
+    unified_app_id = "5ba4585f539ce75b97db6bcb",
+    period_start = "11-01",
+    period_end = "12-31",
+    countries = c("US", "GB", "JP")
+  )
+  ```
+
 ### v0.5.1 - Strict ID Validation
 - **Unified ID Validation**: `unified_app_id` now strictly validates input format
   - Only accepts 24-character hexadecimal IDs (e.g., "5ba4585f539ce75b97db6bcb")
@@ -21,11 +54,11 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
   - No more confusion about which parameter to use
 
 ### v0.5.0 - ID Optimization & Caching
-- **Smart ID Caching**: Dramatically reduce API calls with intelligent ID resolution
+- **Smart ID Caching**: Dramatically reduce API calls with intelligent ID caching
   - Persistent cache stores app ID mappings for 30 days
-  - Automatic batch resolution minimizes API calls
+  - Batch API calls minimize redundant lookups
   - Cache persists between R sessions
-- **New Function**: `st_smart_metrics()` - Fetch metrics with automatic ID resolution
+- **New Function**: `st_smart_metrics()` - Fetch metrics with ID type detection
   - Accepts mixed ID types (iOS, Android, unified hex)
   - Uses cache to avoid redundant lookups
   - Groups compatible requests for efficiency
@@ -55,21 +88,10 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
   - Falls back to `st_app_lookup()` when needed
   - Returns unified_app_id, ios_app_id, android_app_id, and publisher info
 - **Enhanced ID Tracking**: Functions now preserve original input IDs
-  - `st_ytd_metrics()` adds `original_unified_id` column for easier joins
   - `st_batch_metrics()` maintains `original_id` throughout processing
-  - Helps with downstream analysis when using unified IDs
-- **Improved Fallback Logic**: `st_batch_metrics()` now has smarter fallbacks
-  - Automatically detects when unified IDs return zero revenue
-  - Attempts to resolve and retry with platform-specific IDs
-  - Shows warnings in verbose mode to help diagnose issues
+  - Helps with downstream analysis when using specific ID types
 
 ### v0.4.1
-- **Bug Fix**: Fixed `st_ytd_metrics()` error when data columns were missing
-  - Now ensures required columns exist before aggregation
-  - Handles empty data responses gracefully
-- **Automatic Fallback**: When unified app IDs return zero data, attempts fallback to platform-specific IDs
-  - Automatically detects Sensor Tower hex IDs and resolves platform-specific IDs
-  - Works transparently - no code changes needed
 - **New Function**: `st_app_lookup()` - Resolve platform IDs from unified IDs
   - Accepts Sensor Tower hex IDs, iOS numeric IDs, or Android package names
   - Returns both iOS and Android IDs for use with other API functions
@@ -79,7 +101,6 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
   - Provides specific recommendations for each app
   - Helps debug why certain IDs aren't working
 - **New Function**: `st_batch_metrics()` - Efficiently fetch metrics for multiple apps
-  - Automatically resolves mixed ID types (iOS, Android, hex IDs)
   - Groups compatible requests to minimize API calls
   - Supports parallel processing for large batches
   - **Full active user support**: Works with DAU, WAU, and MAU metrics
@@ -97,40 +118,8 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 - **Test Improvements**: Consolidated test scripts to speed up CRAN checks
 - **Package Cleanup**: Fixed R CMD check warnings and added missing imports
 
-### v0.3.5
-- **MAU Support Added**: `st_ytd_metrics()` now supports Monthly Active Users (MAU) metrics
-- **Average MAU Calculation**: MAU is calculated as average monthly users for YoY comparisons
-- **Complete Engagement Metrics**: DAU/WAU/MAU ratios enable comprehensive engagement analysis
-- **ARPMAU Calculation**: Combine MAU with revenue for monetization insights
-
-### v0.3.4
-- **WAU Support Added**: `st_ytd_metrics()` now supports Weekly Active Users (WAU) metrics
-- **Average WAU Calculation**: WAU is calculated as average weekly users for fair comparisons
-- **DAU/WAU Ratio Analysis**: Easily calculate daily engagement rates from active user metrics
-- **Complete Active Users**: Supports both DAU and WAU for comprehensive user analysis
-
-### v0.3.3
-- **DAU Support in YTD Metrics**: `st_ytd_metrics()` now supports Daily Active Users (DAU) metrics
-- **Average DAU Calculation**: DAU is calculated as average daily users for meaningful YoY comparisons
-- **Intelligent DAU Batching**: Fetches full YTD DAU data efficiently with minimal API calls
-- **Platform-Specific DAU**: Automatically handles iOS (iPhone + iPad) and Android user counts
-- **Unified Endpoint Fix**: `st_metrics()` now uses fallback pattern for broken unified endpoint
-
-### v0.3.1
-- **New YTD Metrics Function**: `st_ytd_metrics()` fetches year-to-date metrics across multiple years
-- **Multi-Year Support**: Compare metrics across multiple years with a single function call
-- **Flexible Periods**: Default to YTD through last completed week, or specify custom date ranges
-- **Entity Flexibility**: Works with both individual apps and publishers
-- **Tidy Output**: Returns data in long format for easy analysis and visualization
-
-### v0.3.0
-- **YTD Metrics Function**: Added `st_ytd_metrics()` for accurate year-to-date metrics
-- **Important**: The API's `time_range = "year"` with delta calculations may not represent simple YTD summation
-- **Smart Batching**: Intelligently fetches data in optimal chunks to minimize API calls
-- **Caching Support**: Built-in 24-hour caching to avoid redundant API calls
-
 ### v0.2.2
-- **Country support for category breakdown**: `st_publisher_category_breakdown()` now accepts a `country` parameter, allowing you to get category breakdowns for specific markets
+- **Country parameter update**: Made country a required parameter across all data-fetching functions
 
 ### v0.2.1
 - **Console feedback**: All API functions now display the parameters being used, making it clear what data you're requesting
@@ -191,6 +180,7 @@ Many Sensor Tower endpoints support batch requests, allowing you to fetch data f
    ```r
    # Fetch data for multiple apps at once
    revenue_data <- st_sales_report(
+     os = "ios",
      app_ids = c("1195621598", "553834731", "1053012308"),  # Multiple iOS apps
      countries = "US",
      start_date = Sys.Date() - 30,
@@ -231,56 +221,6 @@ When requesting daily granularity data from Sensor Tower's API:
    - Switches to platform-specific endpoints transparently
    - Combines iOS and Android data for unified view
    - Shows progress messages to explain what's happening
-
-### Year-to-Date (YTD) Calculations - IMPORTANT
-
-**Critical Issue**: The API's `time_range = "year"` with comparison attributes (delta/transformed_delta) does NOT return simple YTD summation. It may include:
-- Annualized projections
-- Different calculation methods
-- Full year estimates
-
-**Solution**: Use the `st_ytd_metrics()` function for accurate YTD metrics:
-
-```r
-# WRONG - May give misleading YTD changes
-ytd_data <- st_top_publishers(
-  time_range = "year",
-  comparison_attribute = "delta",  # This won't be accurate YTD!
-  date = "2025-01-01"
-)
-
-# CORRECT - Use the new st_ytd_metrics() function
-ytd_metrics <- st_ytd_metrics(
-  unified_app_id = "553834731",  # Candy Crush
-  years = c(2023, 2024, 2025),  # Multiple years
-  cache_dir = ".cache/ytd"  # Optional: enable caching
-)
-
-# The function returns tidy data
-# Columns: entity_id, entity_name, entity_type, year, date_start, date_end, country, metric, value
-
-# Calculate growth yourself
-ytd_metrics %>%
-  filter(metric == "revenue") %>%
-  pivot_wider(names_from = year, values_from = value) %>%
-  mutate(yoy_growth = (`2024` - `2023`) / `2023` * 100)
-```
-
-Key features of `st_ytd_metrics()`:
-- **Multi-year support**: Fetch metrics for multiple years in one call
-- **Smart defaults**: YTD through last completed week (ending Saturday)
-- **Custom periods**: Specify any date range (e.g., "02-01" to "02-28")
-- **Automatic caching**: Reuses data across years to minimize API calls
-- **Works with publishers**: Use `publisher_id` instead of app IDs
-- **DAU/WAU/MAU Support**: Fetch average Daily/Weekly/Monthly Active Users with intelligent batching
-- **Platform-aware**: Automatically handles iOS (iPhone + iPad) and Android users
-- **YoY Comparable**: Average DAU/WAU/MAU enables fair comparisons across different period lengths
-
-The package now:
-- Provides `st_ytd_metrics()` for accurate YTD calculations
-- Fetches data in optimal batches (monthly chunks where possible)
-- Supports multiple entities and years in a single function call
-- Returns data in tidy format for easy analysis
 
 ### Monthly Data with Custom Date Ranges
 
@@ -357,11 +297,10 @@ For a complete list, use `st_categories()` to see available categories.
 - **`st_category_rankings()`**: **NEW!** Get official app store rankings by category
 - **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
 - **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
-- **`st_publisher_category_breakdown()`**: **NEW!** Analyze publisher revenue across categories
-- **`st_ytd_metrics()`**: **NEW!** Fetch year-to-date metrics (revenue, downloads, DAU, WAU, MAU) across multiple years
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
+- **`st_yoy_metrics()`**: **NEW!** Flexible year-over-year comparisons for any date range
 - **`st_sales_report()`**: Platform-specific daily revenue and download data
-- **`st_smart_metrics()`**: **NEW!** Fetch metrics with automatic ID resolution and caching
+- **`st_smart_metrics()`**: **NEW!** Fetch metrics with ID type detection and caching
 - **`st_cache_info()`**: **NEW!** View app ID cache statistics
 - **`st_clear_id_cache()`**: **NEW!** Clear the app ID cache
 
@@ -369,9 +308,16 @@ For a complete list, use `st_categories()` to see available categories.
 
 The package now includes intelligent ID caching to minimize API calls:
 
-### Smart Metrics with Automatic ID Resolution
+### Smart Metrics with ID Type Detection
+
+**Important**: Users must specify exactly one type of ID at a time:
+- Publisher ID
+- Unified app ID (24-character hex)
+- iOS app ID (numeric)
+- Android app ID (package name)
+
 ```r
-# Mix of iOS, Android, and unified IDs - all handled automatically!
+# Mix of iOS, Android, and unified IDs - ID types are detected and cached
 metrics <- st_smart_metrics(
   app_ids = c(
     "553834731",                    # Candy Crush iOS
@@ -411,9 +357,9 @@ options(sensortowerR.verbose = TRUE)          # See optimization in action
 ```
 
 ### How It Works
-1. **Automatic ID Detection**: Identifies iOS numeric, Android package, or unified hex IDs
+1. **ID Type Detection**: Identifies iOS numeric, Android package, or unified hex IDs
 2. **Cache First**: Checks local cache before making API calls
-3. **Batch Resolution**: Resolves multiple IDs in a single API call when possible
+3. **Batch Lookups**: Resolves multiple IDs in a single API call when possible
 4. **Persistent Storage**: Cache survives between R sessions
 5. **Smart Grouping**: Groups compatible requests to minimize API calls
 
@@ -433,12 +379,15 @@ app_ids <- st_app_lookup("5ba4585f539ce75b97db6bcb")  # Star Trek Fleet Command
 
 # Use the resolved IDs with other functions
 if (!is.null(app_ids)) {
-  metrics <- st_ytd_metrics(
+  metrics <- st_yoy_metrics(
+    os = "unified",
     ios_app_id = app_ids$ios_app_id,
     android_app_id = app_ids$android_app_id,
-    years = 2025,
-    metrics = "revenue",
-    countries = "WW"
+    years = c(2023, 2024, 2025),
+    period_start = "01-01",
+    period_end = "12-31",
+    countries = "US",
+    metrics = "revenue"
   )
 }
 
@@ -463,12 +412,15 @@ mapping %>%
 
 # Use mapping with other functions
 for (i in 1:nrow(mapping)) {
-  metrics <- st_ytd_metrics(
+  metrics <- st_yoy_metrics(
+    os = "unified",
     ios_app_id = mapping$ios_app_id[i],
     android_app_id = mapping$android_app_id[i],
-    years = 2025,
-    metrics = c("revenue", "downloads"),
-    countries = "WW"
+    years = c(2023, 2024, 2025),
+    period_start = "01-01",
+    period_end = "12-31",
+    countries = c("US", "GB", "JP"),
+    metrics = c("revenue", "downloads")
   )
 }
 ```
@@ -482,7 +434,7 @@ apps <- c(
   "5ba4585f539ce75b97db6bcb"      # Star Trek hex ID
 )
 
-# Batch fetch with automatic ID resolution (now supports DAU/WAU/MAU!)
+# Batch fetch with ID type detection (now supports DAU/WAU/MAU!)
 batch_metrics <- st_batch_metrics(
   app_list = apps,
   metrics = c("revenue", "downloads"),
@@ -506,7 +458,7 @@ ytd_batch <- st_batch_metrics(
   app_list = apps,
   metrics = c("revenue", "downloads", "dau", "wau", "mau"),
   date_range = "ytd",
-  countries = "WW"
+  countries = c("US", "GB", "JP")
 )
 ```
 
@@ -521,27 +473,35 @@ supercell_apps <- st_publisher_apps("560c48b48ac350643900b82d")
 The `st_metrics()` function now intelligently handles daily data by automatically using platform-specific endpoints when needed:
 
 ```r
-# Simple usage - auto-detects platform and fetches data
+# Simple usage - specify OS and app ID
 metrics <- st_metrics(
-  app_id = "1195621598",  # Homescapes iOS
+  os = "ios",
+  ios_app_id = "1195621598",  # Homescapes iOS
+  countries = "US",  # Required parameter
+  date_granularity = "daily",  # Required parameter
   start_date = Sys.Date() - 30,
   end_date = Sys.Date() - 1
 )
 
-# Best practice - provide both platform IDs for complete data
+# Best practice - use unified OS to get combined data
 metrics <- st_metrics(
+  os = "unified",
   ios_app_id = "1195621598",
   android_app_id = "com.playrix.homescapes",
+  countries = "US",  # Required parameter
+  date_granularity = "daily",  # Required parameter
   start_date = Sys.Date() - 30,
   end_date = Sys.Date() - 1
 )
 
 # Advanced options
 metrics <- st_metrics(
-  app_id = "com.king.candycrushsaga",
-  combine_platforms = FALSE,  # Keep iOS and Android data separate
-  date_granularity = "daily",  # Also supports weekly, monthly, quarterly
+  os = "android",
+  android_app_id = "com.king.candycrushsaga",
   countries = c("US", "GB"),   # Multiple countries
+  date_granularity = "daily",  # Also supports weekly, monthly, quarterly
+  start_date = Sys.Date() - 30,
+  end_date = Sys.Date() - 1,
   verbose = TRUE               # Show progress messages
 )
 
@@ -656,97 +616,66 @@ growth_publishers <- st_top_publishers(
   time_range = "week",
   limit = 20
 )
-
-# Analyze publisher category breakdown
-publisher_ids <- top_publishers$publisher_id[1:5]
-category_breakdown <- st_publisher_category_breakdown(
-  publisher_ids = publisher_ids,
-  time_range = "month"
-)
-
-# View revenue distribution by category
-category_breakdown %>%
-  group_by(publisher_name) %>%
-  arrange(desc(category_percentage)) %>%
-  slice_head(n = 3)  # Top 3 categories per publisher
 ```
 
-### Year-to-Date Metrics (Now with DAU, WAU, and MAU!)
+### Year-over-Year Comparisons (NEW!)
 
-**Important**: For most accurate results, use platform-specific IDs instead of unified app IDs:
+The new `st_yoy_metrics()` function makes it easy to compare any date range across multiple years:
 
 ```r
-# RECOMMENDED: Use platform-specific IDs for accurate data
-ytd_metrics <- st_ytd_metrics(
-  ios_app_id = c("553834731", "1195621598"),     # iOS app IDs
-  android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),  # Android package names
-  years = c(2023, 2024, 2025),
-  metrics = c("revenue", "downloads", "dau", "wau", "mau"),
-  countries = "WW",  # Required parameter
-  cache_dir = ".cache/ytd"  # Enable caching
-)
-
-# Alternative: Unified app IDs (may return zero for some apps)
-ytd_metrics <- st_ytd_metrics(
-  unified_app_id = c("553834731", "1195621598"),  # Candy Crush, Homescapes
-  years = c(2023, 2024, 2025),
-  metrics = c("revenue", "downloads", "dau", "wau", "mau"),  # Full active user support!
-  countries = "WW",  # Required parameter
-  cache_dir = ".cache/ytd"  # Enable caching
-)
-
-# The function returns tidy data perfect for analysis
-ytd_metrics %>%
-  filter(metric == "revenue") %>%
-  pivot_wider(names_from = year, values_from = value) %>%
-  mutate(
-    yoy_growth_2024 = (`2024` - `2023`) / `2023` * 100,
-    yoy_growth_2025 = (`2025` - `2024`) / `2024` * 100
-  )
-
-# Analyze DAU trends (values are already averaged)
-dau_summary <- ytd_metrics %>%
-  filter(metric == "dau") %>%
-  pivot_wider(names_from = year, values_from = value) %>%
-  mutate(
-    yoy_change = (`2025` - `2024`) / `2024` * 100
-  )
-
-# Calculate engagement ratios (DAU/WAU/MAU)
-engagement <- ytd_metrics %>%
-  filter(metric %in% c("dau", "wau", "mau"), year == 2025) %>%
-  pivot_wider(names_from = metric, values_from = value) %>%
-  mutate(
-    dau_mau_ratio = dau / mau,
-    wau_mau_ratio = wau / mau,
-    daily_engagement_pct = dau_mau_ratio * 100,
-    weekly_engagement_pct = wau_mau_ratio * 100
-  )
-
-# Custom date ranges (e.g., Q1 comparison)
-q1_metrics <- st_ytd_metrics(
-  unified_app_id = "1053012308",  # MONOPOLY GO!
-  years = c(2023, 2024, 2025),
+# Compare Q1 performance across years
+q1_comparison <- st_yoy_metrics(
+  os = "ios",
+  ios_app_id = "553834731",  # Candy Crush
+  years = c(2022, 2023, 2024),
   period_start = "01-01",
   period_end = "03-31",
+  countries = "US",
   metrics = c("revenue", "downloads", "dau")
 )
 
-# Active users for multiple apps with platform-specific IDs
-multi_app_users <- st_ytd_metrics(
-  ios_app_id = c("553834731", "1195621598"),
-  android_app_id = c("com.king.candycrushsaga", "com.playrix.homescapes"),
-  years = 2025,
-  metrics = c("dau", "mau")  # DAU and MAU for engagement analysis
+# The function automatically calculates YoY changes
+q1_comparison %>%
+  filter(metric == "revenue", !is.na(yoy_change)) %>%
+  select(year, value, yoy_change, yoy_change_absolute)
+
+# Compare holiday season performance
+holiday_yoy <- st_yoy_metrics(
+  os = "unified",
+  unified_app_id = "5ba4585f539ce75b97db6bcb",
+  years = c(2021, 2022, 2023),
+  period_start = "11-01",
+  period_end = "12-31",
+  countries = c("US", "GB", "JP"),
+  metrics = c("revenue", "downloads")
 )
 
-# Works with publishers too (but not for active users)
-publisher_ytd <- st_ytd_metrics(
-  publisher_id = c("pub123", "pub456"),
-  years = 2025,
-  metrics = c("revenue", "downloads")  # DAU/WAU/MAU not available for publishers
+# Use Date objects for precise periods
+valentine_campaign <- st_yoy_metrics(
+  os = "android",
+  android_app_id = "com.king.candycrushsaga",
+  years = NULL,  # Defaults to current and previous year
+  period_start = as.Date("2024-02-14"),
+  period_end = as.Date("2024-02-28"),
+  countries = c("US", "GB", "DE"),
+  metrics = c("revenue", "downloads", "dau")
 )
+
+# Calculate growth from baseline year
+growth_analysis <- calculate_yoy_growth(q1_comparison, baseline_year = 2022)
+
+# View growth index (2022 = 100)
+growth_analysis %>%
+  filter(metric == "revenue") %>%
+  select(year, value, growth_index, growth_from_baseline)
 ```
+
+Key features:
+- **Flexible periods**: Any date range, not just full years
+- **Smart date handling**: Automatically adjusts for leap years
+- **YoY calculations**: Both percentage and absolute changes included
+- **Growth analysis**: Helper function for baseline comparisons
+- **All metrics supported**: Revenue, downloads, DAU, WAU, MAU
 
 ## NEW: Professional Dashboard Generation
 

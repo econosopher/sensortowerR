@@ -9,8 +9,7 @@
 #'   - For Android: bundle IDs (e.g., "com.king.candycrushsaga")
 #'   - For unified: unified app IDs
 #'   Maximum 100 apps per request.
-#' @param os Character string. Operating system: "ios", "android", or "unified".
-#'   Defaults to "ios".
+#' @param os Character string. Required. Operating system: "ios", "android", or "unified".
 #' @param include_developer_contacts Logical. Include developer contact information
 #'   (email, address). Defaults to TRUE.
 #' @param auth_token Character string. Sensor Tower API authentication token.
@@ -73,9 +72,14 @@
 #' @importFrom dplyr rename bind_rows
 #' @export
 st_app_details <- function(app_ids,
-                          os = "ios",
+                          os,
                           include_developer_contacts = TRUE,
                           auth_token = NULL) {
+  
+  # Validate OS parameter
+  if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
+    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+  }
   
   # Input validation
   if (missing(app_ids) || length(app_ids) == 0) {
@@ -85,8 +89,6 @@ st_app_details <- function(app_ids,
   if (length(app_ids) > 100) {
     rlang::abort("Maximum 100 app IDs allowed per request.")
   }
-  
-  os <- match.arg(os, c("ios", "android", "unified"))
   
   # Authentication
   auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")

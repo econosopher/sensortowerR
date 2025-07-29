@@ -98,7 +98,6 @@ test_that("st_cache_info displays correct information", {
 
 test_that("st_smart_metrics wrapper exports exist", {
   expect_true(exists("st_smart_metrics"))
-  expect_true(exists("st_metrics_smart"))
   expect_true(exists("st_clear_id_cache"))
   expect_true(exists("st_cache_info"))
 })

@@ -6,7 +6,7 @@
 #' @param app_ids Character vector. App IDs to query. At least one app ID or publisher ID is required.
 #'   **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.
 #' @param publisher_ids Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.
-#' @param os Character string. Operating system: "ios" or "android".
+#' @param os Character string. Required. Operating system: "ios" or "android".
 #' @param countries Character vector. Country codes (e.g., c("US", "GB", "JP"), or "WW" for worldwide). Required.
 #' @param start_date Date or character string. Start date in "YYYY-MM-DD" format. Required.
 #' @param end_date Date or character string. End date in "YYYY-MM-DD" format. Required.
@@ -36,6 +36,7 @@
 #' \dontrun{
 #' # Get daily sales for a single app
 #' sales <- st_sales_report(
+#'   os = "ios",
 #'   app_ids = "553834731",  # Candy Crush
 #'   countries = c("US", "GB"),
 #'   start_date = "2024-01-01",
@@ -45,6 +46,7 @@
 #' 
 #' # Batch request: Get data for multiple apps in one API call
 #' batch_sales <- st_sales_report(
+#'   os = "ios",
 #'   app_ids = c("553834731", "1195621598", "1053012308"),  # Multiple apps!
 #'   countries = "US",
 #'   start_date = "2024-01-01",
@@ -55,6 +57,7 @@
 #' 
 #' # Get monthly sales with auto-segmentation
 #' sales <- st_sales_report(
+#'   os = "android",
 #'   app_ids = c("553834731", "1621328561"),  # Batch request
 #'   countries = "US",
 #'   start_date = "2023-01-01",
@@ -67,7 +70,7 @@
 #' @export
 st_sales_report <- function(app_ids = NULL,
                            publisher_ids = NULL,
-                           os = "ios",
+                           os,
                            countries,
                            start_date,
                            end_date,
@@ -75,6 +78,11 @@ st_sales_report <- function(app_ids = NULL,
                            auth_token = NULL,
                            auto_segment = TRUE,
                            verbose = TRUE) {
+  
+  # Validate OS parameter
+  if (missing(os) || is.null(os) || !os %in% c("ios", "android")) {
+    stop("'os' parameter is required and must be one of: 'ios' or 'android'")
+  }
   
   # Validate required parameters
   if (missing(countries) || is.null(countries) || length(countries) == 0) {
@@ -97,8 +105,6 @@ st_sales_report <- function(app_ids = NULL,
   if (is.null(app_ids) && is.null(publisher_ids)) {
     stop("At least one app_id or publisher_id is required")
   }
-  
-  os <- match.arg(os, c("ios", "android"))
   date_granularity <- match.arg(date_granularity, c("daily", "weekly", "monthly", "quarterly"))
   
   # Convert dates to Date objects

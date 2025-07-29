@@ -4,8 +4,7 @@
 #' the App Store or Google Play Store. This provides the official store rankings
 #' as they appear in the actual app stores.
 #'
-#' @param os Character string. Operating system: "ios", "android", or "unified".
-#'   Defaults to "ios".
+#' @param os Character string. Required. Operating system: "ios", "android", or "unified".
 #' @param category Character or numeric. Category ID to fetch rankings for.
 #'   Use `st_categories()` to find valid category IDs. Required.
 #' @param chart_type Character string. The chart type to retrieve. Options vary by OS:
@@ -64,7 +63,7 @@
 #' @importFrom tibble tibble as_tibble
 #' @importFrom dplyr rename
 #' @export
-st_category_rankings <- function(os = "ios",
+st_category_rankings <- function(os,
                                 category = NULL,
                                 chart_type = NULL,
                                 country = "US",
@@ -73,8 +72,10 @@ st_category_rankings <- function(os = "ios",
                                 offset = 0,
                                 auth_token = NULL) {
   
-  # Input validation
-  os <- match.arg(os, c("ios", "android", "unified"))
+  # Validate OS parameter
+  if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
+    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+  }
   
   if (is.null(category)) {
     rlang::abort("The 'category' parameter is required. Use st_categories() to find valid category IDs.")

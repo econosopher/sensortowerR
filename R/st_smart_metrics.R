@@ -164,14 +164,21 @@ st_smart_metrics <- function(
       ios_ids <- sapply(group_apps, function(x) x$ios_id)
       android_ids <- sapply(group_apps, function(x) x$android_id)
       
-      result <- st_ytd_metrics(
-        ios_app_id = ios_ids,
-        android_app_id = android_ids,
-        period_start = format(as.Date(start_date), "%m-%d"),
-        period_end = format(as.Date(end_date), "%m-%d"),
-        years = unique(as.numeric(format(c(as.Date(start_date), as.Date(end_date)), "%Y"))),
+      # Create app list for batch metrics
+      app_list <- data.frame(
+        ios_id = ios_ids,
+        android_id = android_ids,
+        stringsAsFactors = FALSE
+      )
+      
+      result <- st_batch_metrics(
+        os = "unified",
+        app_list = app_list,
         metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
         countries = countries,
+        granularity = granularity,
+        parallel = parallel,
         auth_token = auth_token,
         verbose = FALSE
       )
@@ -179,13 +186,14 @@ st_smart_metrics <- function(
     } else if (group_name == "ios") {
       ios_ids <- names(group_apps)
       
-      result <- st_ytd_metrics(
-        ios_app_id = ios_ids,
-        period_start = format(as.Date(start_date), "%m-%d"),
-        period_end = format(as.Date(end_date), "%m-%d"),
-        years = unique(as.numeric(format(c(as.Date(start_date), as.Date(end_date)), "%Y"))),
+      result <- st_batch_metrics(
+        os = "ios",
+        app_list = ios_ids,
         metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
         countries = countries,
+        granularity = granularity,
+        parallel = parallel,
         auth_token = auth_token,
         verbose = FALSE
       )
@@ -193,13 +201,14 @@ st_smart_metrics <- function(
     } else if (group_name == "android") {
       android_ids <- names(group_apps)
       
-      result <- st_ytd_metrics(
-        android_app_id = android_ids,
-        period_start = format(as.Date(start_date), "%m-%d"),
-        period_end = format(as.Date(end_date), "%m-%d"),
-        years = unique(as.numeric(format(c(as.Date(start_date), as.Date(end_date)), "%Y"))),
+      result <- st_batch_metrics(
+        os = "android",
+        app_list = android_ids,
         metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
         countries = countries,
+        granularity = granularity,
+        parallel = parallel,
         auth_token = auth_token,
         verbose = FALSE
       )
@@ -207,13 +216,14 @@ st_smart_metrics <- function(
     } else if (group_name == "unified") {
       unified_ids <- names(group_apps)
       
-      result <- st_ytd_metrics(
-        unified_app_id = unified_ids,
-        period_start = format(as.Date(start_date), "%m-%d"),
-        period_end = format(as.Date(end_date), "%m-%d"),
-        years = unique(as.numeric(format(c(as.Date(start_date), as.Date(end_date)), "%Y"))),
+      result <- st_batch_metrics(
+        os = "unified",
+        app_list = unified_ids,
         metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
         countries = countries,
+        granularity = granularity,
+        parallel = parallel,
         auth_token = auth_token,
         verbose = FALSE
       )

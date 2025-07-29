@@ -6,7 +6,7 @@
 \usage{
 st_app_details(
   app_ids,
-  os = "ios",
+  os,
   include_developer_contacts = TRUE,
   auth_token = NULL
 )
@@ -18,8 +18,7 @@ st_app_details(
 - For unified: unified app IDs
 Maximum 100 apps per request.}
 
-\item{os}{Character string. Operating system: "ios", "android", or "unified".
-Defaults to "ios".}
+\item{os}{Character string. Required. Operating system: "ios", "android", or "unified".}
 
 \item{include_developer_contacts}{Logical. Include developer contact information
 (email, address). Defaults to TRUE.}

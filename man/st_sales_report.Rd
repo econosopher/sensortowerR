@@ -7,7 +7,7 @@
 st_sales_report(
   app_ids = NULL,
   publisher_ids = NULL,
-  os = "ios",
+  os,
   countries,
   start_date,
   end_date,
@@ -23,7 +23,7 @@ st_sales_report(
 
 \item{publisher_ids}{Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.}
 
-\item{os}{Character string. Operating system: "ios" or "android".}
+\item{os}{Character string. Required. Operating system: "ios" or "android".}
 
 \item{countries}{Character vector. Country codes (e.g., c("US", "GB", "JP"), or "WW" for worldwide). Required.}
 
@@ -65,6 +65,7 @@ requires only 5 API calls instead of 50 when using batch requests.
 \dontrun{
 # Get daily sales for a single app
 sales <- st_sales_report(
+  os = "ios",
   app_ids = "553834731",  # Candy Crush
   countries = c("US", "GB"),
   start_date = "2024-01-01",
@@ -74,6 +75,7 @@ sales <- st_sales_report(
 
 # Batch request: Get data for multiple apps in one API call
 batch_sales <- st_sales_report(
+  os = "ios",
   app_ids = c("553834731", "1195621598", "1053012308"),  # Multiple apps!
   countries = "US",
   start_date = "2024-01-01",
@@ -84,6 +86,7 @@ batch_sales <- st_sales_report(
 
 # Get monthly sales with auto-segmentation
 sales <- st_sales_report(
+  os = "android",
   app_ids = c("553834731", "1621328561"),  # Batch request
   countries = "US",
   start_date = "2023-01-01",

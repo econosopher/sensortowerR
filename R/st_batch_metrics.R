@@ -125,85 +125,88 @@ st_batch_metrics <- function(os,
   
   # Step 3: Prepare fetch parameters
   if (identical(date_range, "ytd")) {
-    # Year-to-date mode
-    fetch_func <- function(group, group_name) {
-      if (verbose) message("\nFetching YTD metrics for ", group_name, " group (", nrow(group), " apps)...")
-      
-      if (group_name == "both") {
-        st_ytd_metrics(
-          os = os,
-          ios_app_id = group$ios_id,
-          android_app_id = group$android_id,
-          years = as.numeric(format(Sys.Date(), "%Y")),
-          metrics = metrics,
-          countries = countries,
-          auth_token = auth_token,
-          verbose = FALSE
-        )
-      } else if (group_name == "ios") {
-        st_ytd_metrics(
-          os = os,
-          ios_app_id = group$ios_id,
-          years = as.numeric(format(Sys.Date(), "%Y")),
-          metrics = metrics,
-          countries = countries,
-          auth_token = auth_token,
-          verbose = FALSE
-        )
-      } else if (group_name == "android") {
-        st_ytd_metrics(
-          os = os,
-          android_app_id = group$android_id,
-          years = as.numeric(format(Sys.Date(), "%Y")),
-          metrics = metrics,
-          countries = countries,
-          auth_token = auth_token,
-          verbose = FALSE
-        )
-      } else {
-        # Unified - try each one with automatic fallback
-        dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
-          result <- st_ytd_metrics(
-            os = os,
-            unified_app_id = group$unified_id[i],
-            years = as.numeric(format(Sys.Date(), "%Y")),
-            metrics = metrics,
-            countries = countries,
-            auth_token = auth_token,
-            verbose = FALSE
-          )
-          
-          # Check if we got zero revenue/downloads - might need platform IDs
-          if (nrow(result) > 0 && "revenue" %in% metrics) {
-            revenue_sum <- sum(result$value[result$metric == "revenue"], na.rm = TRUE)
-            if (revenue_sum == 0 && verbose) {
-              message("  Warning: Unified ID ", group$unified_id[i], " returned zero revenue")
-              
-              # Try to resolve platform IDs
-              lookup <- tryCatch({
-                st_app_lookup(group$unified_id[i], auth_token = auth_token, verbose = FALSE)
-              }, error = function(e) NULL)
-              
-              if (!is.null(lookup) && (!is.null(lookup$ios_app_id) || !is.null(lookup$android_app_id))) {
-                message("  Retrying with platform IDs...")
-                result <- st_ytd_metrics(
-                  os = os,
-                  ios_app_id = lookup$ios_app_id,
-                  android_app_id = lookup$android_app_id,
-                  years = as.numeric(format(Sys.Date(), "%Y")),
-                  metrics = metrics,
-                  countries = countries,
-                  auth_token = auth_token,
-                  verbose = FALSE
-                )
-              }
-            }
-          }
-          
-          result
-        }))
-      }
-    }
+    # Year-to-date mode is no longer supported
+    stop("YTD mode is no longer supported in st_batch_metrics. The underlying st_ytd_metrics function has been removed. Please specify explicit start_date and end_date in the date_range parameter.")
+    
+    # Original code commented out:
+    # fetch_func <- function(group, group_name) {
+    #   if (verbose) message("\nFetching YTD metrics for ", group_name, " group (", nrow(group), " apps)...")
+    #   
+    #   if (group_name == "both") {
+    #     st_ytd_metrics(
+    #       os = os,
+    #       ios_app_id = group$ios_id,
+    #       android_app_id = group$android_id,
+    #       end_dates = Sys.Date(),
+    #       metrics = metrics,
+    #       countries = countries,
+    #       auth_token = auth_token,
+    #       verbose = FALSE
+    #     )
+    #   } else if (group_name == "ios") {
+    #     st_ytd_metrics(
+    #       os = os,
+    #       ios_app_id = group$ios_id,
+    #       end_dates = Sys.Date(),
+    #       metrics = metrics,
+    #       countries = countries,
+    #       auth_token = auth_token,
+    #       verbose = FALSE
+    #     )
+    #   } else if (group_name == "android") {
+    #     st_ytd_metrics(
+    #       os = os,
+    #       android_app_id = group$android_id,
+    #       end_dates = Sys.Date(),
+    #       metrics = metrics,
+    #       countries = countries,
+    #       auth_token = auth_token,
+    #       verbose = FALSE
+    #     )
+    #   } else {
+    #     # Unified - try each one with automatic fallback
+    #     dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
+    #       result <- st_ytd_metrics(
+    #         os = os,
+    #         unified_app_id = group$unified_id[i],
+    #         end_dates = Sys.Date(),
+    #         metrics = metrics,
+    #         countries = countries,
+    #         auth_token = auth_token,
+    #         verbose = FALSE
+    #       )
+    #       
+    #       # Check if we got zero revenue/downloads - might need platform IDs
+    #       if (nrow(result) > 0 && "revenue" %in% metrics) {
+    #         revenue_sum <- sum(result$value[result$metric == "revenue"], na.rm = TRUE)
+    #         if (revenue_sum == 0 && verbose) {
+    #           message("  Warning: Unified ID ", group$unified_id[i], " returned zero revenue")
+    #           
+    #           # Try to resolve platform IDs
+    #           lookup <- tryCatch({
+    #             st_app_lookup(group$unified_id[i], auth_token = auth_token, verbose = FALSE)
+    #           }, error = function(e) NULL)
+    #           
+    #           if (!is.null(lookup) && (!is.null(lookup$ios_app_id) || !is.null(lookup$android_app_id))) {
+    #             message("  Retrying with platform IDs...")
+    #             result <- st_ytd_metrics(
+    #               os = os,
+    #               ios_app_id = lookup$ios_app_id,
+    #               android_app_id = lookup$android_app_id,
+    #               end_dates = Sys.Date(),
+    #               metrics = metrics,
+    #               countries = countries,
+    #               auth_token = auth_token,
+    #               verbose = FALSE
+    #             )
+    #           }
+    #         }
+    #       }
+    #       
+    #       result
+    #     }))
+    #   }
+    # }
   } else {
     # Regular date range mode
     fetch_func <- function(group, group_name) {
@@ -245,35 +248,12 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # For active user metrics, we need to aggregate by period
-          # since st_ytd_metrics handles these differently
+          # For active user metrics, fetch them directly with st_metrics
           if (length(active_user_metrics) > 0) {
-            # Calculate period in months for determining which metric to use
-            period_days <- as.numeric(as.Date(date_range$end_date) - as.Date(date_range$start_date))
-            
-            # Use st_ytd_metrics approach but for custom date range
-            ytd_result <- st_ytd_metrics(
-              os = os,
-              ios_app_id = group$ios_id[i],
-              android_app_id = group$android_id[i],
-              years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
-              period_start = format(as.Date(date_range$start_date), "%m-%d"),
-              period_end = format(as.Date(date_range$end_date), "%m-%d"),
-              metrics = active_user_metrics,
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            if (!is.null(ytd_result) && nrow(ytd_result) > 0) {
-              # Transform YTD result to match expected format
-              au_result <- ytd_result %>%
-                dplyr::mutate(
-                  date = as.Date(date_start),
-                  entity_id = paste0(group$ios_id[i], "_", group$android_id[i])
-                ) %>%
-                dplyr::select(date, entity_id, country, metric, value)
-              all_results[[length(all_results) + 1]] <- au_result
+            # Active user metrics are not supported by st_metrics API
+            # Skip these metrics for now
+            if (verbose && i == 1) {
+              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
             }
           }
           
@@ -311,28 +291,12 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # Fetch active user metrics if requested
+          # For active user metrics, fetch them directly with st_metrics
           if (length(active_user_metrics) > 0) {
-            ytd_result <- st_ytd_metrics(
-              os = os,
-              ios_app_id = group$ios_id[i],
-              years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
-              period_start = format(as.Date(date_range$start_date), "%m-%d"),
-              period_end = format(as.Date(date_range$end_date), "%m-%d"),
-              metrics = active_user_metrics,
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            if (!is.null(ytd_result) && nrow(ytd_result) > 0) {
-              au_result <- ytd_result %>%
-                dplyr::mutate(
-                  date = as.Date(date_start),
-                  entity_id = group$ios_id[i]
-                ) %>%
-                dplyr::select(date, entity_id, country, metric, value)
-              all_results[[length(all_results) + 1]] <- au_result
+            # Active user metrics are not supported by st_metrics API
+            # Skip these metrics for now
+            if (verbose && i == 1) {
+              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
             }
           }
           
@@ -370,28 +334,12 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # Fetch active user metrics if requested
+          # For active user metrics, fetch them directly with st_metrics
           if (length(active_user_metrics) > 0) {
-            ytd_result <- st_ytd_metrics(
-              os = os,
-              android_app_id = group$android_id[i],
-              years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
-              period_start = format(as.Date(date_range$start_date), "%m-%d"),
-              period_end = format(as.Date(date_range$end_date), "%m-%d"),
-              metrics = active_user_metrics,
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            if (!is.null(ytd_result) && nrow(ytd_result) > 0) {
-              au_result <- ytd_result %>%
-                dplyr::mutate(
-                  date = as.Date(date_start),
-                  entity_id = group$android_id[i]
-                ) %>%
-                dplyr::select(date, entity_id, country, metric, value)
-              all_results[[length(all_results) + 1]] <- au_result
+            # Active user metrics are not supported by st_metrics API
+            # Skip these metrics for now
+            if (verbose && i == 1) {
+              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
             }
           }
           
@@ -429,28 +377,12 @@ st_batch_metrics <- function(os,
             }
           }
           
-          # Fetch active user metrics if requested
+          # For active user metrics, fetch them directly with st_metrics
           if (length(active_user_metrics) > 0) {
-            ytd_result <- st_ytd_metrics(
-              os = os,
-              unified_app_id = group$unified_id[i],
-              years = unique(as.numeric(format(c(as.Date(date_range$start_date), as.Date(date_range$end_date)), "%Y"))),
-              period_start = format(as.Date(date_range$start_date), "%m-%d"),
-              period_end = format(as.Date(date_range$end_date), "%m-%d"),
-              metrics = active_user_metrics,
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            if (!is.null(ytd_result) && nrow(ytd_result) > 0) {
-              au_result <- ytd_result %>%
-                dplyr::mutate(
-                  date = as.Date(date_start),
-                  entity_id = group$unified_id[i]
-                ) %>%
-                dplyr::select(date, entity_id, country, metric, value)
-              all_results[[length(all_results) + 1]] <- au_result
+            # Active user metrics are not supported by st_metrics API
+            # Skip these metrics for now
+            if (verbose && i == 1) {
+              message("  Note: Active user metrics (DAU/WAU/MAU) may not be available through the current API endpoint")
             }
           }
           
@@ -501,34 +433,34 @@ st_batch_metrics <- function(os,
   id_mapping <- apps_df %>%
     dplyr::mutate(
       # For apps with both platforms, entity_id will be ios_android
-      both_id = ifelse(!is.na(.data$ios_id) & !is.na(.data$android_id), 
-                       paste0(.data$ios_id, "_", .data$android_id), 
+      both_id = ifelse(!is.na(ios_id) & !is.na(android_id), 
+                       paste0(ios_id, "_", android_id), 
                        NA),
       # Keep individual platform IDs
-      ios_only = .data$ios_id,
-      android_only = .data$android_id
+      ios_only = ios_id,
+      android_only = android_id
     ) %>%
-    dplyr::select(original_id = .data$app_id, unified_id = .data$unified_id, both_id = .data$both_id, ios_only = .data$ios_only, android_only = .data$android_only, everything())
+    dplyr::select(original_id = app_id, unified_id = unified_id, both_id = both_id, ios_only = ios_only, android_only = android_only, everything())
   
   # Create lookup for all possible entity_id formats
   lookup_df <- dplyr::bind_rows(
     # Both platforms
     id_mapping %>% 
-      dplyr::filter(!is.na(.data$both_id)) %>%
-      dplyr::select(entity_id = .data$both_id, original_id = .data$original_id, app_name = .data$app_name),
+      dplyr::filter(!is.na(both_id)) %>%
+      dplyr::select(entity_id = both_id, original_id = original_id, app_name = app_name),
     # iOS only
     id_mapping %>% 
-      dplyr::filter(!is.na(.data$ios_only)) %>%
-      dplyr::select(entity_id = .data$ios_only, original_id = .data$original_id, app_name = .data$app_name),
+      dplyr::filter(!is.na(ios_only)) %>%
+      dplyr::select(entity_id = ios_only, original_id = original_id, app_name = app_name),
     # Android only  
     id_mapping %>% 
-      dplyr::filter(!is.na(.data$android_only)) %>%
-      dplyr::select(entity_id = .data$android_only, original_id = .data$original_id, app_name = .data$app_name),
+      dplyr::filter(!is.na(android_only)) %>%
+      dplyr::select(entity_id = android_only, original_id = original_id, app_name = app_name),
     # Unified ID (unchanged)
     id_mapping %>%
-      dplyr::select(entity_id = .data$unified_id, original_id = .data$original_id, app_name = .data$app_name)
+      dplyr::select(entity_id = unified_id, original_id = original_id, app_name = app_name)
   ) %>%
-    dplyr::distinct(.data$entity_id, .data$original_id, .data$app_name)
+    dplyr::distinct(entity_id, original_id, app_name)
   
   # Merge results back with original app identifiers
   all_results <- all_results %>%
@@ -539,7 +471,7 @@ st_batch_metrics <- function(os,
     # Add app_id and app_id_type columns based on OS parameter
     all_results <- all_results %>%
       dplyr::mutate(
-        app_id = .data$entity_id,  # Use entity_id as app_id for now
+        app_id = entity_id,  # Use entity_id as app_id for now
         app_id_type = dplyr::case_when(
           os == "ios" ~ "ios",
           os == "android" ~ "android",
@@ -547,9 +479,9 @@ st_batch_metrics <- function(os,
           TRUE ~ NA_character_
         )
       ) %>%
-      dplyr::select(.data$original_id, .data$app_name, .data$app_id, .data$app_id_type, 
-                    everything(), -.data$entity_id) %>%
-      dplyr::arrange(.data$original_id)
+      dplyr::select(original_id, app_name, app_id, app_id_type, 
+                    everything(), -entity_id) %>%
+      dplyr::arrange(original_id)
   }
   
   if (verbose) {

@@ -5,7 +5,7 @@
 \title{Fetch App Store Category Rankings}
 \usage{
 st_category_rankings(
-  os = "ios",
+  os,
   category = NULL,
   chart_type = NULL,
   country = "US",
@@ -16,8 +16,7 @@ st_category_rankings(
 )
 }
 \arguments{
-\item{os}{Character string. Operating system: "ios", "android", or "unified".
-Defaults to "ios".}
+\item{os}{Character string. Required. Operating system: "ios", "android", or "unified".}
 
 \item{category}{Character or numeric. Category ID to fetch rankings for.
 Use `st_categories()` to find valid category IDs. Required.}

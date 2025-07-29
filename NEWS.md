@@ -1,3 +1,29 @@
+# sensortowerR 0.7.0
+
+## BREAKING CHANGES
+
+* Removed `st_ytd_metrics()` function - use `st_metrics()` or `st_batch_metrics()` with specific date ranges instead
+* Removed `st_publisher_category_breakdown()` function - category-level publisher analysis no longer supported  
+* Removed automatic ID resolution - users must now specify exactly one type of ID at a time:
+  - Publisher ID
+  - Unified app ID (24-character hex)
+  - iOS app ID (numeric)
+  - Android app ID (package name)
+
+## Major improvements
+
+* Reimplemented `st_yoy_metrics()` to work without dependency on `st_ytd_metrics()`
+  - Now uses `st_batch_metrics()` internally for more efficient data fetching
+  - Maintains all previous functionality including automatic YoY calculations
+  - Better error handling and date validation
+
+## Other changes
+
+* Fixed all references to removed functions throughout the package
+* Updated documentation and tests to reflect changes
+* Fixed dplyr compatibility issues with .data pronoun
+* Package now passes R CMD check --as-cran with only acceptable NOTEs
+
 # sensortowerR 0.1.7
 
 ## Major improvements
