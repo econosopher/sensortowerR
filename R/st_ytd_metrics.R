@@ -383,10 +383,18 @@ st_ytd_metrics <- function(
       values_to = "value"
     ) %>%
     mutate(
-      entity_name = NA_character_  # Could be populated from API response
+      entity_name = NA_character_,  # Could be populated from API response
+      # Add platform information based on input parameters
+      platform = case_when(
+        !is.null(ios_app_id) && !is.null(android_app_id) ~ "unified",
+        !is.null(ios_app_id) && is.null(android_app_id) ~ "ios",
+        is.null(ios_app_id) && !is.null(android_app_id) ~ "android",
+        !is.null(unified_app_id) ~ "unified",
+        TRUE ~ "unknown"
+      )
     ) %>%
     select(entity_id, entity_name, entity_type, year, date_start, date_end, 
-           country, metric, value)
+           country, metric, value, platform)
   
   # Add original ID mapping
   if (!is.null(original_unified_ids) && entity_type == "app") {

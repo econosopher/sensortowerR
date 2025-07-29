@@ -177,6 +177,9 @@ st_sales_report <- function(app_ids = NULL,
       message(sprintf("Retrieved %d records", nrow(final_result)))
     }
     
+    # Add platform information
+    final_result$platform <- os
+    
     return(final_result)
   } else {
     return(tibble())

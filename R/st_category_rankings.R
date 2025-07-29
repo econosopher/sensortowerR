@@ -218,6 +218,9 @@ process_ranking_response <- function(resp, os, category, country, chart_type, da
     result_tbl <- result_tbl[1:limit, ]
   }
   
+  # Add platform information
+  result_tbl$platform <- os
+  
   return(result_tbl)
 }
 

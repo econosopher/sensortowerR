@@ -172,6 +172,8 @@ st_metrics <- function(
     if (verbose) {
       message(sprintf("Unified endpoint successful: %d rows returned", nrow(unified_result)))
     }
+    # Add platform information for unified data
+    unified_result$platform <- "unified"
     return(unified_result)
   }
   
@@ -310,7 +312,8 @@ fetch_platform_specific_data <- function(
         downloads = sum(downloads, na.rm = TRUE),
         .groups = "drop"
       )
-    # Note: platform column is intentionally excluded for unified view
+    # Add platform info for combined data
+    all_data$platform <- "unified"
   }
   
   if (nrow(all_data) == 0) {

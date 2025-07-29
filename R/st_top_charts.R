@@ -255,5 +255,10 @@ st_top_charts <- function(measure = "revenue",
   # --- Standardize Revenue Units ---
   result <- standardize_revenue_units(result, source = "top_charts")
   
+  # --- Add platform information ---
+  if (nrow(result) > 0) {
+    result$platform <- os
+  }
+  
   return(result)
 } 
