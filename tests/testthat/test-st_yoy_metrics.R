@@ -51,9 +51,7 @@ test_that("st_yoy_metrics works with basic inputs", {
     period_start = "01-01",
     period_end = "01-07",
     countries = "US",
-    metrics = "revenue",
-    verbose = FALSE
-  )
+    metrics = "revenue"  )
   
   # Check structure
   expect_s3_class(result, "tbl_df")
@@ -122,9 +120,7 @@ test_that("st_yoy_metrics handles leap years correctly", {
     period_start = "02-01",
     period_end = "02-29",  # Feb 29
     countries = "US",
-    metrics = "revenue",
-    verbose = FALSE
-  )
+    metrics = "revenue"  )
   
   # Check that dates were adjusted appropriately
   if (nrow(result) > 0) {
@@ -146,9 +142,7 @@ test_that("st_yoy_metrics uses default years when not specified", {
     period_start = "01-01",
     period_end = "01-07",
     countries = "US",
-    metrics = "revenue",
-    verbose = FALSE
-  )
+    metrics = "revenue"  )
   
   current_year <- as.integer(format(Sys.Date(), "%Y"))
   
@@ -204,9 +198,7 @@ test_that("st_yoy_metrics handles multiple countries", {
     period_start = "01-01",
     period_end = "01-07",
     countries = c("US", "GB"),
-    metrics = "revenue",
-    verbose = FALSE
-  )
+    metrics = "revenue"  )
   
   # Check structure
   expect_s3_class(result, "tbl_df")

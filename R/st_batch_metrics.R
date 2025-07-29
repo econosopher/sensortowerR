@@ -241,7 +241,7 @@ st_batch_metrics <- function(os,
         
         # Warn about potential rate limits for large numbers of apps
         if (nrow(group) > 10 && verbose) {
-          message("  ⚠️  Warning: Fetching active users for ", nrow(group), " apps.")
+          message("  Warning: Fetching active users for ", nrow(group), " apps.")
           message("     Consider smaller batches to avoid rate limits.")
         }
         
@@ -306,7 +306,7 @@ st_batch_metrics <- function(os,
                   if (group_name == "ios") {
                     result <- result %>%
                       dplyr::mutate(
-                        users = iphone_users + ipad_users,
+                        users = .data$iphone_users + .data$ipad_users,
                         .keep = "all"
                       )
                   } else if (group_name == "android") {
@@ -316,9 +316,9 @@ st_batch_metrics <- function(os,
                     # Unified - sum all platforms
                     result <- result %>%
                       dplyr::mutate(
-                        users = dplyr::coalesce(android_users, 0) + 
-                                dplyr::coalesce(iphone_users, 0) + 
-                                dplyr::coalesce(ipad_users, 0),
+                        users = dplyr::coalesce(.data$android_users, 0) + 
+                                dplyr::coalesce(.data$iphone_users, 0) + 
+                                dplyr::coalesce(.data$ipad_users, 0),
                         .keep = "all"
                       )
                   }

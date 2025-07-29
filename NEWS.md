@@ -9,6 +9,13 @@
   - Includes rate limit warnings for large batches (>10 apps)
   - Seamlessly integrates with existing revenue and download metrics
 
+## Testing improvements
+
+* Consolidated test scripts from 6 files to 2 comprehensive test suites
+* Enhanced test coverage for various app ID types, granularities, and countries
+* Added comprehensive validation of active user metric relationships (DAU < WAU < MAU)
+* Improved test efficiency to minimize API calls while maintaining coverage
+
 # sensortowerR 0.7.1
 
 ## Bug fixes

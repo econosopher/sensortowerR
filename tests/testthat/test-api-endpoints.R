@@ -10,9 +10,7 @@ test_that("st_metrics returns expected revenue and download data", {
     countries = "US",
     date_granularity = "monthly",
     start_date = "2024-01-01",
-    end_date = "2024-01-31",
-    verbose = FALSE
-  )
+    end_date = "2024-01-31"  )
   
   # Verify structure
   expect_s3_class(result, "tbl_df")
@@ -50,9 +48,7 @@ test_that("st_metrics handles unified OS correctly", {
     countries = "US",
     date_granularity = "monthly",
     start_date = "2024-01-01",
-    end_date = "2024-01-31",
-    verbose = FALSE
-  )
+    end_date = "2024-01-31"  )
   
   expect_s3_class(result, "tbl_df")
   expect_true(nrow(result) > 0)
@@ -74,9 +70,7 @@ test_that("st_batch_metrics processes multiple apps correctly", {
     metrics = c("revenue", "downloads"),
     date_range = list(start_date = "2024-01-01", end_date = "2024-01-31"),
     countries = "US",
-    granularity = "monthly",
-    verbose = FALSE
-  )
+    granularity = "monthly"  )
   
   expect_s3_class(result, "tbl_df")
   expect_true(nrow(result) > 0)
@@ -109,9 +103,7 @@ test_that("st_yoy_metrics calculates year-over-year changes correctly", {
     period_start = "01-01",
     period_end = "01-31",
     countries = "US",
-    metrics = "revenue",
-    verbose = FALSE
-  )
+    metrics = "revenue"  )
   
   expect_s3_class(result, "tbl_df")
   
@@ -151,9 +143,7 @@ test_that("st_top_charts returns ranking data with correct structure", {
     date = "2024-01-01",
     category = 6014,  # Games
     regions = "US",
-    limit = 10,
-    verbose = FALSE
-  )
+    limit = 10  )
   
   expect_s3_class(result, "tbl_df")
   expect_true(nrow(result) > 0, "Should return ranking data")
@@ -187,9 +177,7 @@ test_that("st_top_publishers returns publisher ranking data", {
     date = "2024-01-01",
     country = "US",
     limit = 5,
-    include_apps = TRUE,
-    verbose = FALSE
-  )
+    include_apps = TRUE  )
   
   expect_s3_class(result, "tbl_df")
   expect_true(nrow(result) > 0, "Should return publisher data")
@@ -220,9 +208,7 @@ test_that("st_app_info returns detailed app metadata", {
     term = "Pokemon GO",
     app_store = "unified",
     entity_type = "app",
-    limit = 5,
-    verbose = FALSE
-  )
+    limit = 5  )
   
   expect_s3_class(result, "tbl_df")
   expect_true(nrow(result) > 0, "Should find Pokemon apps")
@@ -259,8 +245,7 @@ test_that("st_smart_metrics handles mixed ID types correctly", {
       end_date = "2024-01-31",
       countries = "US",
       granularity = "monthly",
-      verbose = FALSE
-    )
+      )
   }, error = function(e) {
     NULL
   })
@@ -289,8 +274,7 @@ test_that("API error handling works correctly", {
       date_granularity = "daily",
       start_date = "2024-01-01",
       end_date = "2024-01-31",
-      verbose = FALSE
-    ),
+      ),
     class = "httr2_http"
   )
   
@@ -303,7 +287,6 @@ test_that("API error handling works correctly", {
       date_granularity = "daily",
       start_date = "2024-01-31",
       end_date = "2024-01-01",  # End before start
-      verbose = FALSE
-    )
+      )
   )
 })
