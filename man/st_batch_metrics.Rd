@@ -26,7 +26,12 @@ This determines which platform's data is returned for all apps.}
 - Data frame with columns: app_id, app_name (optional), platform (optional)
 - List of lists with app_id and optional metadata}
 
-\item{metrics}{Character vector. Metrics to fetch (e.g., "revenue", "downloads", "dau")}
+\item{metrics}{Character vector. Metrics to fetch. Supported values:
+- "revenue" - App revenue estimates
+- "downloads" - App download estimates  
+- "dau" - Daily Active Users
+- "wau" - Weekly Active Users
+- "mau" - Monthly Active Users}
 
 \item{date_range}{List with start_date and end_date, or "ytd" for year-to-date}
 
@@ -54,6 +59,17 @@ A tibble with all metrics for all apps, with columns:
 Efficiently fetch metrics for multiple apps by batching API calls and
 automatically handling platform-specific requirements. The OS parameter
 controls which platform's data is returned for all apps.
+}
+\details{
+Active user metrics (DAU, WAU, MAU) are fetched using batch API calls for
+efficiency. When fetching active users for many apps (>10), the function
+will display a warning about potential rate limits.
+
+The function automatically maps the granularity parameter to the appropriate
+time period for active user metrics:
+- DAU requires daily data
+- WAU requires weekly data  
+- MAU requires monthly data
 }
 \examples{
 \dontrun{

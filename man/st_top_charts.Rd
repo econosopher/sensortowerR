@@ -45,7 +45,7 @@ Note: "week" is not available when `measure` is "MAU".}
 query in "YYYY-MM-DD" format. Defaults to the start of the current month.}
 
 \item{category}{Character string or numeric. The ID of the category to 
-filter by. **Required for revenue/downloads and active users**.
+filter by. **Required unless `custom_fields_filter_id` is provided**.
 Use `st_categories()` to find valid IDs.}
 
 \item{regions}{Character vector or comma-separated string. Region
