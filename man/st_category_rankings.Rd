@@ -12,6 +12,8 @@ st_category_rankings(
   date = NULL,
   limit = 100,
   offset = 0,
+  custom_fields_filter_id = NULL,
+  custom_tags_mode = NULL,
   auth_token = NULL
 )
 }
@@ -19,7 +21,8 @@ st_category_rankings(
 \item{os}{Character string. Required. Operating system: "ios", "android", or "unified".}
 
 \item{category}{Character or numeric. Category ID to fetch rankings for.
-Use `st_categories()` to find valid category IDs. Required.}
+Use `st_categories()` to find valid category IDs. Required unless 
+`custom_fields_filter_id` is provided.}
 
 \item{chart_type}{Character string. The chart type to retrieve. Options vary by OS:
 - iOS: "topfreeapplications", "toppaidapplications", "topgrossingapplications", etc.
@@ -35,6 +38,17 @@ Defaults to NULL (uses today's date).}
 \item{limit}{Numeric. Number of results to return (1-400). Defaults to 100.}
 
 \item{offset}{Numeric. Offset for pagination. Defaults to 0.}
+
+\item{custom_fields_filter_id}{Optional. Character string. ID of a Sensor
+Tower custom field filter to apply. Use filter IDs from the web interface
+at app.sensortower.com. When provided, this filter will be applied to the
+results. The 'category' parameter becomes optional when using a custom filter.}
+
+\item{custom_tags_mode}{Optional. Character string. Required if `os` is
+'unified' and `custom_fields_filter_id` is provided. Specifies how the
+custom filter applies to unified apps. Options: "include", "exclude",
+"include_unified_apps". The "include_unified_apps" option includes all
+platform versions when any version matches the filter.}
 
 \item{auth_token}{Character string. Sensor Tower API authentication token.
 Defaults to environment variable SENSORTOWER_AUTH_TOKEN.}
@@ -82,6 +96,23 @@ top_grossing <- st_category_rankings(
   country = "GB",
   date = "2024-01-15",
   limit = 100
+)
+
+# Use custom filter instead of category
+filtered_rankings <- st_category_rankings(
+  os = "ios",
+  custom_fields_filter_id = "60746340241bc16eb8a65d76",
+  chart_type = "topgrossingapplications",
+  country = "US",
+  limit = 50
+)
+
+# With unified OS and custom filter
+unified_rankings <- st_category_rankings(
+  os = "unified",
+  custom_fields_filter_id = "60746340241bc16eb8a65d76",
+  custom_tags_mode = "include_unified_apps",
+  chart_type = "topfreeapplications"
 )
 }
 

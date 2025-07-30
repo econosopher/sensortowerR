@@ -194,14 +194,14 @@ st_parse_web_url <- function(url, verbose = TRUE) {
     
     # Check for required parameters
     if (is.null(api_params$regions)) {
-      cat("⚠️  No regions specified - you may need to add regions parameter\n")
+      cat("!  No regions specified - you may need to add regions parameter\n")
     }
     
     # Check for custom filter without tags mode
     if (!is.null(api_params$custom_fields_filter_id) && 
         is.null(api_params$custom_tags_mode) &&
         api_params$os == "unified") {
-      cat("⚠️  custom_fields_filter_id with unified OS requires custom_tags_mode\n")
+      cat("!  custom_fields_filter_id with unified OS requires custom_tags_mode\n")
     }
     
     cat("\nReady to use with sensortowerR functions!\n")

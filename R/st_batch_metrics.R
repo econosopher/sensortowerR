@@ -311,7 +311,7 @@ st_batch_metrics <- function(os,
                       )
                   } else if (group_name == "android") {
                     result <- result %>%
-                      dplyr::rename(users = android_users)
+                      dplyr::rename(users = .data$android_users)
                   } else {
                     # Unified - sum all platforms
                     result <- result %>%
@@ -327,13 +327,13 @@ st_batch_metrics <- function(os,
                   result$date <- as.Date(result$date)
                   
                   result <- result %>%
-                    dplyr::select(app_id, date, country, users) %>%
+                    dplyr::select(.data$app_id, .data$date, .data$country, .data$users) %>%
                     dplyr::mutate(
-                      app_id = as.character(app_id),
+                      app_id = as.character(.data$app_id),
                       metric = metric,
-                      value = users
+                      value = .data$users
                     ) %>%
-                    dplyr::select(-users)
+                    dplyr::select(-.data$users)
                   
                   if (verbose) {
                     message("    Retrieved ", nrow(result), " ", metric, " records")
@@ -600,19 +600,19 @@ st_batch_metrics <- function(os,
   id_mapping <- apps_df %>%
     dplyr::mutate(
       # Ensure all IDs are character type
-      app_id = as.character(app_id),
-      unified_id = as.character(unified_id),
-      ios_id = as.character(ios_id),
-      android_id = as.character(android_id),
+      app_id = as.character(.data$app_id),
+      unified_id = as.character(.data$unified_id),
+      ios_id = as.character(.data$ios_id),
+      android_id = as.character(.data$android_id),
       # For apps with both platforms, entity_id will be ios_android
-      both_id = ifelse(!is.na(ios_id) & !is.na(android_id), 
-                       paste0(ios_id, "_", android_id), 
+      both_id = ifelse(!is.na(.data$ios_id) & !is.na(.data$android_id), 
+                       paste0(.data$ios_id, "_", .data$android_id), 
                        NA_character_),
       # Keep individual platform IDs
-      ios_only = as.character(ios_id),
-      android_only = as.character(android_id)
+      ios_only = as.character(.data$ios_id),
+      android_only = as.character(.data$android_id)
     ) %>%
-    dplyr::select(original_id = app_id, unified_id = unified_id, both_id = both_id, ios_only = ios_only, android_only = android_only, everything())
+    dplyr::select(original_id = .data$app_id, unified_id = .data$unified_id, both_id = .data$both_id, ios_only = .data$ios_only, android_only = .data$android_only, dplyr::everything())
   
   # Create lookup for all possible entity_id formats
   # Check if app_name column exists
@@ -622,42 +622,42 @@ st_batch_metrics <- function(os,
     lookup_df <- dplyr::bind_rows(
       # Both platforms
       id_mapping %>% 
-        dplyr::filter(!is.na(both_id)) %>%
-        dplyr::select(entity_id = both_id, original_id, app_name),
+        dplyr::filter(!is.na(.data$both_id)) %>%
+        dplyr::select(entity_id = .data$both_id, .data$original_id, .data$app_name),
       # iOS only
       id_mapping %>% 
-        dplyr::filter(!is.na(ios_only)) %>%
-        dplyr::select(entity_id = ios_only, original_id, app_name),
+        dplyr::filter(!is.na(.data$ios_only)) %>%
+        dplyr::select(entity_id = .data$ios_only, .data$original_id, .data$app_name),
       # Android only  
       id_mapping %>% 
-        dplyr::filter(!is.na(android_only)) %>%
-        dplyr::select(entity_id = android_only, original_id, app_name),
+        dplyr::filter(!is.na(.data$android_only)) %>%
+        dplyr::select(entity_id = .data$android_only, .data$original_id, .data$app_name),
       # Unified ID (unchanged)
       id_mapping %>%
-        dplyr::select(entity_id = unified_id, original_id, app_name)
+        dplyr::select(entity_id = .data$unified_id, .data$original_id, .data$app_name)
     ) %>%
-      dplyr::distinct(entity_id, original_id, app_name) %>%
-      dplyr::mutate(entity_id = as.character(entity_id), original_id = as.character(original_id))
+      dplyr::distinct(.data$entity_id, .data$original_id, .data$app_name) %>%
+      dplyr::mutate(entity_id = as.character(.data$entity_id), original_id = as.character(.data$original_id))
   } else {
     lookup_df <- dplyr::bind_rows(
       # Both platforms
       id_mapping %>% 
-        dplyr::filter(!is.na(both_id)) %>%
-        dplyr::select(entity_id = both_id, original_id),
+        dplyr::filter(!is.na(.data$both_id)) %>%
+        dplyr::select(entity_id = .data$both_id, .data$original_id),
       # iOS only
       id_mapping %>% 
-        dplyr::filter(!is.na(ios_only)) %>%
-        dplyr::select(entity_id = ios_only, original_id),
+        dplyr::filter(!is.na(.data$ios_only)) %>%
+        dplyr::select(entity_id = .data$ios_only, .data$original_id),
       # Android only  
       id_mapping %>% 
-        dplyr::filter(!is.na(android_only)) %>%
-        dplyr::select(entity_id = android_only, original_id),
+        dplyr::filter(!is.na(.data$android_only)) %>%
+        dplyr::select(entity_id = .data$android_only, .data$original_id),
       # Unified ID (unchanged)
       id_mapping %>%
-        dplyr::select(entity_id = unified_id, original_id)
+        dplyr::select(entity_id = .data$unified_id, .data$original_id)
     ) %>%
-      dplyr::distinct(entity_id, original_id) %>%
-      dplyr::mutate(entity_id = as.character(entity_id), original_id = as.character(original_id))
+      dplyr::distinct(.data$entity_id, .data$original_id) %>%
+      dplyr::mutate(entity_id = as.character(.data$entity_id), original_id = as.character(.data$original_id))
   }
   
   # Merge results back with original app identifiers
@@ -669,7 +669,7 @@ st_batch_metrics <- function(os,
     # Add app_id and app_id_type columns based on OS parameter
     all_results <- all_results %>%
       dplyr::mutate(
-        app_id = entity_id,  # Use entity_id as app_id for now
+        app_id = .data$entity_id,  # Use entity_id as app_id for now
         app_id_type = dplyr::case_when(
           os == "ios" ~ "ios",
           os == "android" ~ "android",
@@ -677,9 +677,9 @@ st_batch_metrics <- function(os,
           TRUE ~ NA_character_
         )
       ) %>%
-      dplyr::select(original_id, dplyr::any_of("app_name"), app_id, app_id_type, 
-                    dplyr::everything(), -entity_id) %>%
-      dplyr::arrange(original_id)
+      dplyr::select(.data$original_id, dplyr::any_of("app_name"), .data$app_id, .data$app_id_type, 
+                    dplyr::everything(), -.data$entity_id) %>%
+      dplyr::arrange(.data$original_id)
   }
   
   if (verbose) {

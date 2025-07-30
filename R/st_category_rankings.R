@@ -6,7 +6,8 @@
 #'
 #' @param os Character string. Required. Operating system: "ios", "android", or "unified".
 #' @param category Character or numeric. Category ID to fetch rankings for.
-#'   Use `st_categories()` to find valid category IDs. Required.
+#'   Use `st_categories()` to find valid category IDs. Required unless 
+#'   `custom_fields_filter_id` is provided.
 #' @param chart_type Character string. The chart type to retrieve. Options vary by OS:
 #'   - iOS: "topfreeapplications", "toppaidapplications", "topgrossingapplications", etc.
 #'   - Android: "topselling_free", "topselling_paid", "topgrossing", etc.
@@ -17,6 +18,15 @@
 #'   Defaults to NULL (uses today's date).
 #' @param limit Numeric. Number of results to return (1-400). Defaults to 100.
 #' @param offset Numeric. Offset for pagination. Defaults to 0.
+#' @param custom_fields_filter_id Optional. Character string. ID of a Sensor
+#'   Tower custom field filter to apply. Use filter IDs from the web interface
+#'   at app.sensortower.com. When provided, this filter will be applied to the
+#'   results. The 'category' parameter becomes optional when using a custom filter.
+#' @param custom_tags_mode Optional. Character string. Required if `os` is
+#'   'unified' and `custom_fields_filter_id` is provided. Specifies how the
+#'   custom filter applies to unified apps. Options: "include", "exclude",
+#'   "include_unified_apps". The "include_unified_apps" option includes all
+#'   platform versions when any version matches the filter.
 #' @param auth_token Character string. Sensor Tower API authentication token.
 #'   Defaults to environment variable SENSORTOWER_AUTH_TOKEN.
 #'
@@ -55,6 +65,23 @@
 #'   date = "2024-01-15",
 #'   limit = 100
 #' )
+#'
+#' # Use custom filter instead of category
+#' filtered_rankings <- st_category_rankings(
+#'   os = "ios",
+#'   custom_fields_filter_id = "60746340241bc16eb8a65d76",
+#'   chart_type = "topgrossingapplications",
+#'   country = "US",
+#'   limit = 50
+#' )
+#'
+#' # With unified OS and custom filter
+#' unified_rankings <- st_category_rankings(
+#'   os = "unified",
+#'   custom_fields_filter_id = "60746340241bc16eb8a65d76",
+#'   custom_tags_mode = "include_unified_apps",
+#'   chart_type = "topfreeapplications"
+#' )
 #' }
 #'
 #' @importFrom rlang %||% abort
@@ -70,6 +97,8 @@ st_category_rankings <- function(os,
                                 date = NULL,
                                 limit = 100,
                                 offset = 0,
+                                custom_fields_filter_id = NULL,
+                                custom_tags_mode = NULL,
                                 auth_token = NULL) {
   
   # Validate OS parameter
@@ -77,8 +106,20 @@ st_category_rankings <- function(os,
     stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
   
-  if (is.null(category)) {
-    rlang::abort("The 'category' parameter is required. Use st_categories() to find valid category IDs.")
+  # Load custom filter utilities if available
+  if (exists("validate_custom_filter_params", mode = "function")) {
+    validate_custom_filter_params(
+      custom_fields_filter_id = custom_fields_filter_id,
+      custom_tags_mode = custom_tags_mode,
+      os = os,
+      require_category = TRUE,
+      category = category
+    )
+  } else {
+    # Fallback validation if utilities not loaded
+    if (is.null(category) && is.null(custom_fields_filter_id)) {
+      rlang::abort("Either 'category' or 'custom_fields_filter_id' parameter is required.")
+    }
   }
   
   # Set default chart type based on OS
@@ -107,12 +148,16 @@ st_category_rankings <- function(os,
   # Build query parameters
   query_params <- list(
     auth_token = auth_token_val,
-    category = as.character(category),
     chart_type = chart_type,
     country = country,
     limit = limit,
     offset = offset
   )
+  
+  # Only add category if provided
+  if (!is.null(category)) {
+    query_params$category <- as.character(category)
+  }
   
   # Add date - API requires it even though documentation suggests optional
   if (!is.null(date)) {
@@ -123,6 +168,22 @@ st_category_rankings <- function(os,
   } else {
     # Default to today's date
     query_params$date = format(Sys.Date(), "%Y-%m-%d")
+  }
+  
+  # Add custom filter parameters if available
+  if (exists("add_custom_filter_params", mode = "function")) {
+    query_params <- add_custom_filter_params(
+      query_params,
+      custom_fields_filter_id = custom_fields_filter_id,
+      custom_tags_mode = custom_tags_mode,
+      os = os
+    )
+  } else if (!is.null(custom_fields_filter_id)) {
+    # Fallback if utilities not loaded
+    query_params$custom_fields_filter_id <- custom_fields_filter_id
+    if (!is.null(custom_tags_mode)) {
+      query_params$custom_tags_mode <- custom_tags_mode
+    }
   }
   
   # Build and perform request

@@ -12,18 +12,22 @@ st_sales_report(
   start_date,
   end_date,
   date_granularity,
+  custom_fields_filter_id = NULL,
+  custom_tags_mode = NULL,
+  limit = 100,
   auth_token = NULL,
   auto_segment = TRUE,
   verbose = TRUE
 )
 }
 \arguments{
-\item{app_ids}{Character vector. App IDs to query. At least one app ID or publisher ID is required.
+\item{app_ids}{Character vector. App IDs to query. At least one app ID, publisher ID,
+or custom_fields_filter_id is required.
 **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.}
 
 \item{publisher_ids}{Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.}
 
-\item{os}{Character string. Required. Operating system: "ios" or "android".}
+\item{os}{Character string. Required. Operating system: "ios", "android", or "unified".}
 
 \item{countries}{Character vector. Country codes (e.g., c("US", "GB", "JP"), or "WW" for worldwide). Required.}
 
@@ -32,6 +36,20 @@ st_sales_report(
 \item{end_date}{Date or character string. End date in "YYYY-MM-DD" format. Required.}
 
 \item{date_granularity}{Character string. One of "daily", "weekly", "monthly", "quarterly". Required.}
+
+\item{custom_fields_filter_id}{Optional. Character string. ID of a Sensor
+Tower custom field filter to apply. Use filter IDs from the web interface
+at app.sensortower.com. When provided, this filter will be used instead of
+app_ids or publisher_ids.}
+
+\item{custom_tags_mode}{Optional. Character string. Required if `os` is
+'unified' and `custom_fields_filter_id` is provided. Specifies how the
+custom filter applies to unified apps. Options: "include", "exclude",
+"include_unified_apps". The "include_unified_apps" option includes all
+platform versions when any version matches the filter.}
+
+\item{limit}{Numeric. Number of results to return when using custom_fields_filter_id.
+Ignored when using app_ids or publisher_ids. Defaults to 100.}
 
 \item{auth_token}{Optional. Character string. Your Sensor Tower API token.}
 

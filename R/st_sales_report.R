@@ -3,14 +3,26 @@
 #' Retrieves download and revenue estimates of apps by country and date.
 #' Note: All revenues are returned in cents and need to be divided by 100 for dollar amounts.
 #'
-#' @param app_ids Character vector. App IDs to query. At least one app ID or publisher ID is required.
+#' @param app_ids Character vector. App IDs to query. At least one app ID, publisher ID,
+#'   or custom_fields_filter_id is required.
 #'   **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.
 #' @param publisher_ids Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.
-#' @param os Character string. Required. Operating system: "ios" or "android".
+#' @param custom_fields_filter_id Optional. Character string. ID of a Sensor
+#'   Tower custom field filter to apply. Use filter IDs from the web interface
+#'   at app.sensortower.com. When provided, this filter will be used instead of
+#'   app_ids or publisher_ids.
+#' @param custom_tags_mode Optional. Character string. Required if `os` is
+#'   'unified' and `custom_fields_filter_id` is provided. Specifies how the
+#'   custom filter applies to unified apps. Options: "include", "exclude",
+#'   "include_unified_apps". The "include_unified_apps" option includes all
+#'   platform versions when any version matches the filter.
+#' @param os Character string. Required. Operating system: "ios", "android", or "unified".
 #' @param countries Character vector. Country codes (e.g., c("US", "GB", "JP"), or "WW" for worldwide). Required.
 #' @param start_date Date or character string. Start date in "YYYY-MM-DD" format. Required.
 #' @param end_date Date or character string. End date in "YYYY-MM-DD" format. Required.
 #' @param date_granularity Character string. One of "daily", "weekly", "monthly", "quarterly". Required.
+#' @param limit Numeric. Number of results to return when using custom_fields_filter_id.
+#'   Ignored when using app_ids or publisher_ids. Defaults to 100.
 #' @param auth_token Optional. Character string. Your Sensor Tower API token.
 #' @param auto_segment Logical. If TRUE, automatically segments date ranges to avoid timeouts.
 #' @param verbose Logical. If TRUE, prints progress messages.
@@ -75,13 +87,16 @@ st_sales_report <- function(app_ids = NULL,
                            start_date,
                            end_date,
                            date_granularity,
+                           custom_fields_filter_id = NULL,
+                           custom_tags_mode = NULL,
+                           limit = 100,
                            auth_token = NULL,
                            auto_segment = TRUE,
                            verbose = TRUE) {
   
   # Validate OS parameter
-  if (missing(os) || is.null(os) || !os %in% c("ios", "android")) {
-    stop("'os' parameter is required and must be one of: 'ios' or 'android'")
+  if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
+    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
   
   # Validate required parameters
@@ -101,9 +116,19 @@ st_sales_report <- function(app_ids = NULL,
     stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
   }
   
+  # Load custom filter utilities if available
+  if (exists("validate_custom_filter_params", mode = "function")) {
+    validate_custom_filter_params(
+      custom_fields_filter_id = custom_fields_filter_id,
+      custom_tags_mode = custom_tags_mode,
+      os = os,
+      require_category = FALSE
+    )
+  }
+  
   # Input validation
-  if (is.null(app_ids) && is.null(publisher_ids)) {
-    stop("At least one app_id or publisher_id is required")
+  if (is.null(app_ids) && is.null(publisher_ids) && is.null(custom_fields_filter_id)) {
+    stop("At least one app_id, publisher_id, or custom_fields_filter_id is required")
   }
   date_granularity <- match.arg(date_granularity, c("daily", "weekly", "monthly", "quarterly"))
   
@@ -148,17 +173,35 @@ st_sales_report <- function(app_ids = NULL,
       countries = paste(countries, collapse = ",")
     )
     
-    # Add app IDs or publisher IDs
-    if (!is.null(app_ids)) {
-      query_params$app_ids <- paste(app_ids, collapse = ",")
-    }
-    
-    if (!is.null(publisher_ids)) {
-      # Handle publisher IDs with commas using array format
-      if (any(grepl(",", publisher_ids))) {
-        query_params$`publisher_ids[]` <- publisher_ids
+    # Add app IDs, publisher IDs, or custom filter
+    if (!is.null(custom_fields_filter_id)) {
+      query_params$limit <- limit
+      # Add custom filter parameters if available
+      if (exists("add_custom_filter_params", mode = "function")) {
+        query_params <- add_custom_filter_params(
+          query_params,
+          custom_fields_filter_id = custom_fields_filter_id,
+          custom_tags_mode = custom_tags_mode,
+          os = os
+        )
       } else {
-        query_params$publisher_ids <- paste(publisher_ids, collapse = ",")
+        query_params$custom_fields_filter_id <- custom_fields_filter_id
+        if (!is.null(custom_tags_mode)) {
+          query_params$custom_tags_mode <- custom_tags_mode
+        }
+      }
+    } else {
+      if (!is.null(app_ids)) {
+        query_params$app_ids <- paste(app_ids, collapse = ",")
+      }
+      
+      if (!is.null(publisher_ids)) {
+        # Handle publisher IDs with commas using array format
+        if (any(grepl(",", publisher_ids))) {
+          query_params$`publisher_ids[]` <- publisher_ids
+        } else {
+          query_params$publisher_ids <- paste(publisher_ids, collapse = ",")
+        }
       }
     }
     

@@ -6,6 +6,26 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.7.5 - Custom Filter Support Across Functions
+- **Enhanced Custom Filter Integration**: 
+  - `st_category_rankings()` now supports custom field filters from Sensor Tower web interface
+  - Use `custom_fields_filter_id` parameter to apply your saved filters
+  - Category parameter is now optional when using custom filters
+  - Full support for unified OS with `custom_tags_mode` parameter
+- **Reusable Filter Workflow**:
+  - Create filters in the Sensor Tower web interface
+  - Use the same filter ID across multiple R functions
+  - Seamlessly integrate web-based analysis with R workflows
+- **Example**:
+  ```r
+  # Use custom filter instead of category
+  rankings <- st_category_rankings(
+    os = "ios",
+    custom_fields_filter_id = "60746340241bc16eb8a65d76",
+    chart_type = "topgrossingapplications"
+  )
+  ```
+
 ### v0.6.0 - Year-over-Year Metrics
 - **New Function**: `st_yoy_metrics()` - Flexible year-over-year comparisons
   - Compare any date range across multiple years (e.g., Q1, holiday season, custom periods)
@@ -196,6 +216,43 @@ Many Sensor Tower endpoints support batch requests, allowing you to fetch data f
    - Faster execution time
    - Lower risk of hitting rate limits
    - More efficient data processing
+
+### Custom Filter Support
+
+sensortowerR now supports using custom filters created in the Sensor Tower web interface:
+
+1. **Supported Functions**:
+   - ✅ `st_top_charts()` - Get detailed metrics for filtered apps
+   - ✅ `st_category_rankings()` - Get store rankings for filtered apps
+   - ✅ `st_sales_report()` - Get revenue/downloads for filtered apps
+
+2. **How to Use**:
+   ```r
+   # Get your filter ID from the web interface URL
+   filter_id <- "60746340241bc16eb8a65d76"
+   
+   # Use with any supported function
+   rankings <- st_category_rankings(
+     os = "ios",
+     custom_fields_filter_id = filter_id,  # No category needed!
+     chart_type = "topgrossingapplications"
+   )
+   
+   # For unified OS, specify custom_tags_mode
+   unified_data <- st_top_charts(
+     os = "unified",
+     custom_fields_filter_id = filter_id,
+     custom_tags_mode = "include_unified_apps"
+   )
+   ```
+
+3. **Benefits**:
+   - Reuse complex filters from web interface
+   - No need to manually list app IDs
+   - Filters automatically update as you modify them on the web
+   - Seamless integration between web and R workflows
+
+See the [Custom Filters Guide](inst/docs/custom_filters_guide.md) for detailed documentation.
 
 ### Daily Data Limitations
 

@@ -69,7 +69,7 @@ st_test_filter <- function(filter_id,
     )
     
     if (verbose) {
-      cat("❌ Invalid filter ID format:", filter_id, "\n")
+      cat("X Invalid filter ID format:", filter_id, "\n")
     }
     
     return(invisible(result))
@@ -136,12 +136,12 @@ st_test_filter <- function(filter_id,
   
   if (verbose) {
     if (test_result$success) {
-      cat("✅ Filter test successful!\n")
+      cat("v Filter test successful!\n")
       if (!is.null(test_result$rows_returned)) {
         cat("   Returned", test_result$rows_returned, "rows\n")
       }
     } else {
-      cat("❌ Filter test failed\n")
+      cat("X Filter test failed\n")
       cat("   Error:", test_result$error, "\n")
       if (!is.null(test_result$suggestion)) {
         cat("   Suggestion:", test_result$suggestion, "\n")

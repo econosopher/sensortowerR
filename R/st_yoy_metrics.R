@@ -285,19 +285,19 @@ st_yoy_metrics <- function(
     if (!is.null(year_data) && nrow(year_data) > 0) {
       # Aggregate data by app, country, and metric
       year_summary <- year_data %>%
-        group_by(original_id, app_name, country, metric) %>%
+        group_by(.data$original_id, .data$app_name, .data$country, .data$metric) %>%
         summarise(
-          value = sum(value, na.rm = TRUE),
+          value = sum(.data$value, na.rm = TRUE),
           .groups = "drop"
         ) %>%
         mutate(
           year = year,
           date_start = as.character(start_date),
           date_end = as.character(end_date),
-          entity_id = original_id,
-          entity_name = app_name,
+          entity_id = .data$original_id,
+          entity_name = .data$app_name,
           entity_type = "app",
-          app_id = original_id,
+          app_id = .data$original_id,
           app_id_type = os
         )
       
