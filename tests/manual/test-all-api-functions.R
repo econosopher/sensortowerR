@@ -250,7 +250,7 @@ test_results$st_app_lookup <- test_function(
   "st_app_lookup",
   quote({
     st_app_lookup(
-      app_id = "553834731",
+      unified_id = "55c5028802ac64f9c0001faf",  # Candy Crush Saga unified ID
       verbose = FALSE
     )
   })
