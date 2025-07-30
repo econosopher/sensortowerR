@@ -1,3 +1,14 @@
+# sensortowerR 0.7.4
+
+## New features
+
+* Added URL parsing utilities:
+  - `st_parse_web_url()` - Convert Sensor Tower web URLs to API parameters
+  - `st_extract_url_params()` - Extract and analyze all parameters from web URLs
+  - `st_build_web_url()` - Build web URLs from API parameters (reverse operation)
+  - Handles parameter mapping between web interface and API conventions
+  - Automatically converts extensive country lists to "WW" when appropriate
+
 # sensortowerR 0.7.3
 
 ## New features

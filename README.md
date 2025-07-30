@@ -309,6 +309,37 @@ top_apps <- st_top_charts(
 
 **Note**: When using `custom_fields_filter_id`, the `category` parameter becomes optional since the filter already contains category information.
 
+## Converting Web URLs to API Calls
+
+The package can parse Sensor Tower web interface URLs and convert them to API parameters:
+
+```r
+# Parse a web URL
+url <- "https://app.sensortower.com/market-analysis/top-apps?os=unified&measure=DAU&category=6014"
+params <- st_parse_web_url(url)
+
+# Use the parameters in an API call
+data <- do.call(st_top_charts, params)
+
+# Extract and analyze URL parameters
+params_df <- st_extract_url_params(url)
+
+# Build a web URL from API parameters
+web_url <- st_build_web_url(
+  os = "unified",
+  measure = "revenue",
+  category = 6014,
+  regions = "US,GB"
+)
+```
+
+### Parameter Mapping
+- Web `page_size` → API `limit`
+- Web `country` (multiple) → API `regions` (comma-separated)
+- Web `granularity` → API `time_range`
+- Web `custom_fields_filter_mode` → API `custom_tags_mode`
+- Web category `0` (all) → API `category = NULL`
+
 ## Core Functions
 
 - **`st_app_info()`**: Search for apps and get basic information
