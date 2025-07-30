@@ -1,3 +1,13 @@
+# sensortowerR 0.7.3
+
+## New features
+
+* Enhanced custom filter support in `st_top_charts()`:
+  - `category` parameter is now optional when `custom_fields_filter_id` is provided
+  - Supports filters created in the Sensor Tower web interface
+  - Added comprehensive example script demonstrating custom filter usage
+  - Updated documentation explaining how to obtain filter IDs
+
 # sensortowerR 0.7.2
 
 ## New features

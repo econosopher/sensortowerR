@@ -284,6 +284,31 @@ Common category codes for use with API functions:
 
 For a complete list, use `st_categories()` to see available categories.
 
+## Using Custom Filters from Sensor Tower Web Interface
+
+The package supports using custom filters created in the Sensor Tower web interface through the `custom_fields_filter_id` parameter:
+
+```r
+# Use a custom filter ID from the Sensor Tower web interface
+top_apps <- st_top_charts(
+  measure = "revenue",
+  os = "unified",
+  custom_fields_filter_id = "your_filter_id_here",
+  custom_tags_mode = "include",  # Required when os = "unified"
+  regions = "US",
+  time_range = "month"
+)
+```
+
+### How to Get a Custom Filter ID:
+1. Log into the [Sensor Tower web interface](https://app.sensortower.com/)
+2. Navigate to the Top Apps section
+3. Configure your desired filters (categories, publishers, keywords, etc.)
+4. The URL will contain `custom_fields_filter_id=YOUR_ID`
+5. Copy that ID and use it in your API calls
+
+**Note**: When using `custom_fields_filter_id`, the `category` parameter becomes optional since the filter already contains category information.
+
 ## Core Functions
 
 - **`st_app_info()`**: Search for apps and get basic information

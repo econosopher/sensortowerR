@@ -18,7 +18,7 @@
 #' @param date Character string or Date object. Start date for the
 #'   query in "YYYY-MM-DD" format. Defaults to the start of the current month.
 #' @param category Character string or numeric. The ID of the category to 
-#'   filter by. **Required for revenue/downloads and active users**.
+#'   filter by. **Required unless `custom_fields_filter_id` is provided**.
 #'   Use `st_categories()` to find valid IDs.
 #' @param regions Character vector or comma-separated string. Region
 #'   codes (e.g., `"US"`, `c("US", "GB")`, `"WW"` for worldwide) to filter results. 
@@ -144,9 +144,9 @@ st_top_charts <- function(measure = "revenue",
   is_active_users <- measure %in% c("DAU", "WAU", "MAU")
   is_sales <- measure %in% c("revenue", "units")
   
-  # Validate category requirement
-  if (is.null(category)) {
-    rlang::abort("The 'category' parameter is required for all measures. Use st_categories() to find valid IDs.")
+  # Validate category requirement - either category or custom_fields_filter_id must be provided
+  if (is.null(category) && is.null(custom_fields_filter_id)) {
+    rlang::abort("Either 'category' or 'custom_fields_filter_id' parameter is required. Use st_categories() to find valid IDs or provide a custom filter ID from the Sensor Tower web interface.")
   }
   
   # --- Handle Default Date ---
