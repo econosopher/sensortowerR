@@ -208,17 +208,19 @@ Many Sensor Tower endpoints support batch requests, allowing you to fetch data f
      date_granularity = "daily"
    )
    
-   # For batch requests (multiple apps), use the legacy app_ids parameter
-   # Note: ios_app_id only accepts a single ID, so batch requires app_ids
-   batch_revenue <- st_sales_report(
-     os = "ios",
-     app_ids = c("1195621598", "553834731", "1053012308"),  # Multiple iOS apps
-     countries = "US",
-     start_date = Sys.Date() - 30,
-     end_date = Sys.Date() - 1,
-     date_granularity = "daily"
-   )
-   # This makes 1 API call for all 3 apps!
+   # For batch requests (multiple apps), use multiple calls or purrr::map
+   # Each parameter only accepts a single ID
+   app_ids <- c("1195621598", "553834731", "1053012308")
+   batch_revenue <- purrr::map_dfr(app_ids, ~ {
+     st_sales_report(
+       os = "ios",
+       ios_app_id = .x,
+       countries = "US",
+       start_date = Sys.Date() - 30,
+       end_date = Sys.Date() - 1,
+       date_granularity = "daily"
+     )
+   })
    ```
 
 3. **Performance Benefits**:

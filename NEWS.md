@@ -1,3 +1,19 @@
+# sensortowerR 0.8.0
+
+## Breaking Changes
+
+* **REMOVED** `app_ids` parameter from `st_sales_report()`. This is a breaking change that requires updating existing code.
+  - Use the new specific parameters instead: `ios_app_id`, `android_app_id`, or `unified_app_id`
+  - For batch processing multiple apps, use `purrr::map()` or a loop instead of passing a vector
+  - The new parameters provide better type safety and consistency with `st_metrics()`
+
+## Improvements
+
+* `st_sales_report()` now uses the same ID resolution system as `st_metrics()`
+  - Automatic cross-platform ID lookup when providing mismatched IDs
+  - Clear error messages for invalid ID formats
+  - Support for unified IDs with automatic platform resolution
+
 # sensortowerR 0.7.4
 
 ## New features

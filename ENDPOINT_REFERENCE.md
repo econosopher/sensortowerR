@@ -139,19 +139,23 @@ android_data <- st_sales_report(
 
 ### App ID Validation Rules
 
-1. **st_sales_report()** requires platform-specific IDs:
-   - With `os="ios"`: Must provide iOS numeric IDs
-   - With `os="android"`: Must provide Android package names
+1. **st_sales_report()** uses specific ID parameters:
+   - `ios_app_id`: For iOS numeric IDs (e.g., "1234567890")
+   - `android_app_id`: For Android package names (e.g., "com.example.app")
+   - `unified_app_id`: For Sensor Tower unified IDs (24-char hex)
+   - Automatically resolves IDs: Can provide unified_app_id with os="ios" to get iOS data
    - Does NOT support `os="unified"`
 
-2. **st_metrics()** with `os="unified"`:
-   - Requires BOTH `ios_app_id` and `android_app_id` parameters
-   - Automatically combines data from both platforms
+2. **st_metrics()** supports all OS types:
+   - With `os="unified"`: Can provide any ID type, automatically resolves both platforms
+   - With `os="ios"` or `os="android"`: Returns single platform data
+   - Flexible ID parameters: ios_app_id, android_app_id, unified_app_id, or generic app_id
 
-3. **Mismatched IDs**: The package now validates app ID formats:
-   - Providing an iOS ID with `os="android"` will error
-   - Providing an Android ID with `os="ios"` will error
-   - Clear error messages guide you to the correct format
+3. **Automatic ID Resolution**: The package intelligently handles cross-platform IDs:
+   - Providing `unified_app_id` with any OS automatically looks up the correct platform ID
+   - Providing `android_app_id` with `os="ios"` will attempt to find the iOS version
+   - Providing `ios_app_id` with `os="android"` will attempt to find the Android version
+   - Clear error messages if the app doesn't exist on the requested platform
 
 4. **Unified ID Lookup**: Use `st_app_lookup()` to convert:
 

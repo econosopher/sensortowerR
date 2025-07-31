@@ -13,7 +13,6 @@ st_sales_report(
   ios_app_id = NULL,
   android_app_id = NULL,
   unified_app_id = NULL,
-  app_ids = NULL,
   publisher_ids = NULL,
   custom_fields_filter_id = NULL,
   custom_tags_mode = NULL,
@@ -40,9 +39,6 @@ st_sales_report(
 
 \item{unified_app_id}{Character string. Sensor Tower unified app ID (24-character hex).}
 
-\item{app_ids}{Character vector. **DEPRECATED**. Use the specific ID parameters instead.
-For backward compatibility only. **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.}
-
 \item{publisher_ids}{Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.}
 
 \item{custom_fields_filter_id}{Optional. Character string. ID of a Sensor
@@ -57,7 +53,7 @@ custom filter applies to unified apps. Options: "include", "exclude",
 platform versions when any version matches the filter.}
 
 \item{limit}{Numeric. Number of results to return when using custom_fields_filter_id.
-Ignored when using app_ids or publisher_ids. Defaults to 100.}
+Ignored when using specific app ID parameters or publisher_ids. Defaults to 100.}
 
 \item{auth_token}{Optional. Character string. Your Sensor Tower API token.}
 
@@ -77,7 +73,6 @@ Note: All revenues are returned in cents and need to be divided by 100 for dolla
 - `ios_app_id`: Specifically for iOS app IDs (numeric)
 - `android_app_id`: Specifically for Android package names
 - `unified_app_id`: Specifically for Sensor Tower unified IDs
-- `app_ids`: **DEPRECATED** - for backward compatibility only
 
 The function will automatically resolve IDs if needed. For example, if you provide
 a `unified_app_id` but set `os="ios"`, it will look up the iOS app ID.
@@ -90,11 +85,6 @@ The API has timeout limitations based on date granularity:
 
 When auto_segment = TRUE, the function automatically breaks up the date range
 into appropriate segments and combines the results.
-
-**Batch API Support**: This function supports fetching data for multiple apps
-in a single API call. This significantly reduces the number of API requests needed
-for multi-app analyses. For example, fetching daily data for 10 apps over 30 days
-requires only 5 API calls instead of 50 when using batch requests.
 }
 \examples{
 \dontrun{
@@ -128,15 +118,6 @@ unified_sales <- st_sales_report(
   date_granularity = "daily"
 )
 
-# Backward compatibility: old app_ids parameter still works
-legacy_sales <- st_sales_report(
-  os = "android",
-  app_ids = c("com.king.candycrushsaga", "com.playrix.homescapes"),
-  countries = "US",
-  start_date = "2024-01-01",
-  end_date = "2024-01-07",
-  date_granularity = "daily"
-)
 }
 
 }

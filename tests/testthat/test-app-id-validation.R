@@ -53,23 +53,6 @@ test_that("app ID validation is integrated into st_sales_report", {
   )
 })
 
-test_that("backward compatibility with app_ids works", {
-  # Should show deprecation warning but not error (will error on auth)
-  expect_warning(
-    expect_error(
-      st_sales_report(
-        app_ids = "1234567890",
-        os = "ios",
-        countries = "US",
-        start_date = "2024-01-01", 
-        end_date = "2024-01-01",
-        date_granularity = "daily"
-      ),
-      "Authentication token"  # Should fail on auth, not validation
-    ),
-    "deprecated"
-  )
-})
 
 test_that("new parameter style works correctly", {
   # Should pass validation and fail on auth
