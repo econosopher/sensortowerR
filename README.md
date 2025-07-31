@@ -1113,6 +1113,117 @@ The package extracts and renames 40+ custom metrics from Sensor Tower's aggregat
 - Added comprehensive cross-platform test suite
 - Fixed minor issues identified during CRAN pre-submission checks
 
+## API Endpoint Reference
+
+### Custom Field Filter Support
+
+Custom field filters allow you to use predefined filters from the Sensor Tower web interface:
+
+| Function | Supports custom_fields_filter_id | Notes |
+|----------|----------------------------------|-------|
+| `st_sales_report()` | ✅ | Full support for custom filters |
+| `st_category_rankings()` | ✅ | Category parameter becomes optional |
+| `st_top_charts()` | ✅ | Uses comparison attributes endpoint |
+| `st_metrics()` | ✅ | When using unified endpoint |
+| `st_top_publishers()` | ❌ | Does not support custom filters |
+
+```r
+# Example: Use a custom filter for category rankings
+rankings <- st_category_rankings(
+  os = "unified",
+  custom_fields_filter_id = "67890abcdef1234567890abc",
+  custom_tags_mode = "include_unified_apps",
+  country = "US",
+  date = "2024-01-01"
+)
+```
+
+**Important Notes**:
+
+- `custom_fields_filter_id`: 24-character hexadecimal string from Sensor Tower web interface
+- `custom_tags_mode`: Required for unified OS (`"include"`, `"exclude"`, or `"include_unified_apps"`)
+
+### Endpoint Capabilities
+
+| Function | Unified OS | Daily Data | Weekly | Monthly | Notes |
+|----------|------------|------------|--------|---------|-------|
+| `st_metrics()` | ✅ | ✅ | ✅ | ✅ | Automatically combines iOS & Android |
+| `st_sales_report()` | ❌ | ✅ | ✅ | ✅ | Platform-specific only |
+| `st_batch_metrics()` | ❌ | ✅ | ✅ | ✅ | Use platform-specific OS |
+
+### App ID Format Guide
+
+| Platform | Format | Example | Description |
+|----------|--------|---------|-------------|
+| iOS | Numeric string | `"1195621598"` | Apple App Store ID |
+| Android | Package name | `"com.playrix.homescapes"` | Google Play package identifier |
+| Unified | 24-char hex | `"5ba4585f539ce75b97db6bcb"` | Sensor Tower's internal ID |
+
+### App ID Parameters (v0.8.0+)
+
+**st_sales_report()** now uses specific parameters:
+
+```r
+# iOS data
+ios_data <- st_sales_report(
+  os = "ios",
+  ios_app_id = "1195621598",  # iOS numeric ID
+  countries = "US",
+  date_granularity = "daily",
+  start_date = "2024-01-01",
+  end_date = "2024-01-31"
+)
+
+# Android data
+android_data <- st_sales_report(
+  os = "android",
+  android_app_id = "com.playrix.homescapes",  # Android package
+  countries = "US",
+  date_granularity = "daily",
+  start_date = "2024-01-01",
+  end_date = "2024-01-31"
+)
+```
+
+**st_metrics()** for unified data:
+
+```r
+# Unified data - combines iOS and Android
+unified_data <- st_metrics(
+  os = "unified",
+  ios_app_id = "1195621598",
+  android_app_id = "com.playrix.homescapes",
+  countries = "US",
+  date_granularity = "daily",
+  start_date = "2024-01-01",
+  end_date = "2024-01-31"
+)
+```
+
+### Automatic ID Resolution
+
+The package intelligently handles cross-platform IDs:
+
+- Providing `unified_app_id` with any OS automatically looks up the correct platform ID
+- Providing `android_app_id` with `os="ios"` will attempt to find the iOS version
+- Clear error messages if the app doesn't exist on the requested platform
+
+```r
+# Convert unified ID to platform-specific IDs
+app_info <- st_app_lookup("5ba4585f539ce75b97db6bcb")
+# Returns: list(ios_app_id = "1195621598", 
+#               android_app_id = "com.playrix.homescapes",
+#               app_name = "Homescapes",
+#               publisher_name = "Playrix")
+```
+
+### Key Limitations
+
+- **st_sales_report()** does not support `os="unified"` - use platform-specific calls
+- **st_batch_metrics()** does not support `os="unified"`
+- For unified data, use `st_metrics()` which works perfectly with all date granularities
+- The API automatically segments long date ranges to prevent timeouts
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
