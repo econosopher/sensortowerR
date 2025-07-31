@@ -86,21 +86,83 @@ unified_data <- st_metrics(
 )
 # This automatically combines iOS and Android data!
 
-# ✅ ALSO CORRECT: Use platform-specific endpoints
+# ✅ CORRECT: Use platform-specific endpoints with matching app IDs
+# iOS example - numeric app ID required
 ios_data <- st_sales_report(
-  app_ids = "1195621598",
+  app_ids = "1195621598",  # iOS numeric ID
   os = "ios",
   countries = "US",
-  date_granularity = "daily"
+  date_granularity = "daily",
+  start_date = "2024-01-01",
+  end_date = "2024-01-31"
 )
 
+# Android example - package name required  
 android_data <- st_sales_report(
-  app_ids = "com.playrix.homescapes",
+  app_ids = "com.playrix.homescapes",  # Android package name
   os = "android",
   countries = "US",
-  date_granularity = "daily"
+  date_granularity = "daily",
+  start_date = "2024-01-01",
+  end_date = "2024-01-31"
 )
+
+# ❌ INCORRECT: Mismatched app ID formats
+# This will throw an error:
+# st_sales_report(
+#   app_ids = "1195621598",  # iOS ID
+#   os = "android",           # But requesting Android!
+#   countries = "US",
+#   date_granularity = "daily"
+# )
+# Error: iOS app ID provided but Android ID required
+
+# ❌ INCORRECT: Unified OS not supported
+# st_sales_report(
+#   app_ids = "5ba4585f539ce75b97db6bcb",  # Unified ID
+#   os = "unified",
+#   countries = "US",
+#   date_granularity = "daily"
+# )
+# Error: st_sales_report does not support os='unified'
 ```
+
+## App ID Format Guide
+
+### Understanding App ID Types
+
+| Platform | Format | Example | Description |
+|----------|--------|---------|-------------|
+| iOS | Numeric string | `"1195621598"` | Apple App Store ID |
+| Android | Package name | `"com.playrix.homescapes"` | Google Play package identifier |
+| Unified | 24-char hex | `"5ba4585f539ce75b97db6bcb"` | Sensor Tower's internal unified ID |
+
+### App ID Validation Rules
+
+1. **st_sales_report()** requires platform-specific IDs:
+   - With `os="ios"`: Must provide iOS numeric IDs
+   - With `os="android"`: Must provide Android package names
+   - Does NOT support `os="unified"`
+
+2. **st_metrics()** with `os="unified"`:
+   - Requires BOTH `ios_app_id` and `android_app_id` parameters
+   - Automatically combines data from both platforms
+
+3. **Mismatched IDs**: The package now validates app ID formats:
+   - Providing an iOS ID with `os="android"` will error
+   - Providing an Android ID with `os="ios"` will error
+   - Clear error messages guide you to the correct format
+
+4. **Unified ID Lookup**: Use `st_app_lookup()` to convert:
+
+   ```r
+   # Convert unified ID to platform-specific IDs
+   app_info <- st_app_lookup("5ba4585f539ce75b97db6bcb")
+   # Returns: list(ios_app_id = "1195621598", 
+   #               android_app_id = "com.playrix.homescapes",
+   #               app_name = "Homescapes",
+   #               publisher_name = "Playrix")
+   ```
 
 ## Test Scripts Available
 

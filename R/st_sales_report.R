@@ -3,9 +3,11 @@
 #' Retrieves download and revenue estimates of apps by country and date.
 #' Note: All revenues are returned in cents and need to be divided by 100 for dollar amounts.
 #'
-#' @param app_ids Character vector. App IDs to query. At least one app ID, publisher ID,
-#'   or custom_fields_filter_id is required.
-#'   **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.
+#' @param ios_app_id Character string. iOS app ID (numeric, e.g., "1234567890").
+#' @param android_app_id Character string. Android package name (e.g., "com.example.app").
+#' @param unified_app_id Character string. Sensor Tower unified app ID (24-character hex).
+#' @param app_ids Character vector. **DEPRECATED**. Use the specific ID parameters instead.
+#'   For backward compatibility only. **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.
 #' @param publisher_ids Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.
 #' @param custom_fields_filter_id Optional. Character string. ID of a Sensor
 #'   Tower custom field filter to apply. Use filter IDs from the web interface
@@ -30,6 +32,15 @@
 #' @return A tibble with download and revenue estimates.
 #'
 #' @details
+#' **App ID Parameters**: Provide one of the following:
+#' - `ios_app_id`: Specifically for iOS app IDs (numeric)
+#' - `android_app_id`: Specifically for Android package names
+#' - `unified_app_id`: Specifically for Sensor Tower unified IDs
+#' - `app_ids`: **DEPRECATED** - for backward compatibility only
+#'
+#' The function will automatically resolve IDs if needed. For example, if you provide
+#' a `unified_app_id` but set `os="ios"`, it will look up the iOS app ID.
+#'
 #' The API has timeout limitations based on date granularity:
 #' - daily: limit to 1 week segments
 #' - weekly: limit to 3 month segments  
@@ -46,47 +57,58 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Get daily sales for a single app
+#' # Get daily sales for a single app using specific parameter
 #' sales <- st_sales_report(
 #'   os = "ios",
-#'   app_ids = "553834731",  # Candy Crush
+#'   ios_app_id = "553834731",  # Candy Crush iOS
 #'   countries = c("US", "GB"),
 #'   start_date = "2024-01-01",
 #'   end_date = "2024-01-07",
 #'   date_granularity = "daily"
 #' )
 #' 
-#' # Batch request: Get data for multiple apps in one API call
-#' batch_sales <- st_sales_report(
-#'   os = "ios",
-#'   app_ids = c("553834731", "1195621598", "1053012308"),  # Multiple apps!
+#' # Get Android data using specific parameter
+#' android_sales <- st_sales_report(
+#'   os = "android",
+#'   android_app_id = "com.king.candycrushsaga",
 #'   countries = "US",
 #'   start_date = "2024-01-01",
 #'   end_date = "2024-01-07",
 #'   date_granularity = "daily"
 #' )
-#' # This makes 1 API call instead of 3!
 #' 
-#' # Get monthly sales with auto-segmentation
-#' sales <- st_sales_report(
-#'   os = "android",
-#'   app_ids = c("553834731", "1621328561"),  # Batch request
+#' # Get iOS data from unified ID (automatic lookup)
+#' unified_sales <- st_sales_report(
+#'   os = "ios",
+#'   unified_app_id = "5ba4585f539ce75b97db6bcb",
 #'   countries = "US",
-#'   start_date = "2023-01-01",
-#'   end_date = "2024-12-31",
-#'   date_granularity = "monthly",
-#'   auto_segment = TRUE
+#'   start_date = "2024-01-01",
+#'   end_date = "2024-01-07",
+#'   date_granularity = "daily"
+#' )
+#' 
+#' # Backward compatibility: old app_ids parameter still works
+#' legacy_sales <- st_sales_report(
+#'   os = "android",
+#'   app_ids = c("com.king.candycrushsaga", "com.playrix.homescapes"),
+#'   countries = "US",
+#'   start_date = "2024-01-01",
+#'   end_date = "2024-01-07",
+#'   date_granularity = "daily"
 #' )
 #' }
 #'
 #' @export
-st_sales_report <- function(app_ids = NULL,
-                           publisher_ids = NULL,
-                           os,
+st_sales_report <- function(os,
                            countries,
                            start_date,
                            end_date,
                            date_granularity,
+                           ios_app_id = NULL,
+                           android_app_id = NULL,
+                           unified_app_id = NULL,
+                           app_ids = NULL,
+                           publisher_ids = NULL,
                            custom_fields_filter_id = NULL,
                            custom_tags_mode = NULL,
                            limit = 100,
@@ -98,6 +120,41 @@ st_sales_report <- function(app_ids = NULL,
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
     stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
+  
+  # Handle backward compatibility for app_ids parameter
+  if (!is.null(app_ids)) {
+    if (!is.null(ios_app_id) || !is.null(android_app_id) || !is.null(unified_app_id)) {
+      stop("Cannot use both 'app_ids' (deprecated) and specific ID parameters. Please use only the specific parameters.")
+    }
+    
+    # Deprecation warning
+    warning("The 'app_ids' parameter is deprecated. Please use 'ios_app_id', 'android_app_id', or 'unified_app_id' instead.", call. = FALSE)
+    
+    # For backward compatibility, try to detect the format and set the appropriate parameter
+    if (length(app_ids) == 1) {
+      app_id <- app_ids[1]
+      if (grepl("^\\d+$", app_id)) {
+        ios_app_id <- app_id
+        if (verbose) message("Detected iOS app ID format in deprecated app_ids parameter")
+      } else if (grepl("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)*$", app_id)) {
+        android_app_id <- app_id
+        if (verbose) message("Detected Android package name format in deprecated app_ids parameter")
+      } else if (grepl("^[a-f0-9]{24}$", app_id)) {
+        unified_app_id <- app_id
+        if (verbose) message("Detected unified app ID format in deprecated app_ids parameter")
+      } else {
+        stop("Cannot determine app ID format for: ", app_id)
+      }
+    } else {
+      # Multiple app_ids - for now, we'll continue with old validation logic for batch requests
+      # This maintains backward compatibility for batch operations
+      if (verbose) message("Using deprecated batch app_ids parameter with", length(app_ids), "apps")
+    }
+  }
+  
+  # If we still have multiple app_ids (batch mode), use the old validation logic
+  # Otherwise, use the new ID resolution system
+  use_new_id_system <- is.null(app_ids) || length(app_ids) == 1
   
   # Validate required parameters
   if (missing(countries) || is.null(countries) || length(countries) == 0) {
@@ -127,8 +184,8 @@ st_sales_report <- function(app_ids = NULL,
   }
   
   # Input validation
-  if (is.null(app_ids) && is.null(publisher_ids) && is.null(custom_fields_filter_id)) {
-    stop("At least one app_id, publisher_id, or custom_fields_filter_id is required")
+  if (is.null(app_ids) && is.null(ios_app_id) && is.null(android_app_id) && is.null(unified_app_id) && is.null(publisher_ids) && is.null(custom_fields_filter_id)) {
+    stop("At least one of ios_app_id, android_app_id, unified_app_id, publisher_ids, or custom_fields_filter_id is required")
   }
   date_granularity <- match.arg(date_granularity, c("daily", "weekly", "monthly", "quarterly"))
   
@@ -140,6 +197,89 @@ st_sales_report <- function(app_ids = NULL,
   auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
   if (auth_token_val == "") {
     stop("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
+  }
+  
+  # For unified OS, we don't support st_sales_report
+  if (os == "unified") {
+    stop(paste0(
+      "st_sales_report does not support os='unified'.\n",
+      "Please use platform-specific calls with os='ios' or os='android'.\n",
+      "For unified data, consider using st_metrics() instead."
+    ))
+  }
+  
+  # ID resolution and validation
+  resolved_ids <- NULL
+  app_id_type <- NULL
+  
+  if (use_new_id_system) {
+    # Use the new ID resolution system for consistency with st_metrics
+    id_resolution <- resolve_ids_for_os(
+      unified_app_id = unified_app_id,
+      ios_app_id = ios_app_id,
+      android_app_id = android_app_id,
+      os = os,
+      auth_token = auth_token,
+      verbose = verbose
+    )
+    
+    resolved_ids <- id_resolution$resolved_ids
+    app_id_type <- id_resolution$app_id_type
+    
+    # Convert resolved IDs back to app_ids format for the rest of the function
+    if (!is.null(resolved_ids)) {
+      if (!is.null(resolved_ids$ios_app_id)) {
+        app_ids <- resolved_ids$ios_app_id
+      } else if (!is.null(resolved_ids$android_app_id)) {
+        app_ids <- resolved_ids$android_app_id
+      } else if (!is.null(resolved_ids$unified_app_id)) {
+        app_ids <- resolved_ids$unified_app_id
+      }
+    }
+  } else {
+    # Use old validation logic for batch operations with multiple app_ids
+    for (i in seq_along(app_ids)) {
+      app_id <- app_ids[i]
+      
+      # Detect app ID type
+      id_type <- if (grepl("^[0-9]+$", app_id)) {
+        "ios"
+      } else if (grepl("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)*$", app_id)) {
+        "android"
+      } else if (grepl("^[a-f0-9]{24}$", app_id)) {
+        "unified"
+      } else {
+        "unknown"
+      }
+      
+      # Check for mismatches
+      if (id_type != os && id_type != "unknown") {
+        if (id_type == "unified") {
+          stop(paste0(
+            "Unified app ID provided but ", os, " ID required: ", app_id, "\n",
+            "Use st_app_lookup() to get platform-specific IDs."
+          ))
+        } else if (id_type == "ios" && os == "android") {
+          stop(paste0(
+            "iOS app ID provided but Android ID required: ", app_id, "\n",
+            "iOS app IDs are numeric (e.g., '1234567890').\n",
+            "Android app IDs are package names (e.g., 'com.example.app')."
+          ))
+        } else if (id_type == "android" && os == "ios") {
+          stop(paste0(
+            "Android app ID provided but iOS ID required: ", app_id, "\n",
+            "Android app IDs are package names (e.g., 'com.example.app').\n",
+            "iOS app IDs are numeric (e.g., '1234567890')."
+          ))
+        }
+      } else if (id_type == "unknown") {
+        stop(paste0(
+          "Invalid app ID format for ", os, ": ", app_id, "\n",
+          "iOS IDs are numeric (e.g., '1234567890').\n",
+          "Android IDs are package names (e.g., 'com.example.app')."
+        ))
+      }
+    }
   }
   
   # Determine date segments if auto_segment is TRUE

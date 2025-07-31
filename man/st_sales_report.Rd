@@ -5,13 +5,16 @@
 \title{Fetch Sales Report Estimates}
 \usage{
 st_sales_report(
-  app_ids = NULL,
-  publisher_ids = NULL,
   os,
   countries,
   start_date,
   end_date,
   date_granularity,
+  ios_app_id = NULL,
+  android_app_id = NULL,
+  unified_app_id = NULL,
+  app_ids = NULL,
+  publisher_ids = NULL,
   custom_fields_filter_id = NULL,
   custom_tags_mode = NULL,
   limit = 100,
@@ -21,12 +24,6 @@ st_sales_report(
 )
 }
 \arguments{
-\item{app_ids}{Character vector. App IDs to query. At least one app ID, publisher ID,
-or custom_fields_filter_id is required.
-**Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.}
-
-\item{publisher_ids}{Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.}
-
 \item{os}{Character string. Required. Operating system: "ios", "android", or "unified".}
 
 \item{countries}{Character vector. Country codes (e.g., c("US", "GB", "JP"), or "WW" for worldwide). Required.}
@@ -36,6 +33,17 @@ or custom_fields_filter_id is required.
 \item{end_date}{Date or character string. End date in "YYYY-MM-DD" format. Required.}
 
 \item{date_granularity}{Character string. One of "daily", "weekly", "monthly", "quarterly". Required.}
+
+\item{ios_app_id}{Character string. iOS app ID (numeric, e.g., "1234567890").}
+
+\item{android_app_id}{Character string. Android package name (e.g., "com.example.app").}
+
+\item{unified_app_id}{Character string. Sensor Tower unified app ID (24-character hex).}
+
+\item{app_ids}{Character vector. **DEPRECATED**. Use the specific ID parameters instead.
+For backward compatibility only. **Supports batch requests**: Pass multiple app IDs to fetch data for multiple apps in a single API call.}
+
+\item{publisher_ids}{Character vector. Publisher IDs to query. Some Android publisher IDs contain commas.}
 
 \item{custom_fields_filter_id}{Optional. Character string. ID of a Sensor
 Tower custom field filter to apply. Use filter IDs from the web interface
@@ -65,6 +73,15 @@ Retrieves download and revenue estimates of apps by country and date.
 Note: All revenues are returned in cents and need to be divided by 100 for dollar amounts.
 }
 \details{
+**App ID Parameters**: Provide one of the following:
+- `ios_app_id`: Specifically for iOS app IDs (numeric)
+- `android_app_id`: Specifically for Android package names
+- `unified_app_id`: Specifically for Sensor Tower unified IDs
+- `app_ids`: **DEPRECATED** - for backward compatibility only
+
+The function will automatically resolve IDs if needed. For example, if you provide
+a `unified_app_id` but set `os="ios"`, it will look up the iOS app ID.
+
 The API has timeout limitations based on date granularity:
 - daily: limit to 1 week segments
 - weekly: limit to 3 month segments  
@@ -81,36 +98,44 @@ requires only 5 API calls instead of 50 when using batch requests.
 }
 \examples{
 \dontrun{
-# Get daily sales for a single app
+# Get daily sales for a single app using specific parameter
 sales <- st_sales_report(
   os = "ios",
-  app_ids = "553834731",  # Candy Crush
+  ios_app_id = "553834731",  # Candy Crush iOS
   countries = c("US", "GB"),
   start_date = "2024-01-01",
   end_date = "2024-01-07",
   date_granularity = "daily"
 )
 
-# Batch request: Get data for multiple apps in one API call
-batch_sales <- st_sales_report(
-  os = "ios",
-  app_ids = c("553834731", "1195621598", "1053012308"),  # Multiple apps!
+# Get Android data using specific parameter
+android_sales <- st_sales_report(
+  os = "android",
+  android_app_id = "com.king.candycrushsaga",
   countries = "US",
   start_date = "2024-01-01",
   end_date = "2024-01-07",
   date_granularity = "daily"
 )
-# This makes 1 API call instead of 3!
 
-# Get monthly sales with auto-segmentation
-sales <- st_sales_report(
-  os = "android",
-  app_ids = c("553834731", "1621328561"),  # Batch request
+# Get iOS data from unified ID (automatic lookup)
+unified_sales <- st_sales_report(
+  os = "ios",
+  unified_app_id = "5ba4585f539ce75b97db6bcb",
   countries = "US",
-  start_date = "2023-01-01",
-  end_date = "2024-12-31",
-  date_granularity = "monthly",
-  auto_segment = TRUE
+  start_date = "2024-01-01",
+  end_date = "2024-01-07",
+  date_granularity = "daily"
+)
+
+# Backward compatibility: old app_ids parameter still works
+legacy_sales <- st_sales_report(
+  os = "android",
+  app_ids = c("com.king.candycrushsaga", "com.playrix.homescapes"),
+  countries = "US",
+  start_date = "2024-01-01",
+  end_date = "2024-01-07",
+  date_granularity = "daily"
 )
 }
 

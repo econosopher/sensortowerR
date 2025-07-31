@@ -198,17 +198,26 @@ Many Sensor Tower endpoints support batch requests, allowing you to fetch data f
 
 2. **Using Batch Requests**:
    ```r
-   # Fetch data for multiple apps at once
+   # NEW: Consistent parameter style (like st_metrics)
    revenue_data <- st_sales_report(
      os = "ios",
-     app_ids = c("1195621598", "553834731", "1053012308"),  # Multiple iOS apps
+     ios_app_id = "1195621598",  # Single app with specific parameter
      countries = "US",
      start_date = Sys.Date() - 30,
      end_date = Sys.Date() - 1,
      date_granularity = "daily"
    )
    
-   # This makes 1 API call instead of 3!
+   # For batch requests, use the legacy app_ids parameter
+   batch_revenue <- st_sales_report(
+     os = "ios",
+     app_ids = c("1195621598", "553834731", "1053012308"),  # Multiple apps
+     countries = "US",
+     start_date = Sys.Date() - 30,
+     end_date = Sys.Date() - 1,
+     date_granularity = "daily"
+   )
+   # This makes 1 API call for all 3 apps!
    ```
 
 3. **Performance Benefits**:
