@@ -157,23 +157,24 @@ st_sales_report <- function(os,
     ))
   }
   
-  # Use the ID resolution system for consistency with st_metrics
-  resolved_ids <- resolve_ids_for_os(
-    unified_app_id = unified_app_id,
-    ios_app_id = ios_app_id,
-    android_app_id = android_app_id,
-    os = os,
-    auth_token = auth_token_val,
-    verbose = verbose
-  )
-  
-  # Extract the resolved app ID for the API call
-  # The API expects app_ids parameter internally
+  # Resolve app IDs only when using app-based requests (not publisher or custom filter)
   app_ids <- NULL
-  if (os == "ios" && !is.null(resolved_ids$ios_app_id)) {
-    app_ids <- resolved_ids$ios_app_id
-  } else if (os == "android" && !is.null(resolved_ids$android_app_id)) {
-    app_ids <- resolved_ids$android_app_id
+  if (is.null(publisher_ids) && is.null(custom_fields_filter_id)) {
+    id_resolution <- resolve_ids_for_os(
+      unified_app_id = unified_app_id,
+      ios_app_id = ios_app_id,
+      android_app_id = android_app_id,
+      os = os,
+      auth_token = auth_token_val,
+      verbose = verbose
+    )
+    # Extract the resolved app ID for the API call
+    resolved <- id_resolution$resolved_ids
+    if (os == "ios" && !is.null(resolved$ios_app_id)) {
+      app_ids <- resolved$ios_app_id
+    } else if (os == "android" && !is.null(resolved$android_app_id)) {
+      app_ids <- resolved$android_app_id
+    }
   }
   
   # Determine date segments if auto_segment is TRUE
@@ -240,6 +241,12 @@ st_sales_report <- function(os,
     }
     
     # Build and perform request
+    if (verbose) {
+      qp_dbg <- query_params
+      # Avoid dumping token
+      if (!is.null(qp_dbg$auth_token)) qp_dbg$auth_token <- paste0(substr(qp_dbg$auth_token, 1, 4), "…")
+      message("Query params: ", paste(paste(names(qp_dbg), qp_dbg, sep = "="), collapse = "; "))
+    }
     path <- c("v1", os, "sales_report_estimates")
     req <- build_request("https://api.sensortower.com", path, query_params)
     resp <- perform_request(req)
@@ -342,7 +349,7 @@ process_sales_response <- function(resp, os) {
     result_tbl <- result_tbl %>%
       rename_with(~ case_when(
         . == "aid" ~ "app_id",
-        . == "cc" ~ "country",
+        . == "c" ~ "country",    # Android uses 'c' for country
         . == "d" ~ "date",
         . == "u" ~ "downloads",
         . == "r" ~ "revenue_cents",

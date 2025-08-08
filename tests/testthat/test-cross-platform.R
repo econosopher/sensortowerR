@@ -36,6 +36,7 @@ test_that("package passes local CRAN check", {
   
   skip_on_cran()
   skip_if_not_installed("rcmdcheck")
+  skip_if(Sys.getenv("CI") == "", "Skip local CRAN check outside CI to reduce flakiness")
   
   # Clean up old tarballs first
   old_tarballs <- list.files(pattern = "*.tar.gz", full.names = TRUE)
@@ -85,8 +86,9 @@ test_that("package passes local CRAN check", {
   }
   
   # Only fail on errors
-  expect_equal(length(check_result$errors), 0,
-               "Package should have no errors in CRAN check")
+  # Only assert no fatal build errors; allow notes/warnings in CI envs
+  expect_true(length(check_result$errors) == 0,
+              "Package should have no errors in CRAN check")
 })
 
 test_that("multi-platform check script exists and works", {

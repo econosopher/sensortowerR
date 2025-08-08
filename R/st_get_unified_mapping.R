@@ -1,8 +1,8 @@
 #' Get Unified ID Mapping for Apps
 #'
-#' Retrieves the mapping between platform-specific app IDs and unified app IDs
-#' using Sensor Tower's comparison attributes endpoint. This function helps resolve
-#' the relationship between iOS/Android app IDs and their unified counterparts.
+#' Retrieves the mapping between platform-specific app IDs and unified app IDs.
+#' This function handles cases where platform IDs from st_top_charts may not be
+#' directly searchable, using app names as a fallback resolution method.
 #'
 #' @param app_ids Character vector of app IDs (can be iOS, Android, or unified hex IDs)
 #' @param os Character string. Operating system: "ios", "android", or "unified"
@@ -18,20 +18,26 @@
 #'   - `publisher_id`: Publisher ID
 #'   - `publisher_name`: Publisher name
 #'
+#' @details
+#' This function uses an ID-first approach (no name-based resolution):
+#' 1. For hex IDs (24-char), uses st_app_lookup to get platform IDs
+#' 2. For platform IDs, first tries to look them up via st_app_lookup
+#' 3. If direct lookup fails, searches the unified index using the platform ID
+#'    as the term and matches exact IDs within nested ios_apps/android_apps
+#' 4. Returns the best available mapping for each app using IDs only
+#'
+#' Note: Platform IDs from st_top_charts may be regional or legacy IDs that
+#' aren't directly searchable. In these cases, name-based search provides
+#' the most reliable resolution to unified IDs.
+#'
 #' @examples
 #' \dontrun{
-#' # Get mapping for specific apps
-#' mapping <- st_get_unified_mapping(c("1427744264", "com.scopely.startrek"))
-#' 
-#' # Use with st_ytd_metrics
-#' map_data <- st_get_unified_mapping("5ba4585f539ce75b97db6bcb")
-#' if (!is.null(map_data)) {
-#'   metrics <- st_ytd_metrics(
-#'     ios_app_id = map_data$ios_app_id,
-#'     android_app_id = map_data$android_app_id,
-#'     years = 2025
-#'   )
-#' }
+#' # Get mapping with app names for better resolution
+#' mapping <- st_get_unified_mapping(
+#'   app_ids = c("943599237", "com.bandainamcogames.dbzdokkan"),
+#'   app_names = c("Dragon Ball Z Dokkan Battle", "Dragon Ball Z Dokkan Battle"),
+#'   os = "unified"
+#' )
 #' }
 #'
 #' @importFrom httr2 request req_url_path_append req_url_query req_headers req_timeout req_perform resp_body_string
@@ -53,183 +59,110 @@ st_get_unified_mapping <- function(app_ids,
     stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
-  # Detect OS if not specified
-  if (os == "unified") {
-    # Try to detect based on first ID
-    first_id <- app_ids[1]
-    if (grepl("^\\d+$", first_id)) {
-      os <- "ios"
-    } else if (grepl("^(com|net|org|io)\\.", first_id)) {
-      os <- "android"
+  # Initialize result data frame
+  result_df <- data.frame(
+    input_id = app_ids,
+    unified_app_id = NA_character_,
+    unified_app_name = NA_character_,
+    ios_app_id = NA_character_,
+    android_app_id = NA_character_,
+    publisher_id = NA_character_,
+    publisher_name = NA_character_,
+    stringsAsFactors = FALSE
+  )
+  
+  # Process each app ID
+  for (i in seq_along(app_ids)) {
+    app_id <- app_ids[i]
+    id_type <- if (grepl("^[a-f0-9]{24}$", app_id)) "unified" else if (grepl("^\\d+$", app_id)) "ios" else if (grepl("^(com|net|org|io)\\.", app_id)) "android" else NA
+    
+    # Skip if already a hex ID (unified ID)
+    if (grepl("^[a-f0-9]{24}$", app_id)) {
+      # Use st_app_lookup to get platform IDs for unified ID
+      lookup_result <- tryCatch({
+        st_app_lookup(app_id, auth_token = auth_token_val, verbose = FALSE)
+      }, error = function(e) NULL)
+      
+      if (!is.null(lookup_result)) {
+        result_df$unified_app_id[i] <- app_id
+        result_df$unified_app_name[i] <- lookup_result$app_name
+        result_df$ios_app_id[i] <- lookup_result$ios_app_id
+        result_df$android_app_id[i] <- lookup_result$android_app_id
+        result_df$publisher_name[i] <- lookup_result$publisher_name
+      }
+      next
+    }
+    # First attempt: use st_app_lookup on platform IDs as well
+    if (!grepl("^[a-f0-9]{24}$", app_id)) {
+      lk <- tryCatch({ st_app_lookup(app_id, auth_token = auth_token_val, verbose = FALSE) }, error = function(e) NULL)
+      if (!is.null(lk) && !is.null(lk$unified_app_id)) {
+        result_df$unified_app_id[i] <- lk$unified_app_id
+        result_df$unified_app_name[i] <- lk$app_name %||% NA_character_
+        result_df$ios_app_id[i] <- lk$ios_app_id %||% NA_character_
+        result_df$android_app_id[i] <- lk$android_app_id %||% NA_character_
+        result_df$publisher_name[i] <- lk$publisher_name %||% NA_character_
+        next
+      }
+    }
+
+    # Second attempt: search unified index by the platform ID as term, then match nested platforms exactly
+    unified_search <- tryCatch({
+      st_app_info(
+        term = app_id,
+        app_store = "unified",
+        return_all_fields = TRUE,
+        limit = 50,
+        auth_token = auth_token_val
+      )
+    }, error = function(e) NULL)
+    if (!is.null(unified_search) && nrow(unified_search) > 0) {
+      match_idx <- NA_integer_
+      if (!is.na(id_type) && id_type == "ios" && "ios_apps" %in% names(unified_search)) {
+        for (ri in seq_len(nrow(unified_search))) {
+          ios_tbl <- unified_search$ios_apps[[ri]]
+          if (is.data.frame(ios_tbl) && nrow(ios_tbl) > 0 && app_id %in% ios_tbl$app_id) { match_idx <- ri; break }
+        }
+      } else if (!is.na(id_type) && id_type == "android" && "android_apps" %in% names(unified_search)) {
+        for (ri in seq_len(nrow(unified_search))) {
+          and_tbl <- unified_search$android_apps[[ri]]
+          if (is.data.frame(and_tbl) && nrow(and_tbl) > 0 && app_id %in% and_tbl$app_id) { match_idx <- ri; break }
+        }
+      }
+      if (!is.na(match_idx)) {
+        result_df$unified_app_id[i] <- unified_search$app_id[match_idx]
+        result_df$unified_app_name[i] <- unified_search$name[match_idx]
+        result_df$publisher_name[i] <- unified_search$publisher_name[match_idx] %||% NA_character_
+        # Populate platform IDs from the matched row
+        if ("ios_apps" %in% names(unified_search) && !is.null(unified_search$ios_apps[[match_idx]]) && nrow(unified_search$ios_apps[[match_idx]]) > 0) {
+          result_df$ios_app_id[i] <- unified_search$ios_apps[[match_idx]]$app_id[1]
+        }
+        if ("android_apps" %in% names(unified_search) && !is.null(unified_search$android_apps[[match_idx]]) && nrow(unified_search$android_apps[[match_idx]]) > 0) {
+          result_df$android_app_id[i] <- unified_search$android_apps[[match_idx]]$app_id[1]
+        }
+        next
+      }
+    }
+
+    # If we still don't have a unified ID, use the input as a fallback for platform fields
+    if (is.na(result_df$unified_app_id[i])) {
+      # Just populate the appropriate platform field
+      if (grepl("^\\d+$", app_id)) {
+        # iOS ID
+        result_df$ios_app_id[i] <- app_id
+      } else if (grepl("^(com|net|org|io)\\.", app_id)) {
+        # Android ID
+        result_df$android_app_id[i] <- app_id
+      }
+      
+      # Use the provided name if available
+      if (!is.na(app_name)) {
+        result_df$unified_app_name[i] <- app_name
+      }
     }
   }
   
-  # Use comparison attributes endpoint to get entity structure
-  # This endpoint returns richer data including unified mapping
-  tryCatch({
-    # Build request - we'll use a minimal category query
-    base_url <- "https://api.sensortower.com"
-    path <- c("v1", os, "sales_report_estimates_comparison_attributes")
-    
-    # For iOS, use games category; for Android use "game"
-    category <- if (os == "ios") "6014" else "game"
-    
-    query_params <- list(
-      auth_token = auth_token_val,
-      comparison_attribute = "absolute",
-      time_range = "day",
-      date = format(Sys.Date() - 1, "%Y-%m-%d"),
-      category = category,
-      countries = "US",
-      limit = 100,  # Get enough to likely include our apps
-      offset = 0
-    )
-    
-    # Make request
-    req <- httr2::request(base_url) %>%
-      httr2::req_url_path_append(path) %>%
-      httr2::req_url_query(!!!query_params) %>%
-      httr2::req_headers(Accept = "application/json") %>%
-      httr2::req_timeout(30)
-    
-    resp <- httr2::req_perform(req)
-    
-    # Parse response
-    body_text <- httr2::resp_body_string(resp)
-    data <- jsonlite::fromJSON(body_text, flatten = FALSE)
-    
-    # Extract mapping from entities structure
-    if (!is.null(data$data$entities)) {
-      entities <- data$data$entities
-      
-      # Build mapping table
-      mapping_list <- lapply(entities, function(entity) {
-        # Get platform apps
-        ios_id <- NA_character_
-        android_id <- NA_character_
-        
-        if (!is.null(entity$apps)) {
-          for (app in entity$apps) {
-            if (!is.null(app$os) && !is.null(app$app_id)) {
-              if (app$os == "ios") {
-                ios_id <- as.character(app$app_id)
-              } else if (app$os == "android") {
-                android_id <- as.character(app$app_id)
-              }
-            }
-          }
-        }
-        
-        data.frame(
-          unified_app_id = entity$unified_app_id %||% NA_character_,
-          unified_app_name = entity$unified_app_name %||% NA_character_,
-          ios_app_id = ios_id,
-          android_app_id = android_id,
-          publisher_id = entity$publisher_id %||% NA_character_,
-          publisher_name = entity$publisher_name %||% NA_character_,
-          stringsAsFactors = FALSE
-        )
-      })
-      
-      mapping_df <- do.call(rbind, mapping_list)
-      
-      # Filter to requested apps
-      result <- data.frame(
-        input_id = app_ids,
-        stringsAsFactors = FALSE
-      )
-      
-      # Match based on input type
-      for (i in seq_along(app_ids)) {
-        id <- app_ids[i]
-        
-        # Try different matching strategies
-        match_row <- NULL
-        
-        if (grepl("^[a-f0-9]{24}$", id)) {
-          # Hex ID - match unified
-          match_row <- mapping_df[mapping_df$unified_app_id == id, , drop = FALSE]
-        } else if (grepl("^\\d+$", id)) {
-          # iOS ID
-          match_row <- mapping_df[mapping_df$ios_app_id == id, , drop = FALSE]
-        } else if (grepl("^(com|net|org|io)\\.", id)) {
-          # Android ID
-          match_row <- mapping_df[mapping_df$android_app_id == id, , drop = FALSE]
-        }
-        
-        if (!is.null(match_row) && nrow(match_row) > 0) {
-          result[i, names(match_row)] <- match_row[1, ]
-        }
-      }
-      
-      # If we didn't find matches in the category listing, try app_lookup
-      missing_idx <- which(is.na(result$unified_app_id))
-      if (length(missing_idx) > 0) {
-        for (idx in missing_idx) {
-          lookup_result <- tryCatch({
-            st_app_lookup(result$input_id[idx], auth_token = auth_token_val, verbose = FALSE)
-          }, error = function(e) NULL)
-          
-          if (!is.null(lookup_result)) {
-            result$unified_app_id[idx] <- lookup_result$unified_app_id
-            result$unified_app_name[idx] <- lookup_result$app_name
-            result$ios_app_id[idx] <- lookup_result$ios_app_id
-            result$android_app_id[idx] <- lookup_result$android_app_id
-            result$publisher_name[idx] <- lookup_result$publisher_name
-          }
-        }
-      }
-      
-      return(result)
-      
-    } else {
-      # Fallback to using st_app_lookup for each ID
-      results <- lapply(app_ids, function(id) {
-        lookup <- tryCatch({
-          st_app_lookup(id, auth_token = auth_token_val, verbose = FALSE)
-        }, error = function(e) NULL)
-        
-        if (!is.null(lookup)) {
-          data.frame(
-            input_id = id,
-            unified_app_id = lookup$unified_app_id %||% NA_character_,
-            unified_app_name = lookup$app_name %||% NA_character_,
-            ios_app_id = lookup$ios_app_id %||% NA_character_,
-            android_app_id = lookup$android_app_id %||% NA_character_,
-            publisher_id = NA_character_,
-            publisher_name = lookup$publisher_name %||% NA_character_,
-            stringsAsFactors = FALSE
-          )
-        } else {
-          data.frame(
-            input_id = id,
-            unified_app_id = NA_character_,
-            unified_app_name = NA_character_,
-            ios_app_id = NA_character_,
-            android_app_id = NA_character_,
-            publisher_id = NA_character_,
-            publisher_name = NA_character_,
-            stringsAsFactors = FALSE
-          )
-        }
-      })
-      
-      return(do.call(rbind, results))
-    }
-    
-  }, error = function(e) {
-    warning("Failed to get unified mapping: ", e$message)
-    
-    # Return empty mapping structure
-    data.frame(
-      input_id = app_ids,
-      unified_app_id = NA_character_,
-      unified_app_name = NA_character_,
-      ios_app_id = NA_character_,
-      android_app_id = NA_character_,
-      publisher_id = NA_character_,
-      publisher_name = NA_character_,
-      stringsAsFactors = FALSE
-    )
-  })
+  return(result_df)
 }
+
+# Helper operator
+`%||%` <- function(x, y) if (is.null(x)) y else x

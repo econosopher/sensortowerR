@@ -213,8 +213,12 @@ st_metrics <- function(
       countries = countries,
       date_granularity = date_granularity,
       auth_token = auth_token,
-      verbose = verbose
+      verbose = verbose,
+      combine_to_unified = FALSE
     )
+
+    # Attach unified app identifier metadata
+    # Do not add any pairing metadata columns; per-row app_id/app_id_type are sufficient
   } else if (os == "ios") {
     # Fetch iOS data only
     if (!is.null(resolved_ids$ios_app_id)) {
@@ -222,8 +226,8 @@ st_metrics <- function(
       
       result <- tryCatch({
         st_sales_report(
-          app_ids = resolved_ids$ios_app_id,
           os = "ios",
+          ios_app_id = resolved_ids$ios_app_id,
           countries = countries,
           start_date = start_date,
           end_date = end_date,
@@ -242,8 +246,8 @@ st_metrics <- function(
       
       result <- tryCatch({
         st_sales_report(
-          app_ids = resolved_ids$android_app_id,
           os = "android",
+          android_app_id = resolved_ids$android_app_id,
           countries = countries,
           start_date = start_date,
           end_date = end_date,
@@ -283,8 +287,8 @@ st_metrics <- function(
     }
   }
   
-  # Add app_id and app_id_type metadata
-  if (!is.null(resolved_ids)) {
+  # Add app_id and app_id_type metadata for non-unified paths
+  if (os != "unified" && !is.null(resolved_ids)) {
     app_id_value <- resolved_ids[[1]]  # Get the first (and only) ID
     result <- add_app_id_metadata(result, app_id_value, app_id_type)
   }
@@ -301,7 +305,8 @@ fetch_and_combine_platforms <- function(
   countries,
   date_granularity,
   auth_token,
-  verbose
+  verbose,
+  combine_to_unified = TRUE
 ) {
   all_data <- tibble::tibble()
   
@@ -315,8 +320,8 @@ fetch_and_combine_platforms <- function(
   if (ios_requested) {
     ios_result <- tryCatch({
       st_sales_report(
-        app_ids = ios_app_id,
         os = "ios",
+        ios_app_id = ios_app_id,
         countries = countries,
         start_date = start_date,
         end_date = end_date,
@@ -331,6 +336,7 @@ fetch_and_combine_platforms <- function(
       if ("app_id" %in% names(ios_result)) {
         ios_result$app_id <- as.character(ios_result$app_id)
       }
+      ios_result$app_id_type <- "ios"
       all_data <- bind_rows(all_data, ios_result)
     }
   }
@@ -339,8 +345,8 @@ fetch_and_combine_platforms <- function(
   if (android_requested) {
     android_result <- tryCatch({
       st_sales_report(
-        app_ids = android_app_id,
         os = "android",
+        android_app_id = android_app_id,
         countries = countries,
         start_date = start_date,
         end_date = end_date,
@@ -355,31 +361,41 @@ fetch_and_combine_platforms <- function(
       if ("app_id" %in% names(android_result)) {
         android_result$app_id <- as.character(android_result$app_id)
       }
+      android_result$app_id_type <- "android"
       all_data <- bind_rows(all_data, android_result)
     }
   }
   
-  # For unified requests, both platforms must have data
+  # For unified requests, require both platforms to return data
   if (ios_requested && android_requested) {
     if (!ios_has_data && !android_has_data) {
+      if (verbose) message(sprintf("No data for iOS (%s) or Android (%s) in %s for %s to %s", as.character(final_ios_id), as.character(final_android_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
       stop("No data available for either iOS or Android platform")
     } else if (!ios_has_data) {
+      if (verbose) message(sprintf("Missing iOS data for app %s in %s for %s to %s (Android had rows)", as.character(final_ios_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
       stop("Unified data requested but iOS data is not available")
     } else if (!android_has_data) {
+      if (verbose) message(sprintf("Missing Android data for app %s in %s for %s to %s (iOS had rows)", as.character(final_android_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
       stop("Unified data requested but Android data is not available")
     }
   }
   
-  # Combine by date and country
+  # Either combine to unified totals or return platform-specific rows
   if (nrow(all_data) > 0) {
-    combined <- all_data %>%
-      group_by(date, country) %>%
-      summarise(
-        revenue = sum(revenue, na.rm = TRUE),
-        downloads = sum(downloads, na.rm = TRUE),
-        .groups = "drop"
-      )
-    return(combined)
+    if (combine_to_unified) {
+      combined <- all_data %>%
+        group_by(date, country) %>%
+        summarise(
+          revenue = sum(revenue, na.rm = TRUE),
+          downloads = sum(downloads, na.rm = TRUE),
+          .groups = "drop"
+        )
+      return(combined)
+    } else {
+      # Return platform-specific rows with app_id and app_id_type
+      cols <- intersect(c("date","country","revenue","downloads","app_id","app_id_type"), names(all_data))
+      return(all_data[, cols, drop = FALSE])
+    }
   }
   
   return(all_data)
@@ -406,8 +422,8 @@ fetch_platform_specific_data <- function(
     
     ios_data <- tryCatch({
       st_sales_report(
-        app_ids = ios_app_id,
         os = "ios",
+        ios_app_id = ios_app_id,
         countries = countries,
         start_date = start_date,
         end_date = end_date,
@@ -463,8 +479,8 @@ fetch_platform_specific_data <- function(
     
     android_data <- tryCatch({
       st_sales_report(
-        app_ids = android_app_id,
         os = "android",
+        android_app_id = android_app_id,
         countries = countries,
         start_date = start_date,
         end_date = end_date,

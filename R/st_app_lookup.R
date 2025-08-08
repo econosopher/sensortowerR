@@ -1,18 +1,23 @@
-#' Look up app by Sensor Tower unified ID
+#' Look up app information by any ID type
 #'
-#' This function looks up app information using Sensor Tower's internal unified app ID
-#' (24-character hex format like "5ba4585f539ce75b97db6bcb"). It returns platform-specific
-#' IDs that can be used with other API functions.
+#' This function looks up app information using any type of app ID - unified,
+#' iOS, or Android. It returns the unified ID and platform-specific IDs that 
+#' can be used with other API functions.
 #' 
-#' IMPORTANT: This function only works with Sensor Tower's internal unified IDs.
-#' Do not pass iOS app IDs or Android package names - use the appropriate
-#' platform-specific parameters in other functions instead.
+#' The function automatically detects the ID type:
+#' - 24-character hex strings are treated as unified IDs
+#' - Numeric strings are treated as iOS app IDs
+#' - Strings starting with com/net/org/io are treated as Android package names
 #'
-#' @param unified_id Character string. The Sensor Tower unified app ID (24-char hex format).
+#' @param app_id Character string. Can be:
+#'   - Sensor Tower unified app ID (24-char hex like "5ba4585f539ce75b97db6bcb")
+#'   - iOS app ID (numeric like "943599237")
+#'   - Android package name (like "com.bandainamcogames.dbzdokkanww")
 #' @param auth_token Character string. Your Sensor Tower API authentication token.
 #' @param verbose Logical. Whether to show progress messages. Default is FALSE.
 #'
 #' @return A list with components:
+#'   - `unified_app_id`: The Sensor Tower unified app ID
 #'   - `ios_app_id`: iOS app ID if found
 #'   - `android_app_id`: Android app ID if found
 #'   - `app_name`: App name if found
@@ -37,7 +42,7 @@
 #' }
 #' 
 #' @export
-st_app_lookup <- function(unified_id, 
+st_app_lookup <- function(app_id, 
                          auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                          verbose = FALSE) {
   
@@ -46,23 +51,31 @@ st_app_lookup <- function(unified_id,
     stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
-  # Validate that it's a proper Sensor Tower unified ID (24-char hex)
-  if (!grepl("^[a-f0-9]{24}$", unified_id)) {
+  # Detect the type of ID
+  id_type <- NULL
+  if (grepl("^[a-f0-9]{24}$", app_id)) {
+    id_type <- "unified"
+  } else if (grepl("^\\d+$", app_id)) {
+    id_type <- "ios"
+  } else if (grepl("^(com|net|org|io)\\.", app_id)) {
+    id_type <- "android"
+  } else {
     stop(paste0(
-      "Invalid unified ID format. Expected 24-character hex ID like '5ba4585f539ce75b97db6bcb'.\n",
-      "Got: '", unified_id, "'\n\n",
-      "If you have an iOS app ID (e.g., '1234567890'), use ios_app_id parameter instead.\n",
-      "If you have an Android package (e.g., 'com.example.app'), use android_app_id parameter instead."
+      "Invalid app ID format. Expected one of:\n",
+      "- 24-character hex ID (unified): '5ba4585f539ce75b97db6bcb'\n",
+      "- iOS numeric ID: '1234567890'\n",
+      "- Android package name: 'com.example.app'\n",
+      "Got: '", app_id, "'"
     ))
   }
   
-  # Use search to find the app by its unified ID
-  if (verbose) message("Looking up Sensor Tower unified ID: ", unified_id)
+  if (verbose) message("Looking up ", id_type, " ID: ", app_id)
   
-  # Try to find the app by searching with the ID
-  search_results <- tryCatch({
+  # For unified IDs, use the original search method
+  if (id_type == "unified") {
+    search_results <- tryCatch({
       st_app_info(
-        term = unified_id,
+        term = app_id,
         return_all_fields = TRUE,
         limit = 1,
         auth_token = auth_token
@@ -73,9 +86,10 @@ st_app_lookup <- function(unified_id,
     })
     
     if (!is.null(search_results) && nrow(search_results) > 0 && 
-        search_results$app_id[1] == unified_id) {
-      # Found the app by its ID
+        search_results$app_id[1] == app_id) {
+      # Found the app by its unified ID
       app_name <- search_results$name[1]
+      unified_id <- app_id
       
       # Extract platform IDs
       ios_id <- NULL
@@ -96,15 +110,118 @@ st_app_lookup <- function(unified_id,
       }
       
       return(list(
+        unified_app_id = unified_id,
         ios_app_id = ios_id,
         android_app_id = android_id,
         app_name = app_name,
         publisher_name = search_results$publisher_name[1] %||% NA
       ))
     }
+  } else {
+    # For platform IDs, search by app name to find the unified ID
+    # First, try to find apps that contain this platform ID
     
-  # If we couldn't find by hex ID, return NULL
-  if (verbose) message("Could not find app with unified ID: ", unified_id)
+    # Determine search app store
+    search_store <- if (id_type == "ios") "unified" else "unified"
+    
+    # Search more broadly - the ID might not be searchable
+    # So we'll need to look through results manually
+    search_results <- NULL
+    
+    # Try different search strategies
+    search_terms <- c()
+    
+    # For iOS IDs, we can't reliably search by the ID itself
+    # For Android IDs, try the package name parts
+    if (id_type == "android") {
+      # Extract app name from package
+      parts <- strsplit(app_id, "\\.")[[1]]
+      if (length(parts) > 2) {
+        # Try the last part (often the app name)
+        search_terms <- c(parts[length(parts)], paste(parts[(length(parts)-1):length(parts)], collapse = " "))
+      }
+    }
+    
+    # If we have search terms, try them
+    for (term in search_terms) {
+      if (verbose) message("Searching for: ", term)
+      
+      search_results <- tryCatch({
+        st_app_info(
+          term = term,
+          app_store = search_store,
+          return_all_fields = TRUE,
+          limit = 50,
+          auth_token = auth_token
+        )
+      }, error = function(e) {
+        if (verbose) message("Search failed: ", e$message)
+        NULL
+      })
+      
+      if (!is.null(search_results) && nrow(search_results) > 0) {
+        # Look through results for our platform ID
+        for (i in 1:nrow(search_results)) {
+          found <- FALSE
+          
+          if (id_type == "ios" && "ios_apps" %in% names(search_results)) {
+            ios_apps <- search_results$ios_apps[[i]]
+            if (!is.null(ios_apps) && is.data.frame(ios_apps) && app_id %in% ios_apps$app_id) {
+              found <- TRUE
+            }
+          } else if (id_type == "android" && "android_apps" %in% names(search_results)) {
+            android_apps <- search_results$android_apps[[i]]
+            if (!is.null(android_apps) && is.data.frame(android_apps) && app_id %in% android_apps$app_id) {
+              found <- TRUE
+            }
+          }
+          
+          if (found) {
+            # Extract all the information
+            unified_id <- search_results$app_id[i]
+            app_name <- search_results$name[i]
+            publisher_name <- search_results$publisher_name[i]
+            
+            # Get platform IDs
+            ios_id <- NULL
+            android_id <- NULL
+            
+            if ("ios_apps" %in% names(search_results) && !is.null(search_results$ios_apps[[i]])) {
+              ios_apps <- search_results$ios_apps[[i]]
+              if (is.data.frame(ios_apps) && nrow(ios_apps) > 0) {
+                ios_id <- ios_apps$app_id[1]
+              }
+            }
+            
+            if ("android_apps" %in% names(search_results) && !is.null(search_results$android_apps[[i]])) {
+              android_apps <- search_results$android_apps[[i]]
+              if (is.data.frame(android_apps) && nrow(android_apps) > 0) {
+                android_id <- android_apps$app_id[1]
+              }
+            }
+            
+            if (verbose) {
+              message("Found app: ", app_name)
+              message("Unified ID: ", unified_id)
+              message("iOS ID: ", ios_id %||% "none")
+              message("Android ID: ", android_id %||% "none")
+            }
+            
+            return(list(
+              unified_app_id = unified_id,
+              ios_app_id = ios_id,
+              android_app_id = android_id,
+              app_name = app_name,
+              publisher_name = publisher_name %||% NA
+            ))
+          }
+        }
+      }
+    }
+  }
+  
+  # If we couldn't find the app
+  if (verbose) message("Could not find app with ", id_type, " ID: ", app_id)
   
   return(NULL)
 }

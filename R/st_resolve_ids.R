@@ -36,153 +36,27 @@ resolve_ids_for_os <- function(
     stop("At least one app ID must be provided (unified_app_id, ios_app_id, or android_app_id)")
   }
   
-  # Initialize result
-  result <- list(
-    resolved_ids = NULL,
-    app_id_type = os,
-    lookup_performed = FALSE
-  )
+  # Centralized mapping
+  input_ids <- c(unified_app_id, ios_app_id, android_app_id)
+  input_ids <- input_ids[!vapply(input_ids, is.null, logical(1))]
+  input_ids <- as.character(input_ids)[1]
+  mapping <- tryCatch({ st_get_unified_mapping(input_ids, os = "unified", auth_token = auth_token) }, error = function(e) NULL)
+  unified_mapped <- if (!is.null(mapping)) mapping$unified_app_id[1] else unified_app_id
+  ios_mapped <- if (!is.null(mapping)) mapping$ios_app_id[1] else ios_app_id
+  android_mapped <- if (!is.null(mapping)) mapping$android_app_id[1] else android_app_id
+  lookup_performed <- !is.null(mapping)
   
-  # Case 1: OS matches the provided ID type - no lookup needed
-  if (os == "ios" && !is.null(ios_app_id)) {
-    if (verbose) message("Using provided iOS app ID: ", ios_app_id)
-    result$resolved_ids <- list(ios_app_id = ios_app_id)
-    return(result)
+  if (os == "ios" && !is.na(ios_mapped) && nzchar(ios_mapped)) {
+    return(list(resolved_ids = list(ios_app_id = ios_mapped), app_id_type = "ios", lookup_performed = lookup_performed))
+  }
+  if (os == "android" && !is.na(android_mapped) && nzchar(android_mapped)) {
+    return(list(resolved_ids = list(android_app_id = android_mapped), app_id_type = "android", lookup_performed = lookup_performed))
+  }
+  if (os == "unified" && !is.na(unified_mapped) && nzchar(unified_mapped)) {
+    return(list(resolved_ids = list(unified_app_id = unified_mapped), app_id_type = "unified", lookup_performed = lookup_performed))
   }
   
-  if (os == "android" && !is.null(android_app_id)) {
-    if (verbose) message("Using provided Android app ID: ", android_app_id)
-    result$resolved_ids <- list(android_app_id = android_app_id)
-    return(result)
-  }
-  
-  if (os == "unified" && !is.null(unified_app_id)) {
-    if (verbose) message("Using provided unified app ID: ", unified_app_id)
-    result$resolved_ids <- list(unified_app_id = unified_app_id)
-    return(result)
-  }
-  
-  # Case 2: Need to look up the appropriate ID
-  result$lookup_performed <- TRUE
-  
-  # If we have a unified ID but need platform-specific
-  if (!is.null(unified_app_id) && os %in% c("ios", "android")) {
-    if (verbose) message("Looking up ", os, " ID from unified ID: ", unified_app_id)
-    
-    lookup_result <- tryCatch({
-      st_app_lookup(unified_app_id, auth_token = auth_token, verbose = FALSE)
-    }, error = function(e) {
-      if (verbose) message("Lookup failed: ", e$message)
-      NULL
-    })
-    
-    if (!is.null(lookup_result)) {
-      if (os == "ios" && !is.null(lookup_result$ios_app_id)) {
-        result$resolved_ids <- list(ios_app_id = lookup_result$ios_app_id)
-        if (verbose) message("Resolved to iOS ID: ", lookup_result$ios_app_id)
-      } else if (os == "android" && !is.null(lookup_result$android_app_id)) {
-        result$resolved_ids <- list(android_app_id = lookup_result$android_app_id)
-        if (verbose) message("Resolved to Android ID: ", lookup_result$android_app_id)
-      } else {
-        stop(paste0("Could not find ", os, " ID for unified app: ", unified_app_id))
-      }
-    } else {
-      stop(paste0("Failed to look up ", os, " ID from unified ID: ", unified_app_id))
-    }
-  }
-  
-  # If we have platform-specific IDs but need unified
-  else if (os == "unified" && (!is.null(ios_app_id) || !is.null(android_app_id))) {
-    # Try with iOS ID first
-    if (!is.null(ios_app_id)) {
-      if (verbose) message("Looking up unified ID from iOS ID: ", ios_app_id)
-      
-      mapping_result <- tryCatch({
-        st_get_unified_mapping(ios_app_id, os = "ios", auth_token = auth_token)
-      }, error = function(e) {
-        if (verbose) message("iOS lookup failed: ", e$message)
-        NULL
-      })
-      
-      if (!is.null(mapping_result) && !is.null(mapping_result$unified_app_id[1])) {
-        result$resolved_ids <- list(unified_app_id = mapping_result$unified_app_id[1])
-        if (verbose) message("Resolved to unified ID: ", mapping_result$unified_app_id[1])
-        return(result)
-      }
-    }
-    
-    # Try with Android ID if iOS didn't work
-    if (!is.null(android_app_id)) {
-      if (verbose) message("Looking up unified ID from Android ID: ", android_app_id)
-      
-      mapping_result <- tryCatch({
-        st_get_unified_mapping(android_app_id, os = "android", auth_token = auth_token)
-      }, error = function(e) {
-        if (verbose) message("Android lookup failed: ", e$message)
-        NULL
-      })
-      
-      if (!is.null(mapping_result) && !is.null(mapping_result$unified_app_id[1])) {
-        result$resolved_ids <- list(unified_app_id = mapping_result$unified_app_id[1])
-        if (verbose) message("Resolved to unified ID: ", mapping_result$unified_app_id[1])
-        return(result)
-      }
-    }
-    
-    stop("Could not resolve unified ID from provided platform IDs")
-  }
-  
-  # If we have iOS but need Android (or vice versa), we need to go through unified first
-  else if ((os == "ios" && !is.null(android_app_id)) || 
-           (os == "android" && !is.null(ios_app_id))) {
-    
-    # First get unified ID
-    source_id <- if (!is.null(ios_app_id)) ios_app_id else android_app_id
-    source_os <- if (!is.null(ios_app_id)) "ios" else "android"
-    
-    if (verbose) message("Looking up unified ID from ", source_os, " ID: ", source_id)
-    
-    mapping_result <- tryCatch({
-      st_get_unified_mapping(source_id, os = source_os, auth_token = auth_token)
-    }, error = function(e) {
-      if (verbose) message("Unified lookup failed: ", e$message)
-      NULL
-    })
-    
-    if (!is.null(mapping_result) && !is.null(mapping_result$unified_app_id[1])) {
-      unified_id <- mapping_result$unified_app_id[1]
-      
-      # Now look up the target platform
-      if (verbose) message("Looking up ", os, " ID from unified ID: ", unified_id)
-      
-      lookup_result <- tryCatch({
-        st_app_lookup(unified_id, auth_token = auth_token, verbose = FALSE)
-      }, error = function(e) {
-        if (verbose) message("Platform lookup failed: ", e$message)
-        NULL
-      })
-      
-      if (!is.null(lookup_result)) {
-        if (os == "ios" && !is.null(lookup_result$ios_app_id)) {
-          result$resolved_ids <- list(ios_app_id = lookup_result$ios_app_id)
-          if (verbose) message("Resolved to iOS ID: ", lookup_result$ios_app_id)
-        } else if (os == "android" && !is.null(lookup_result$android_app_id)) {
-          result$resolved_ids <- list(android_app_id = lookup_result$android_app_id)
-          if (verbose) message("Resolved to Android ID: ", lookup_result$android_app_id)
-        } else {
-          stop(paste0("Could not find ", os, " ID for app"))
-        }
-      }
-    } else {
-      stop(paste0("Could not resolve ", os, " ID from ", source_os, " ID"))
-    }
-  }
-  
-  if (is.null(result$resolved_ids)) {
-    stop("Failed to resolve appropriate IDs for OS: ", os)
-  }
-  
-  return(result)
+  stop("Failed to resolve appropriate IDs for OS: ", os)
 }
 
 #' Add App ID Metadata to Data Frame

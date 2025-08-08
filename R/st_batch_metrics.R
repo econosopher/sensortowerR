@@ -80,11 +80,16 @@ st_batch_metrics <- function(os,
                            date_range = list(start_date = Sys.Date() - 90, 
                                            end_date = Sys.Date() - 1),
                            countries,
-                           granularity = "monthly",
+                           granularity,
                            parallel = TRUE,
                            cache_dir = NULL,
                            verbose = TRUE,
-                           auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
+                           auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
+                           max_cores = 2,
+                           max_concurrent_requests = 2,
+                           retry = TRUE,
+                           max_retries = 3,
+                           publisher_ids = NULL) {
   
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
@@ -101,9 +106,87 @@ st_batch_metrics <- function(os,
     stop("'countries' parameter is required")
   }
   
-  # Step 1: Normalize app list
-  if (verbose) message("Processing ", length(app_list), " apps...")
+  # Validate granularity explicitly
+  if (missing(granularity) || is.null(granularity)) {
+    stop("'granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+  }
   
+  # Publisher mode: fetch publisher-level revenue/downloads (early return)
+  if (!is.null(publisher_ids)) {
+    active_user_metrics <- intersect(metrics, c("dau", "wau", "mau"))
+    if (length(active_user_metrics) > 0 && verbose) {
+      message("Active user metrics are not supported for publisher IDs. Skipping: ", paste(active_user_metrics, collapse = ", "))
+    }
+    revenue_download_metrics <- intersect(metrics, c("revenue", "downloads"))
+    if (length(revenue_download_metrics) == 0) {
+      return(tibble::tibble())
+    }
+    # Helper to fetch one publisher for one platform
+    fetch_publisher_platform <- function(platform_os, pid) {
+      tryCatch({
+        st_sales_report(
+          os = platform_os,
+          countries = countries,
+          start_date = as.character(date_range$start_date),
+          end_date = as.character(date_range$end_date),
+          date_granularity = granularity,
+          publisher_ids = pid,
+          auth_token = auth_token,
+          auto_segment = TRUE,
+          verbose = FALSE
+        )
+      }, error = function(e) NULL)
+    }
+    results <- lapply(seq_along(publisher_ids), function(i) {
+      pid <- publisher_ids[i]
+      if (os == "ios") {
+        ios_res <- fetch_publisher_platform("ios", pid)
+        df <- ios_res
+      } else if (os == "android") {
+        and_res <- fetch_publisher_platform("android", pid)
+        df <- and_res
+      } else {
+        ios_res <- fetch_publisher_platform("ios", pid)
+        and_res <- fetch_publisher_platform("android", pid)
+        df <- dplyr::bind_rows(ios_res %||% tibble::tibble(), and_res %||% tibble::tibble())
+        if (nrow(df) > 0) {
+          df <- df %>%
+            dplyr::group_by(.data$date, .data$country) %>%
+            dplyr::summarise(
+              revenue = sum(.data$revenue, na.rm = TRUE),
+              downloads = sum(.data$downloads, na.rm = TRUE),
+              .groups = "drop"
+            )
+        }
+      }
+      if (is.null(df) || nrow(df) == 0) return(NULL)
+      out <- df %>%
+        tidyr::pivot_longer(
+          cols = dplyr::all_of(intersect(revenue_download_metrics, c("revenue", "downloads"))),
+          names_to = "metric",
+          values_to = "value"
+        ) %>%
+        dplyr::mutate(
+          original_id = pid,
+          app_id = pid,
+          app_id_type = "publisher",
+          entity_id = pid,
+          entity_type = "publisher"
+        )
+      out
+    })
+    results <- results[!vapply(results, is.null, logical(1))]
+    final <- if (length(results) > 0) dplyr::bind_rows(results) else tibble::tibble()
+    if (verbose) {
+      message("\nBatch fetch complete (publisher mode)!")
+      message("Total records: ", nrow(final))
+      message("Unique publishers: ", length(unique(final$entity_id)))
+    }
+    return(final)
+  }
+  
+  # Step 1: Normalize app list (non-publisher mode)
+  if (verbose) message("Processing ", length(app_list), " apps...")
   apps_df <- normalize_app_list(app_list, os, auth_token, verbose)
   
   if (verbose) {
@@ -112,7 +195,7 @@ st_batch_metrics <- function(os,
     message("  Android apps: ", sum(!is.na(apps_df$android_id)))
     message("  Unified only: ", sum(is.na(apps_df$ios_id) & is.na(apps_df$android_id)))
   }
-  
+
   # Step 2: Group apps by fetch strategy
   fetch_groups <- list()
   
@@ -226,6 +309,27 @@ st_batch_metrics <- function(os,
     # }
   } else {
     # Regular date range mode
+    # Simple retry helper for httr2 requests (used for active users)
+    request_with_retry <- function(req_fun, retries = max_retries) {
+      attempt <- 0
+      repeat {
+        attempt <- attempt + 1
+        resp <- tryCatch(req_fun(), error = function(e) e)
+        # If resp is an error object, or status indicates retryable, retry
+        is_error <- inherits(resp, "error")
+        status <- if (!is_error) httr2::resp_status(resp) else NA_integer_
+        if (!is_error && !status %in% c(429, 500, 502, 503, 504)) {
+          return(resp)
+        }
+        if (!retry || attempt > retries) {
+          return(resp)
+        }
+        # Exponential backoff with jitter
+        delay <- min(30, 2 ^ attempt) + runif(1, 0, 1)
+        Sys.sleep(delay)
+      }
+    }
+
     fetch_func <- function(group, group_name) {
       if (verbose) message("\nFetching metrics for ", group_name, " group (", nrow(group), " apps)...")
       
@@ -235,16 +339,10 @@ st_batch_metrics <- function(os,
       
       all_group_results <- list()
       
-      # Handle active user metrics separately as batch for the entire group
-      if (length(active_user_metrics) > 0 && group_name != "both") {
-        if (verbose) message("  Fetching active user metrics in batch...")
-        
-        # Warn about potential rate limits for large numbers of apps
-        if (nrow(group) > 10 && verbose) {
-          message("  Warning: Fetching active users for ", nrow(group), " apps.")
-          message("     Consider smaller batches to avoid rate limits.")
-        }
-        
+      # Handle active user metrics: per-app calls with capped concurrency; unified endpoint not supported
+      if (length(active_user_metrics) > 0) {
+        if (verbose) message("  Fetching active user metrics (platform endpoints)...")
+
         # Map granularity to time_period for active users API
         time_period_map <- list(
           "daily" = "day",
@@ -252,159 +350,166 @@ st_batch_metrics <- function(os,
           "monthly" = "month",
           "quarterly" = "quarter"
         )
-        time_period <- time_period_map[[granularity]]
-        if (is.null(time_period)) time_period <- "month"
-        
-        # Get appropriate app IDs based on group
-        if (group_name == "ios") {
-          app_ids <- group$ios_id
-        } else if (group_name == "android") {
-          app_ids <- group$android_id
-        } else if (group_name == "unified") {
-          app_ids <- group$unified_id
+        default_time_period <- time_period_map[[granularity]]
+        if (is.null(default_time_period)) default_time_period <- "month"
+
+        # Helper to fetch one app's active users for a given platform and metric
+        fetch_active_for_one <- function(platform_os, one_app_id, metric_name) {
+          metric_time_period <- switch(metric_name,
+            "dau" = "day",
+            "wau" = "week",
+            "mau" = "month",
+            default_time_period
+          )
+          base_url <- paste0("https://api.sensortower.com/v1/", platform_os, "/usage/active_users")
+          req_fun <- function() {
+            httr2::request(base_url) %>%
+              httr2::req_url_query(
+                app_ids = one_app_id,
+                countries = countries,
+                start_date = as.character(date_range$start_date),
+                end_date = as.character(date_range$end_date),
+                time_period = metric_time_period,
+                auth_token = auth_token
+              ) %>%
+              httr2::req_perform()
+          }
+          resp <- if (retry) request_with_retry(req_fun) else req_fun()
+          if (inherits(resp, "error")) return(NULL)
+          if (httr2::resp_status(resp) != 200) return(NULL)
+          data <- httr2::resp_body_json(resp)
+          if (is.null(data) || length(data) == 0) return(NULL)
+          df <- tryCatch(dplyr::bind_rows(data), error = function(e) NULL)
+          if (is.null(df) || nrow(df) == 0) return(NULL)
+          if (platform_os == "ios") {
+            df <- df %>% dplyr::mutate(users = dplyr::coalesce(.data$iphone_users, 0) + dplyr::coalesce(.data$ipad_users, 0), .keep = "all")
+          } else if (platform_os == "android") {
+            # API returns 'users' for android active users
+            if (!"users" %in% names(df) && "android_users" %in% names(df)) df <- df %>% dplyr::rename(users = .data$android_users)
+          }
+          df$date <- as.Date(df$date)
+          df <- df %>%
+            dplyr::transmute(app_id = as.character(.data$app_id), date = .data$date, country = .data$country, metric = metric_name, value = .data$users)
+          df
         }
-        
-        # Fetch active user metrics using the API directly
-        if (TRUE) {  # Always execute inline
-          for (metric in active_user_metrics) {
-            # Map metric to time period
-            metric_time_period <- switch(metric,
-              "dau" = "day",
-              "wau" = "week",
-              "mau" = "month",
-              time_period  # fallback
-            )
-            
-            # Build active users API request
-            active_result <- tryCatch({
-              # Construct the active users endpoint
-              base_url <- paste0("https://api.sensortower.com/v1/", 
-                                if (group_name == "unified") "unified" else group_name, 
-                                "/usage/active_users")
-              
-              # Make the request
-              req <- httr2::request(base_url) %>%
-                httr2::req_url_query(
-                  app_ids = paste(app_ids, collapse = ","),
-                  countries = countries,
-                  start_date = as.character(date_range$start_date),
-                  end_date = as.character(date_range$end_date),
-                  time_period = metric_time_period,
-                  auth_token = auth_token
-                )
-              
-              response <- httr2::req_perform(req)
-              
-              if (httr2::resp_status(response) == 200) {
-                data <- httr2::resp_body_json(response)
-                
-                if (!is.null(data) && length(data) > 0) {
-                  # Convert to data frame
-                  result <- dplyr::bind_rows(data)
-                  
-                  # Standardize column names based on OS
-                  if (group_name == "ios") {
-                    result <- result %>%
-                      dplyr::mutate(
-                        users = .data$iphone_users + .data$ipad_users,
-                        .keep = "all"
-                      )
-                  } else if (group_name == "android") {
-                    result <- result %>%
-                      dplyr::rename(users = .data$android_users)
-                  } else {
-                    # Unified - sum all platforms
-                    result <- result %>%
-                      dplyr::mutate(
-                        users = dplyr::coalesce(.data$android_users, 0) + 
-                                dplyr::coalesce(.data$iphone_users, 0) + 
-                                dplyr::coalesce(.data$ipad_users, 0),
-                        .keep = "all"
-                      )
-                  }
-                  
-                  # Convert date and reshape to long format
-                  result$date <- as.Date(result$date)
-                  
-                  result <- result %>%
-                    dplyr::select(.data$app_id, .data$date, .data$country, .data$users) %>%
-                    dplyr::mutate(
-                      app_id = as.character(.data$app_id),
-                      metric = metric,
-                      value = .data$users
-                    ) %>%
-                    dplyr::select(-.data$users)
-                  
-                  if (verbose) {
-                    message("    Retrieved ", nrow(result), " ", metric, " records")
-                  }
-                  
-                  result
-                } else {
-                  NULL
-                }
-              } else {
-                if (verbose) message("    API request failed with status: ", httr2::resp_status(response))
-                NULL
-              }
-            }, error = function(e) {
-              if (verbose) message("    Warning: Failed to fetch ", metric, " - ", e$message)
-              NULL
+
+        # Build a work list depending on group
+        if (group_name == "ios") {
+          id_vec <- stats::na.omit(group$ios_id)
+          work <- expand.grid(app_id = id_vec, metric = active_user_metrics, stringsAsFactors = FALSE)
+          # Sequential or limited parallel
+          runner <- function(idx) {
+            fetch_active_for_one("ios", work$app_id[idx], work$metric[idx])
+          }
+          results_list <- lapply(seq_len(nrow(work)), runner)
+          results_list <- results_list[!vapply(results_list, is.null, logical(1))]
+          if (length(results_list) > 0) {
+            active_df <- dplyr::bind_rows(results_list)
+            active_df$entity_id <- active_df$app_id
+            all_group_results[[length(all_group_results) + 1]] <- active_df
+          }
+        } else if (group_name == "android") {
+          id_vec <- stats::na.omit(group$android_id)
+          work <- expand.grid(app_id = id_vec, metric = active_user_metrics, stringsAsFactors = FALSE)
+          runner <- function(idx) {
+            fetch_active_for_one("android", work$app_id[idx], work$metric[idx])
+          }
+          results_list <- lapply(seq_len(nrow(work)), runner)
+          results_list <- results_list[!vapply(results_list, is.null, logical(1))]
+          if (length(results_list) > 0) {
+            active_df <- dplyr::bind_rows(results_list)
+            active_df$entity_id <- active_df$app_id
+            all_group_results[[length(all_group_results) + 1]] <- active_df
+          }
+        } else if (group_name == "both") {
+          # Sum iOS + Android for each app pair
+          pair_results <- lapply(seq_len(nrow(group)), function(i) {
+            ios_id <- group$ios_id[i]
+            android_id <- group$android_id[i]
+            pair_id <- paste0(ios_id, "_", android_id)
+            per_metric <- lapply(active_user_metrics, function(m) {
+              ios_df <- fetch_active_for_one("ios", ios_id, m)
+              android_df <- fetch_active_for_one("android", android_id, m)
+              if (is.null(ios_df) && is.null(android_df)) return(NULL)
+              if (is.null(ios_df) && verbose) message(sprintf("No iOS %s rows for %s in %s (%s..%s)", m, ios_id, paste(countries, collapse=","), as.character(date_range$start_date), as.character(date_range$end_date)))
+              if (is.null(android_df) && verbose) message(sprintf("No Android %s rows for %s in %s (%s..%s)", m, android_id, paste(countries, collapse=","), as.character(date_range$start_date), as.character(date_range$end_date)))
+              combined <- dplyr::bind_rows(
+                dplyr::mutate(ios_df %||% tibble::tibble(app_id = character(), date = as.Date(character()), country = character(), metric = character(), value = numeric()), platform = "ios"),
+                dplyr::mutate(android_df %||% tibble::tibble(app_id = character(), date = as.Date(character()), country = character(), metric = character(), value = numeric()), platform = "android")
+              )
+              if (nrow(combined) == 0) return(NULL)
+              summed <- combined %>%
+                dplyr::group_by(.data$date, .data$country, .data$metric) %>%
+                dplyr::summarise(value = sum(.data$value, na.rm = TRUE), .groups = "drop") %>%
+                dplyr::mutate(app_id = pair_id)
+              summed
             })
-            
-            if (!is.null(active_result) && nrow(active_result) > 0) {
-              # Add entity_id for consistency
-              active_result$entity_id <- as.character(active_result$app_id)
-              all_group_results[[length(all_group_results) + 1]] <- active_result
-            }
+            per_metric <- per_metric[!vapply(per_metric, is.null, logical(1))]
+            if (length(per_metric) == 0) return(NULL)
+            df <- dplyr::bind_rows(per_metric)
+            df$entity_id <- pair_id
+            df
+          })
+          pair_results <- pair_results[!vapply(pair_results, is.null, logical(1))]
+          if (length(pair_results) > 0) {
+            all_group_results[[length(all_group_results) + 1]] <- dplyr::bind_rows(pair_results)
           }
-        } else {
-          if (verbose) {
-            message("  Note: Active user metrics support not available. Skipping DAU/WAU/MAU.")
-          }
+        } else if (group_name == "unified") {
+          if (verbose) message("  Skipping unified active users (endpoint unsupported)")
         }
       }
       
       if (group_name == "both") {
-        # Fetch with both iOS and Android IDs
+        # Fetch revenue/downloads for both platforms per app and sum
         dplyr::bind_rows(lapply(seq_len(nrow(group)), function(i) {
-          all_results <- list()
-          
-          # Fetch revenue/downloads if requested
+          collect <- list()
           if (length(revenue_download_metrics) > 0) {
-            result <- st_metrics(
-              os = os,
-              ios_app_id = group$ios_id[i],
-              android_app_id = group$android_id[i],
-              date_granularity = granularity,
-              start_date = as.character(date_range$start_date),
-              end_date = as.character(date_range$end_date),
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            # Transform to long format for consistency
-            if (!is.null(result) && nrow(result) > 0) {
-              result <- result %>%
-                tidyr::pivot_longer(
-                  cols = dplyr::all_of(revenue_download_metrics),
-                  names_to = "metric",
-                  values_to = "value"
+            ios_res <- tryCatch({
+              st_sales_report(
+                os = "ios",
+                ios_app_id = group$ios_id[i],
+                countries = countries,
+                start_date = as.character(date_range$start_date),
+                end_date = as.character(date_range$end_date),
+                date_granularity = granularity,
+                auth_token = auth_token,
+                auto_segment = TRUE,
+                verbose = FALSE
+              )
+            }, error = function(e) NULL)
+            if ((is.null(ios_res) || nrow(ios_res) == 0) && verbose) message(sprintf("No iOS rows for %s in %s (%s..%s)", group$ios_id[i], paste(countries, collapse=","), as.character(date_range$start_date), as.character(date_range$end_date)))
+            android_res <- tryCatch({
+              st_sales_report(
+                os = "android",
+                android_app_id = group$android_id[i],
+                countries = countries,
+                start_date = as.character(date_range$start_date),
+                end_date = as.character(date_range$end_date),
+                date_granularity = granularity,
+                auth_token = auth_token,
+                auto_segment = TRUE,
+                verbose = FALSE
+              )
+            }, error = function(e) NULL)
+            if ((is.null(android_res) || nrow(android_res) == 0) && verbose) message(sprintf("No Android rows for %s in %s (%s..%s)", group$android_id[i], paste(countries, collapse=","), as.character(date_range$start_date), as.character(date_range$end_date)))
+            # Ensure app_id is character in each before binding
+            if (!is.null(ios_res) && nrow(ios_res) > 0 && "app_id" %in% names(ios_res)) ios_res$app_id <- as.character(ios_res$app_id)
+            if (!is.null(android_res) && nrow(android_res) > 0 && "app_id" %in% names(android_res)) android_res$app_id <- as.character(android_res$app_id)
+            combined <- dplyr::bind_rows(ios_res %||% tibble::tibble(), android_res %||% tibble::tibble())
+            if (nrow(combined) > 0) {
+              combined <- combined %>%
+                dplyr::group_by(.data$date, .data$country) %>%
+                dplyr::summarise(
+                  revenue = sum(.data$revenue, na.rm = TRUE),
+                  downloads = sum(.data$downloads, na.rm = TRUE),
+                  .groups = "drop"
                 ) %>%
-                dplyr::mutate(entity_id = as.character(paste0(group$ios_id[i], "_", group$android_id[i])))
-              all_results[[length(all_results) + 1]] <- result
+                tidyr::pivot_longer(cols = dplyr::all_of(intersect(revenue_download_metrics, c("revenue", "downloads"))), names_to = "metric", values_to = "value") %>%
+                dplyr::mutate(entity_id = as.character(paste0(group$ios_id[i], "_", group$android_id[i])), app_id = entity_id)
+              collect[[length(collect) + 1]] <- combined
             }
           }
-          
-          # For active user metrics, handle them separately
-          # Active users are fetched at group level, not individual app level
-          
-          if (length(all_results) > 0) {
-            dplyr::bind_rows(all_results)
-          } else {
-            tibble::tibble(entity_id = character())
-          }
+          if (length(collect) > 0) dplyr::bind_rows(collect) else tibble::tibble(entity_id = character())
         }))
         
       } else if (group_name == "ios") {
@@ -419,32 +524,43 @@ st_batch_metrics <- function(os,
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
             if (verbose) message("    Fetching metrics: ", paste(revenue_download_metrics, collapse = ", "))
-            result <- st_metrics(
-              os = os,
-              ios_app_id = group$ios_id[i],
-              date_granularity = granularity,
-              start_date = as.character(date_range$start_date),
-              end_date = as.character(date_range$end_date),
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            # Transform to long format
+            result <- tryCatch({
+              st_sales_report(
+                os = "ios",
+                ios_app_id = group$ios_id[i],
+                countries = countries,
+                start_date = as.character(date_range$start_date),
+                end_date = as.character(date_range$end_date),
+                date_granularity = granularity,
+                auth_token = auth_token,
+                auto_segment = TRUE,
+                verbose = FALSE
+              )
+            }, error = function(e) NULL)
+            if ((is.null(result) || nrow(result) == 0) && verbose) message(sprintf("No iOS rows for %s in %s (%s..%s)", group$ios_id[i], paste(countries, collapse=","), as.character(date_range$start_date), as.character(date_range$end_date)))
             if (!is.null(result) && nrow(result) > 0) {
-              if (verbose) {
-                message("  Got ", nrow(result), " rows from st_metrics")
-                message("  Columns: ", paste(names(result), collapse = ", "))
-                message("  revenue_download_metrics: ", paste(revenue_download_metrics, collapse = ", "))
-                message("  Intersection: ", paste(intersect(revenue_download_metrics, names(result)), collapse = ", "))
+              # Standardize to revenue/downloads without referencing missing columns
+              if ("total_revenue" %in% names(result)) {
+                result$revenue <- result$total_revenue
+              } else if (all(c("iphone_revenue", "ipad_revenue") %in% names(result))) {
+                result$revenue <- result$iphone_revenue + result$ipad_revenue
               }
+              if ("total_downloads" %in% names(result)) {
+                result$downloads <- result$total_downloads
+              } else if (all(c("iphone_downloads", "ipad_downloads") %in% names(result))) {
+                result$downloads <- result$iphone_downloads + result$ipad_downloads
+              }
+              # Ensure required columns exist
+              if (!"revenue" %in% names(result)) result$revenue <- 0
+              if (!"downloads" %in% names(result)) result$downloads <- 0L
               result <- result %>%
+                dplyr::select(.data$date, .data$country, .data$revenue, .data$downloads) %>%
                 tidyr::pivot_longer(
-                  cols = dplyr::all_of(intersect(revenue_download_metrics, names(result))),
+                  cols = dplyr::all_of(intersect(revenue_download_metrics, c("revenue", "downloads"))),
                   names_to = "metric",
                   values_to = "value"
                 ) %>%
-                dplyr::mutate(entity_id = as.character(group$ios_id[i]))
+                dplyr::mutate(entity_id = as.character(group$ios_id[i]), app_id = as.character(group$ios_id[i]))
               all_results[[length(all_results) + 1]] <- result
             }
           }
@@ -472,26 +588,33 @@ st_batch_metrics <- function(os,
           
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
-            result <- st_metrics(
-              os = os,
-              android_app_id = group$android_id[i],
-              date_granularity = granularity,
-              start_date = as.character(date_range$start_date),
-              end_date = as.character(date_range$end_date),
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            # Transform to long format
+            result <- tryCatch({
+              st_sales_report(
+                os = "android",
+                android_app_id = group$android_id[i],
+                countries = countries,
+                start_date = as.character(date_range$start_date),
+                end_date = as.character(date_range$end_date),
+                date_granularity = granularity,
+                auth_token = auth_token,
+                auto_segment = TRUE,
+                verbose = FALSE
+              )
+            }, error = function(e) NULL)
+            if ((is.null(result) || nrow(result) == 0) && verbose) message(sprintf("No Android rows for %s in %s (%s..%s)", group$android_id[i], paste(countries, collapse=","), as.character(date_range$start_date), as.character(date_range$end_date)))
             if (!is.null(result) && nrow(result) > 0) {
+              # Ensure standard columns exist
               result <- result %>%
+                dplyr::mutate(
+                  country = dplyr::coalesce(.data$country, .data$c)
+                ) %>%
+                dplyr::select(.data$date, .data$country, .data$revenue, .data$downloads) %>%
                 tidyr::pivot_longer(
-                  cols = dplyr::all_of(intersect(revenue_download_metrics, names(result))),
+                  cols = dplyr::all_of(intersect(revenue_download_metrics, c("revenue", "downloads"))),
                   names_to = "metric",
                   values_to = "value"
                 ) %>%
-                dplyr::mutate(entity_id = as.character(group$android_id[i]))
+                dplyr::mutate(entity_id = as.character(group$android_id[i]), app_id = as.character(group$android_id[i]))
               all_results[[length(all_results) + 1]] <- result
             }
           }
@@ -519,27 +642,76 @@ st_batch_metrics <- function(os,
           
           # Fetch revenue/downloads if requested
           if (length(revenue_download_metrics) > 0) {
-            result <- st_metrics(
-              os = os,
-              unified_app_id = group$unified_id[i],
-              date_granularity = granularity,
-              start_date = as.character(date_range$start_date),
-              end_date = as.character(date_range$end_date),
-              countries = countries,
-              auth_token = auth_token,
-              verbose = FALSE
-            )
-            
-            # Transform to long format
-            if (!is.null(result) && nrow(result) > 0) {
-              result <- result %>%
+            # Try to resolve platform IDs to use platform endpoints; fallback to st_metrics
+            ios_id <- group$ios_id[i]
+            android_id <- group$android_id[i]
+            combined <- tibble::tibble()
+            if (!is.na(ios_id) || !is.na(android_id)) {
+              ios_res <- if (!is.na(ios_id)) tryCatch({
+                st_sales_report(
+                  os = "ios",
+                  ios_app_id = ios_id,
+                  countries = countries,
+                  start_date = as.character(date_range$start_date),
+                  end_date = as.character(date_range$end_date),
+                  date_granularity = granularity,
+                  auth_token = auth_token,
+                  auto_segment = TRUE,
+                  verbose = FALSE
+                )
+              }, error = function(e) NULL) else NULL
+              android_res <- if (!is.na(android_id)) tryCatch({
+                st_sales_report(
+                  os = "android",
+                  android_app_id = android_id,
+                  countries = countries,
+                  start_date = as.character(date_range$start_date),
+                  end_date = as.character(date_range$end_date),
+                  date_granularity = granularity,
+                  auth_token = auth_token,
+                  auto_segment = TRUE,
+                  verbose = FALSE
+                )
+              }, error = function(e) NULL) else NULL
+              combined <- dplyr::bind_rows(ios_res %||% tibble::tibble(), android_res %||% tibble::tibble())
+              if (nrow(combined) > 0) {
+                combined <- combined %>%
+                  dplyr::group_by(.data$date, .data$country) %>%
+                  dplyr::summarise(
+                    revenue = sum(.data$revenue, na.rm = TRUE),
+                    downloads = sum(.data$downloads, na.rm = TRUE),
+                    .groups = "drop"
+                  )
+              }
+            }
+            if (nrow(combined) == 0) {
+              # Fallback to st_metrics unified flow
+              result <- tryCatch({
+                st_metrics(
+                  os = os,
+                  unified_app_id = group$unified_id[i],
+                  date_granularity = granularity,
+                  start_date = as.character(date_range$start_date),
+                  end_date = as.character(date_range$end_date),
+                  countries = countries,
+                  auth_token = auth_token,
+                  verbose = FALSE
+                )
+              }, error = function(e) NULL)
+              if (!is.null(result) && nrow(result) > 0) {
+               if ("app_id" %in% names(result)) result$app_id <- as.character(result$app_id)
+               combined <- result %>% dplyr::select(.data$date, .data$country, .data$revenue, .data$downloads)
+              }
+            }
+            if (nrow(combined) > 0) {
+              out <- combined %>%
                 tidyr::pivot_longer(
-                  cols = dplyr::all_of(intersect(revenue_download_metrics, names(result))),
+                  cols = dplyr::all_of(intersect(revenue_download_metrics, c("revenue", "downloads"))),
                   names_to = "metric",
                   values_to = "value"
                 ) %>%
-                dplyr::mutate(entity_id = as.character(group$unified_id[i]))
-              all_results[[length(all_results) + 1]] <- result
+                dplyr::mutate(entity_id = as.character(group$unified_id[i]), app_id = as.character(group$unified_id[i]))
+              all_results[[length(all_results) + 1]] <- out
             }
           }
           
@@ -574,7 +746,7 @@ st_batch_metrics <- function(os,
         }
         result
       },
-      mc.cores = min(length(fetch_groups), parallel::detectCores() - 1)
+      mc.cores = min(length(fetch_groups), max(1L, as.integer(max_cores)))
     )
     
     all_results <- dplyr::bind_rows(results)
@@ -685,7 +857,9 @@ st_batch_metrics <- function(os,
   if (verbose) {
     message("\nBatch fetch complete!")
     message("Total records: ", nrow(all_results))
-    message("Unique apps: ", length(unique(all_results$entity_id)))
+    # Use app_id which is guaranteed to exist post-reordering
+    unique_count <- if ("app_id" %in% names(all_results)) length(unique(all_results$app_id)) else 0
+    message("Unique apps: ", unique_count)
   }
   
   return(all_results)
@@ -723,84 +897,35 @@ normalize_app_list <- function(app_list, os, auth_token, verbose) {
     apps_df$app_name <- NA_character_
   }
   
-  # Detect and resolve platform IDs
+  # Detect and resolve platform IDs via bulk resolution + cache when available
   apps_df$ios_id <- NA_character_
   apps_df$android_id <- NA_character_
   
-  # Load the resolve_ids_for_os function if available
-  if (exists("resolve_ids_for_os", mode = "function")) {
-    # Use centralized ID resolution for each app
+  if (exists("batch_resolve_ids", mode = "function")) {
+    ids <- as.character(apps_df$app_id)
+    resolved_list <- batch_resolve_ids(ids, auth_token = auth_token, use_cache = TRUE, verbose = verbose)
     for (i in seq_len(nrow(apps_df))) {
-      id <- apps_df$app_id[i]
-      
-      # Quick detection of ID type
-      unified_id <- NULL
-      ios_id <- NULL
-      android_id <- NULL
-      
-      if (grepl("^\\d+$", id)) {
-        ios_id <- id
-      } else if (grepl("^(com|net|org|io)\\.", id)) {
-        android_id <- id
-      } else if (grepl("^[a-f0-9]{24}$", id)) {
-        unified_id <- id
-      }
-      
-      # Resolve IDs based on OS
-      resolved <- resolve_ids_for_os(
-        unified_app_id = unified_id,
-        ios_app_id = ios_id,
-        android_app_id = android_id,
-        os = os,
-        auth_token = auth_token,
-        verbose = FALSE
-      )
-      
-      if (!is.null(resolved$resolved_ids)) {
-        # Store the resolved IDs based on OS
-        if (os == "ios" && !is.null(resolved$resolved_ids$ios_app_id)) {
-          apps_df$ios_id[i] <- resolved$resolved_ids$ios_app_id
-        } else if (os == "android" && !is.null(resolved$resolved_ids$android_app_id)) {
-          apps_df$android_id[i] <- resolved$resolved_ids$android_app_id
-        } else if (os == "unified") {
-          # For unified, we need both platform IDs
-          if (!is.null(resolved$resolved_ids$ios_app_id)) {
-            apps_df$ios_id[i] <- resolved$resolved_ids$ios_app_id
-          }
-          if (!is.null(resolved$resolved_ids$android_app_id)) {
-            apps_df$android_id[i] <- resolved$resolved_ids$android_app_id
-          }
-        }
+      id <- as.character(apps_df$app_id[i])
+      entry <- resolved_list[[id]]
+      if (!is.null(entry)) {
+        if (!is.null(entry$ios_id)) apps_df$ios_id[i] <- entry$ios_id
+        if (!is.null(entry$android_id)) apps_df$android_id[i] <- entry$android_id
+        if (!is.null(entry$unified_id)) apps_df$unified_id[i] <- entry$unified_id
+        if (!is.null(entry$app_name) && is.na(apps_df$app_name[i])) apps_df$app_name[i] <- entry$app_name
+      } else {
+        # Heuristic fallback (no API call): infer platform from pattern
+        if (grepl("^\\d+$", id)) apps_df$ios_id[i] <- id
+        if (grepl("^(com|net|org|io)\\.", id)) apps_df$android_id[i] <- id
       }
     }
   } else {
-    # Fallback to original logic if resolve_ids_for_os is not available
+    # Minimal fallback without API helpers
     for (i in seq_len(nrow(apps_df))) {
       id <- apps_df$app_id[i]
-      
-      # Quick detection
       if (grepl("^\\d+$", id)) {
         apps_df$ios_id[i] <- id
       } else if (grepl("^(com|net|org|io)\\.", id)) {
         apps_df$android_id[i] <- id
-      } else if (grepl("^[a-f0-9]{24}$", id)) {
-        # Hex ID - try to resolve
-        if (verbose) message("  Resolving hex ID: ", id)
-        lookup <- tryCatch({
-          st_app_lookup(id, auth_token = auth_token, verbose = FALSE)
-        }, error = function(e) NULL)
-        
-        if (!is.null(lookup)) {
-          apps_df$ios_id[i] <- lookup$ios_app_id
-          apps_df$android_id[i] <- lookup$android_app_id
-          # Initialize app_name column if it doesn't exist
-          if (!"app_name" %in% names(apps_df)) {
-            apps_df$app_name <- NA_character_
-          }
-          if (!is.null(lookup$app_name)) {
-            apps_df$app_name[i] <- lookup$app_name
-          }
-        }
       }
     }
   }

@@ -609,19 +609,101 @@ lookup_app_names_by_id <- function(data) {
   return(data)
 }
 
+# Helper function to deduplicate by a specific grouping column
+deduplicate_by_group_id <- function(data, group_col) {
+  if (nrow(data) == 0 || !group_col %in% names(data)) {
+    return(data)
+  }
+  
+  # Separate numeric and non-numeric columns
+  numeric_cols <- names(data)[sapply(data, is.numeric)]
+  non_numeric_cols <- setdiff(names(data), numeric_cols)
+  
+  # Metrics to sum (downloads, revenue, counts)
+  sum_metrics <- numeric_cols[grepl("downloads|revenue|units|count|absolute", numeric_cols, ignore.case = TRUE)]
+  
+  # Metrics to average (DAU, MAU, WAU, retention, ratings, percentages)
+  avg_metrics <- numeric_cols[grepl("dau|mau|wau|retention|rating|percentage|arpdau|rpd|avg|average", numeric_cols, ignore.case = TRUE)]
+  
+  # Everything else (first value)
+  other_metrics <- setdiff(numeric_cols, c(sum_metrics, avg_metrics))
+  
+  # Group by the specified column and aggregate
+  result <- data %>%
+    dplyr::group_by(!!rlang::sym(group_col)) %>%
+    dplyr::summarise(
+      # Keep the first unified_app_name
+      unified_app_name = dplyr::first(.data$unified_app_name),
+      
+      # Keep first unified_app_id
+      unified_app_id = dplyr::first(.data$unified_app_id),
+      
+      # Sum metrics that should be additive
+      dplyr::across(dplyr::all_of(sum_metrics), ~ sum(.x, na.rm = TRUE)),
+      
+      # Average metrics that should be averaged
+      dplyr::across(dplyr::all_of(avg_metrics), ~ mean(.x, na.rm = TRUE)),
+      
+      # Keep first value for other numeric metrics
+      dplyr::across(dplyr::all_of(other_metrics), ~ dplyr::first(.x[!is.na(.x)])),
+      
+      # Keep first value for non-numeric columns
+      dplyr::across(dplyr::all_of(setdiff(non_numeric_cols, c("unified_app_name", "unified_app_id", group_col))), 
+                   ~ dplyr::first(.x[!is.na(.x)])),
+      
+      # Keep first non-NA date
+      dplyr::across(where(lubridate::is.Date), ~ dplyr::first(.x[!is.na(.x)])),
+      dplyr::across(where(lubridate::is.POSIXt), ~ dplyr::first(.x[!is.na(.x)])),
+      
+      .groups = "drop"
+    ) %>%
+    # Remove the grouping column if it starts with a dot (temporary column)
+    { if (startsWith(group_col, ".")) dplyr::select(., -!!rlang::sym(group_col)) else . }
+  
+  # Convert 0 values back to NA where appropriate for averaged metrics
+  for (col in avg_metrics) {
+    if (col %in% names(result)) {
+      result[[col]][result[[col]] == 0] <- NA
+    }
+  }
+  
+  return(result)
+}
+
 # Helper function to deduplicate apps by consolidating metrics for the same app name
 deduplicate_apps_by_name <- function(data) {
   if (nrow(data) == 0 || !"unified_app_name" %in% names(data)) {
     return(data)
   }
   
-  # Check if there are actually duplicates to consolidate
-  if (length(unique(data$unified_app_name)) == nrow(data)) {
+  # Create normalized names first to check for duplicates
+  data_check <- data %>%
+    dplyr::mutate(
+      .name_check = .data$unified_app_name %>%
+        gsub("™|®|©|:|\\*", "", .) %>%
+        gsub("\\s+", " ", .) %>%
+        trimws() %>%
+        tolower()
+    )
+  
+  # Check if there are actually duplicates to consolidate (after normalization)
+  if (length(unique(data_check$.name_check)) == nrow(data)) {
     return(data)  # No duplicates, return as-is
   }
   
   message(sprintf("Consolidating %d app entries into %d unique apps...", 
-                  nrow(data), length(unique(data$unified_app_name))))
+                  nrow(data), length(unique(data_check$.name_check))))
+  
+  # The function seems to be crashing here - let's check
+  message("DEBUG: About to start deduplication logic...")
+  
+  # Debug: Check Star Wars entries
+  tryCatch({
+    sw_count <- sum(grepl("Star Wars.*Galaxy", data$unified_app_name, ignore.case = TRUE))
+    message(sprintf("DEBUG: Star Wars entries before dedup: %d", sw_count))
+  }, error = function(e) {
+    message("DEBUG ERROR: ", e$message)
+  })
   
   # Identify numeric columns to sum vs average
   numeric_cols <- names(data)[sapply(data, is.numeric)]
@@ -644,12 +726,35 @@ deduplicate_apps_by_name <- function(data) {
   # Everything else (first value)
   other_metrics <- setdiff(numeric_cols, c(sum_metrics, avg_metrics))
   
-  # Group by unified_app_name and aggregate
-  result <- data %>%
-    dplyr::group_by(.data$unified_app_name) %>%
+  # Create normalized name for grouping (case-insensitive)
+  # Remove special characters like ™, ®, ©, :, and extra spaces
+  data <- data %>%
+    dplyr::mutate(
+      .name_normalized = .data$unified_app_name %>%
+        gsub("™|®|©|:|\\*", "", .) %>%  # Remove trademark/copyright symbols and colons
+        gsub("\\s+", " ", .) %>%         # Replace multiple spaces with single space
+        trimws() %>%                      # Trim whitespace
+        tolower()                         # Convert to lowercase
+    )
+  
+  # Group by normalized name
+  message("Starting grouping operation...")
+  
+  # Debug: Check if we have the columns we need
+  if (!all(c("unified_app_name", "unified_app_id") %in% names(data))) {
+    message("ERROR: Missing required columns")
+    return(data)
+  }
+  
+  result <- tryCatch({
+    data %>%
+    dplyr::group_by(.data$.name_normalized) %>%
     dplyr::summarise(
-      # Keep first unified_app_id (preferably iOS if available, otherwise first)
-      unified_app_id = dplyr::first(.data$unified_app_id[order(nchar(.data$unified_app_id))]),
+      # Keep the first unified_app_name
+      unified_app_name = dplyr::first(.data$unified_app_name),
+      
+      # Keep first unified_app_id
+      unified_app_id = dplyr::first(.data$unified_app_id),
       
       # Sum metrics that should be additive
       dplyr::across(dplyr::all_of(sum_metrics), ~ sum(.x, na.rm = TRUE)),
@@ -667,8 +772,12 @@ deduplicate_apps_by_name <- function(data) {
       
       .groups = "drop"
     ) %>%
-    # Re-order to put unified_app_name first
-    dplyr::select(.data$unified_app_name, .data$unified_app_id, dplyr::everything())
+    # Re-order to put unified_app_name first and remove temporary column
+    dplyr::select(.data$unified_app_name, .data$unified_app_id, dplyr::everything(), -.data$.name_normalized)
+  }, error = function(e) {
+    message("ERROR in deduplication: ", e$message)
+    return(data)  # Return original data on error
+  })
   
   # Convert 0 values back to NA where appropriate for averaged metrics
   for (col in avg_metrics) {
@@ -677,6 +786,14 @@ deduplicate_apps_by_name <- function(data) {
     }
   }
   
+  # Debug: Check Star Wars entries after dedup
+  sw_after <- result %>% 
+    dplyr::filter(grepl("Star Wars.*Galaxy", unified_app_name, ignore.case = TRUE))
+  if (nrow(sw_after) > 0) {
+    message(sprintf("DEBUG: Star Wars entries after dedup: %d", nrow(sw_after)))
+  }
+  
+  message(sprintf("Deduplication complete: returning %d rows (was %d)", nrow(result), nrow(data)))
   return(result)
 }
 

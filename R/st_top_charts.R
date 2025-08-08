@@ -262,8 +262,97 @@ st_top_charts <- function(measure = "revenue",
     result <- validate_top_charts_data(result, measure, regions)
   }
   
-  # --- Deduplicate Apps (if requested) ---
-  if (deduplicate_apps && "unified_app_name" %in% names(result)) {
+  # --- Deduplicate Apps ---
+  # For unified OS, resolve true unified IDs and consolidate
+  if (os == "unified" && "unified_app_name" %in% names(result) && nrow(result) > 1 && deduplicate_apps) {
+    original_count <- nrow(result)
+    
+    # Get unique platform IDs and their corresponding names
+    unique_ids <- unique(result$unified_app_id)
+    # Create a mapping that handles duplicate keys by taking the first occurrence
+    id_name_df <- result %>%
+      dplyr::select(unified_app_id, unified_app_name) %>%
+      dplyr::distinct(unified_app_id, .keep_all = TRUE)
+    id_to_name <- stats::setNames(id_name_df$unified_app_name, id_name_df$unified_app_id)
+    
+    # Skip if all IDs are already hex format (true unified IDs)
+    # Filter out NA values first
+    non_na_ids <- unique_ids[!is.na(unique_ids)]
+    non_hex_ids <- non_na_ids[!grepl("^[a-f0-9]{24}$", non_na_ids)]
+    
+    if (length(non_hex_ids) > 0) {
+      message(sprintf("Resolving unified IDs for %d apps...", length(non_hex_ids)))
+      
+      # Get corresponding names for these IDs
+      # Handle potential NA values in the mapping
+      app_names <- character(length(non_hex_ids))
+      for (i in seq_along(non_hex_ids)) {
+        name <- id_to_name[non_hex_ids[i]]
+        app_names[i] <- if (!is.null(name) && !is.na(name)) as.character(name) else NA_character_
+      }
+      
+      # Use st_get_unified_mapping with app names for better resolution
+      mapping_result <- tryCatch({
+        st_get_unified_mapping(
+          app_ids = non_hex_ids,
+          app_names = app_names,
+          os = "unified",
+          auth_token = auth_token
+        )
+      }, error = function(e) {
+        message("Warning: Error resolving unified IDs: ", e$message)
+        NULL
+      })
+      
+      if (!is.null(mapping_result) && nrow(mapping_result) > 0) {
+        # Create mapping of platform IDs to true unified IDs
+        id_mapping <- mapping_result %>%
+          dplyr::filter(!is.na(.data$unified_app_id)) %>%
+          dplyr::select(platform_id = .data$input_id, 
+                       true_unified_id = .data$unified_app_id)
+        
+        if (nrow(id_mapping) > 0) {
+          # Apply true unified ID mapping
+          result <- result %>%
+            dplyr::left_join(id_mapping, by = c("unified_app_id" = "platform_id")) %>%
+            dplyr::mutate(
+              .group_id = dplyr::coalesce(.data$true_unified_id, .data$unified_app_id)
+            )
+          
+          # Group by true unified ID and aggregate metrics
+          result <- deduplicate_by_group_id(result, ".group_id")
+          
+          # Update the unified_app_id to be the true unified ID where available
+          if ("true_unified_id" %in% names(result)) {
+            result <- result %>%
+              dplyr::mutate(
+                unified_app_id = dplyr::coalesce(.data$true_unified_id, .data$unified_app_id)
+              ) %>%
+              dplyr::select(-true_unified_id)
+          }
+          
+          new_count <- nrow(result)
+          if (original_count != new_count) {
+            message(sprintf("Consolidated %d app entries into %d unique apps using unified IDs", 
+                           original_count, new_count))
+          }
+        } else {
+          message("Warning: Could not resolve unified IDs. Using name-based consolidation.")
+          result <- deduplicate_apps_by_name(result)
+        }
+      } else {
+        message("Using name-based consolidation as fallback.")
+        result <- tryCatch({
+          deduplicate_apps_by_name(result)
+        }, error = function(e) {
+          message("Error in deduplication: ", e$message)
+          result  # Return original on error
+        })
+      }
+    }
+    # If all IDs are already hex format, no action needed
+  } else if (deduplicate_apps && "unified_app_name" %in% names(result) && os != "unified") {
+    # For non-unified OS, use simple name deduplication if requested
     result <- deduplicate_apps_by_name(result)
   }
   

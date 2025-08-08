@@ -107,7 +107,9 @@ st_yoy_metrics <- function(
   countries,
   cache_dir = NULL,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
-  verbose = TRUE
+  verbose = TRUE,
+  granularity,
+  use_single_fetch = TRUE
 ) {
   
   # Validate OS parameter
@@ -196,82 +198,91 @@ st_yoy_metrics <- function(
     message("  Countries: ", paste(countries, collapse = ", "))
   }
   
-  # Fetch data for each year using st_batch_metrics
+  # Validate granularity explicitly
+  if (missing(granularity) || is.null(granularity)) {
+    stop("'granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+  }
+
+  # Build unified app_list once (or set publisher mode)
+  app_list <- NULL
+  publisher_mode <- FALSE
+  if (!is.null(unified_app_id)) {
+    app_list <- unified_app_id
+  } else if (!is.null(ios_app_id) && !is.null(android_app_id)) {
+    # Prefer passing a unified ID to ensure both-platform pairing downstream
+    unified_map <- tryCatch(
+      st_get_unified_mapping(ios_app_id, os = "ios", auth_token = auth_token),
+      error = function(e) NULL
+    )
+    if (!is.null(unified_map) && !is.null(unified_map$unified_app_id[1])) {
+      app_list <- as.character(unified_map$unified_app_id[1])
+    } else {
+      # Fallback: pass both IDs; downstream will fetch per-platform separately
+      app_list <- c(as.character(ios_app_id), as.character(android_app_id))
+    }
+  } else if (!is.null(ios_app_id) || !is.null(android_app_id)) {
+    # If unified OS requested but platform IDs supplied, resolve to unified to capture all regional SKUs
+    if (os == 'unified') {
+      unified_try <- NULL
+      if (!is.null(ios_app_id)) {
+        unified_try <- tryCatch(st_get_unified_mapping(ios_app_id, os = 'ios', auth_token = auth_token), error = function(e) NULL)
+      }
+      if ((is.null(unified_try) || is.null(unified_try$unified_app_id[1])) && !is.null(android_app_id)) {
+        unified_try <- tryCatch(st_get_unified_mapping(android_app_id, os = 'android', auth_token = auth_token), error = function(e) NULL)
+      }
+      if (!is.null(unified_try) && !is.null(unified_try$unified_app_id[1])) {
+        app_list <- as.character(unified_try$unified_app_id[1])
+      } else {
+        # Fallback to passing both platform IDs
+        ids <- c(as.character(ios_app_id %||% character()), as.character(android_app_id %||% character()))
+        app_list <- ids[ids != '']
+      }
+    } else {
+      # Non-unified OS: pass platform IDs through
+      app_list <- if (!is.null(ios_app_id)) ios_app_id else android_app_id
+    }
+  } else if (!is.null(publisher_id)) {
+    publisher_mode <- TRUE
+    # Resolve publisher apps once and create a cross-platform app list
+    apps_tbl <- tryCatch(st_publisher_apps(publisher_id, auth_token = auth_token), error = function(e) NULL)
+    if (!is.null(apps_tbl) && nrow(apps_tbl) > 0) {
+      # Prefer unified IDs; pass simple vector compatible with st_batch_metrics
+      unified_ids <- if ("unified_app_id" %in% names(apps_tbl)) unique(na.omit(as.character(apps_tbl$unified_app_id))) else character(0)
+      app_list <- unified_ids
+    } else {
+      app_list <- character(0)
+    }
+  }
+
+  # Use the user-specified granularity; no auto-granularity
+  chosen_granularity <- granularity
+
+  # If we can fetch once, do a single spanning request; otherwise loop per year
   all_results <- list()
-  
-  for (i in seq_along(years)) {
-    year <- years[i]
-    
-    # Construct dates for this year
-    start_date_str <- paste(year, period_start, sep = "-")
-    end_date_str <- paste(year, period_end, sep = "-")
-    
-    # Handle invalid dates (e.g., Feb 29 in non-leap years)
-    start_date <- tryCatch(
-      as.Date(start_date_str),
-      error = function(e) {
-        # Use last valid day of month
-        month <- as.integer(substr(period_start, 1, 2))
-        last_day <- lubridate::ceiling_date(
-          as.Date(paste(year, month, "01", sep = "-")), 
-          "month"
-        ) - 1
-        last_day
-      }
-    )
-    
-    end_date <- tryCatch(
-      as.Date(end_date_str),
-      error = function(e) {
-        # Handle Feb 29 in non-leap years
-        month <- as.integer(substr(period_end, 1, 2))
-        if (month == 2 && substr(period_end, 4, 5) == "29") {
-          as.Date(paste(year, "02-28", sep = "-"))
-        } else {
-          # Use last day of month
-          last_day <- lubridate::ceiling_date(
-            as.Date(paste(year, month, "01", sep = "-")), 
-            "month"
-          ) - 1
-          last_day
-        }
-      }
-    )
-    
-    if (verbose) {
-      message(sprintf("Fetching data for %d: %s to %s", year, start_date, end_date))
+  if (use_single_fetch) {
+    # Determine overall start/end
+    min_year <- min(years)
+    max_year <- max(years)
+    all_start <- as.Date(paste(min_year, period_start, sep = "-"))
+    all_end <- as.Date(paste(max_year, period_end, sep = "-"))
+    # Adjust invalid dates (e.g., 02-29) to valid
+    if (is.na(all_start)) {
+      m <- as.integer(substr(period_start, 1, 2))
+      all_start <- lubridate::floor_date(as.Date(paste(min_year, m, "01", sep = "-")), "month")
     }
-    
-    # Prepare app list for st_batch_metrics
-    app_list <- NULL
-    
-    if (!is.null(unified_app_id)) {
-      app_list <- unified_app_id
-    } else if (!is.null(ios_app_id) && !is.null(android_app_id)) {
-      # Create data frame with both IDs
-      app_list <- data.frame(
-        ios_id = ios_app_id,
-        android_id = android_app_id,
-        stringsAsFactors = FALSE
-      )
-    } else if (!is.null(ios_app_id)) {
-      app_list <- ios_app_id
-    } else if (!is.null(android_app_id)) {
-      app_list <- android_app_id
-    } else if (!is.null(publisher_id)) {
-      # TODO: Handle publisher metrics differently
-      stop("Publisher metrics not yet implemented in st_yoy_metrics")
+    if (is.na(all_end)) {
+      m <- as.integer(substr(period_end, 1, 2))
+      all_end <- lubridate::ceiling_date(as.Date(paste(max_year, m, "01", sep = "-")), "month") - 1
     }
-    
-    # Fetch metrics for this year
-    year_data <- tryCatch({
+
+    fetched <- tryCatch({
       st_batch_metrics(
         os = os,
         app_list = app_list,
         metrics = metrics,
-        date_range = list(start_date = start_date, end_date = end_date),
+        date_range = list(start_date = all_start, end_date = all_end),
         countries = countries,
-        granularity = "monthly",  # Aggregate to get totals for the period
+        granularity = chosen_granularity,
         parallel = FALSE,
         cache_dir = cache_dir,
         verbose = FALSE,
@@ -281,32 +292,82 @@ st_yoy_metrics <- function(
       if (verbose) message("  Error fetching data: ", e$message)
       NULL
     })
-    
-    if (!is.null(year_data) && nrow(year_data) > 0) {
-      # Aggregate data by app, country, and metric
-      year_summary <- year_data %>%
-        group_by(.data$original_id, .data$app_name, .data$country, .data$metric) %>%
-        summarise(
-          value = sum(.data$value, na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        mutate(
-          year = year,
-          date_start = as.character(start_date),
-          date_end = as.character(end_date),
-          entity_id = .data$original_id,
-          entity_name = .data$app_name,
-          entity_type = "app",
-          app_id = .data$original_id,
-          app_id_type = os
+
+    if (!is.null(fetched) && nrow(fetched) > 0) {
+      fetched$date <- as.Date(fetched$date)
+      # Cut per year windows and sum per app/country/metric
+      per_year <- lapply(seq_along(years), function(i) {
+        y <- years[i]
+        ys <- tryCatch(as.Date(paste(y, period_start, sep = "-")), error = function(e) NA)
+        ye <- tryCatch(as.Date(paste(y, period_end, sep = "-")), error = function(e) NA)
+        if (is.na(ys)) {
+          m <- as.integer(substr(period_start, 1, 2))
+          ys <- lubridate::floor_date(as.Date(paste(y, m, "01", sep = "-")), "month")
+        }
+        if (is.na(ye)) {
+          m <- as.integer(substr(period_end, 1, 2))
+          ye <- lubridate::ceiling_date(as.Date(paste(y, m, "01", sep = "-")), "month") - 1
+        }
+        sub <- fetched %>% dplyr::filter(.data$date >= ys, .data$date <= ye)
+        if (nrow(sub) == 0) return(NULL)
+        sub %>%
+          dplyr::group_by(.data$original_id, .data$app_name, .data$country, .data$metric) %>%
+          dplyr::summarise(value = sum(.data$value, na.rm = TRUE), .groups = "drop") %>%
+          dplyr::mutate(
+            year = y,
+            date_start = as.character(ys),
+            date_end = as.character(ye),
+            entity_id = .data$original_id,
+            entity_name = .data$app_name,
+            entity_type = if (publisher_mode) "publisher" else "app",
+            app_id = .data$original_id,
+            app_id_type = if (publisher_mode) "publisher" else os
+          )
+      })
+      per_year <- per_year[!vapply(per_year, is.null, logical(1))]
+      if (length(per_year) > 0) all_results[[1]] <- dplyr::bind_rows(per_year)
+    }
+  } else {
+    # Per-year loop (with chosen granularity)
+    for (i in seq_along(years)) {
+      year <- years[i]
+      start_date <- tryCatch(as.Date(paste(year, period_start, sep = "-")), error = function(e) NA)
+      end_date <- tryCatch(as.Date(paste(year, period_end, sep = "-")), error = function(e) NA)
+      if (is.na(start_date)) {
+        m <- as.integer(substr(period_start, 1, 2))
+        start_date <- lubridate::floor_date(as.Date(paste(year, m, "01", sep = "-")), "month")
+      }
+      if (is.na(end_date)) {
+        m <- as.integer(substr(period_end, 1, 2))
+        end_date <- lubridate::ceiling_date(as.Date(paste(year, m, "01", sep = "-")), "month") - 1
+      }
+      if (verbose) message(sprintf("Fetching data for %d: %s to %s", year, start_date, end_date))
+      year_data <- tryCatch({
+        st_batch_metrics(
+          os = os,
+          app_list = app_list,
+          metrics = metrics,
+          date_range = list(start_date = start_date, end_date = end_date),
+          countries = countries,
+          granularity = chosen_granularity,
+          parallel = FALSE,
+          cache_dir = cache_dir,
+          verbose = FALSE,
+          auth_token = auth_token
         )
-      
-      all_results[[length(all_results) + 1]] <- year_summary
+      }, error = function(e) NULL)
+      if (!is.null(year_data) && nrow(year_data) > 0) {
+        year_summary <- year_data %>%
+          dplyr::group_by(.data$original_id, .data$app_name, .data$country, .data$metric) %>%
+          dplyr::summarise(value = sum(.data$value, na.rm = TRUE), .groups = "drop") %>%
+          dplyr::mutate(year = year, date_start = as.character(start_date), date_end = as.character(end_date), entity_id = .data$original_id, entity_name = .data$app_name, entity_type = if (publisher_mode) "publisher" else "app", app_id = .data$original_id, app_id_type = if (publisher_mode) "publisher" else os)
+        all_results[[length(all_results) + 1]] <- year_summary
+      }
     }
   }
-  
+
   # Combine all years
-  ytd_data <- dplyr::bind_rows(all_results)
+  ytd_data <- if (length(all_results) > 0) dplyr::bind_rows(all_results) else tibble::tibble()
   
   # If no data returned, return empty tibble with expected columns
   if (length(all_results) == 0 || nrow(ytd_data) == 0) {
@@ -362,7 +423,7 @@ st_yoy_metrics <- function(
     
     if (nrow(summary_data) > 0) {
       message("\nYear-over-Year Summary:")
-      for (i in 1:nrow(summary_data)) {
+      for (i in seq_len(nrow(summary_data))) {
         message(sprintf("  %s %d: %+.1f%% avg change", 
                        summary_data$metric[i], 
                        summary_data$year[i],

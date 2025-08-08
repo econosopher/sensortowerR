@@ -46,7 +46,8 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
     years = c(2022, 2023, 2024),
     period_start = "01-01",
     period_end = "03-31",
-    countries = "US"
+    countries = "US",
+    granularity = "monthly"
   )
   
   # Compare holiday season with automatic YoY calculations
@@ -55,7 +56,8 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
     unified_app_id = "5ba4585f539ce75b97db6bcb",
     period_start = "11-01",
     period_end = "12-31",
-    countries = c("US", "GB", "JP")
+    countries = c("US", "GB", "JP"),
+    granularity = "daily"
   )
   ```
 
@@ -512,7 +514,8 @@ if (!is.null(app_ids)) {
     period_start = "01-01",
     period_end = "12-31",
     countries = "US",
-    metrics = "revenue"
+    metrics = "revenue",
+    granularity = "monthly"
   )
 }
 
@@ -583,7 +586,8 @@ ytd_batch <- st_batch_metrics(
   app_list = apps,
   metrics = c("revenue", "downloads", "dau", "wau", "mau"),
   date_range = "ytd",
-  countries = c("US", "GB", "JP")
+  countries = c("US", "GB", "JP"),
+  granularity = "monthly"
 )
 ```
 
@@ -591,6 +595,17 @@ ytd_batch <- st_batch_metrics(
 ```r
 # Get all Supercell games
 supercell_apps <- st_publisher_apps("560c48b48ac350643900b82d")
+
+# Fetch publisher-level revenue/downloads (unified sums iOS+Android)
+publisher_batch <- st_batch_metrics(
+  os = "unified",
+  app_list = character(0),
+  publisher_ids = c("560c48b48ac350643900b82d"),
+  metrics = c("revenue", "downloads"),
+  date_range = list(start_date = "2025-01-01", end_date = "2025-01-31"),
+  countries = "US",
+  granularity = "daily"
+)
 ```
 
 ### App Metrics
@@ -749,14 +764,15 @@ The new `st_yoy_metrics()` function makes it easy to compare any date range acro
 
 ```r
 # Compare Q1 performance across years
-q1_comparison <- st_yoy_metrics(
+ q1_comparison <- st_yoy_metrics(
   os = "ios",
   ios_app_id = "553834731",  # Candy Crush
   years = c(2022, 2023, 2024),
   period_start = "01-01",
   period_end = "03-31",
   countries = "US",
-  metrics = c("revenue", "downloads", "dau")
+  metrics = c("revenue", "downloads", "dau"),
+  granularity = "daily"
 )
 
 # The function automatically calculates YoY changes
@@ -765,25 +781,27 @@ q1_comparison %>%
   select(year, value, yoy_change, yoy_change_absolute)
 
 # Compare holiday season performance
-holiday_yoy <- st_yoy_metrics(
+ holiday_yoy <- st_yoy_metrics(
   os = "unified",
   unified_app_id = "5ba4585f539ce75b97db6bcb",
   years = c(2021, 2022, 2023),
   period_start = "11-01",
   period_end = "12-31",
   countries = c("US", "GB", "JP"),
-  metrics = c("revenue", "downloads")
+  metrics = c("revenue", "downloads"),
+  granularity = "monthly"
 )
 
 # Use Date objects for precise periods
-valentine_campaign <- st_yoy_metrics(
+ valentine_campaign <- st_yoy_metrics(
   os = "android",
   android_app_id = "com.king.candycrushsaga",
   years = NULL,  # Defaults to current and previous year
   period_start = as.Date("2024-02-14"),
   period_end = as.Date("2024-02-28"),
   countries = c("US", "GB", "DE"),
-  metrics = c("revenue", "downloads", "dau")
+  metrics = c("revenue", "downloads", "dau"),
+  granularity = "daily"
 )
 
 # Calculate growth from baseline year
