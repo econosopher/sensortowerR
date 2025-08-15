@@ -87,3 +87,8 @@ Rplots.pdf
 
 sensortowerR.code-workspace
 sensortowerR.code-workspace
+
+# Claude configuration
+CLAUDE.md
+.claude/
+.claude_backup/
