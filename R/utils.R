@@ -82,7 +82,7 @@ prepare_query_params_sales <- function(auth_token,
     time_range = time_range,
     measure = measure,
     date = as.character(date),
-    category = category,
+    category = category,  # Keep category even with custom filter
     end_date = if (!is.null(end_date)) as.character(end_date) else NULL,
     regions = paste(regions, collapse = ","),
     limit = limit,
@@ -92,7 +92,17 @@ prepare_query_params_sales <- function(auth_token,
     custom_tags_mode = if (os == "unified") custom_tags_mode else NULL
   )
   # Remove NULLs
-  params[!sapply(params, is.null)]
+  params <- params[!sapply(params, is.null)]
+  
+  # Debug: print params when using custom filter
+  if (!is.null(custom_fields_filter_id)) {
+    message("Debug: Query params with custom filter (sales):")
+    message("  custom_fields_filter_id: ", params$custom_fields_filter_id)
+    message("  category: ", if(is.null(params$category)) "NULL" else params$category)
+    message("  custom_tags_mode: ", params$custom_tags_mode)
+  }
+  
+  params
 }
 
 prepare_query_params_active_users <- function(auth_token,
@@ -115,7 +125,7 @@ prepare_query_params_active_users <- function(auth_token,
     time_range = time_range,
     measure = measure,
     date = as.character(date),
-    category = category,
+    category = category,  # Keep category even with custom filter
     regions = paste(regions, collapse = ","),
     limit = limit,
     offset = offset,

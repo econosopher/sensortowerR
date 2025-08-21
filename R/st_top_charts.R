@@ -61,8 +61,8 @@
 #'   (downloads/revenue summed, rates/percentages averaged).
 #'
 #' @section API Endpoints Used:
-#'   - **Revenue/Downloads**: `GET /v1/\{os\}/sales_report_estimates_comparison_attributes`
-#'   - **Active Users**: `GET /v1/\{os\}/top_and_trending/active_users`
+#'   - **All Measures**: `GET /v1/\{os\}/sales_report_estimates_comparison_attributes`
+#'   - Note: DAU/WAU/MAU measures now use the sales endpoint with custom filters for correct sorting
 #'
 #' @section Enhanced Custom Metrics:
 #'   The function extracts comprehensive custom metrics including:
@@ -90,12 +90,18 @@
 #'   regions = "US"
 #' )
 #' 
-#' # Top apps by Monthly Active Users
-#' top_mau <- st_top_charts(
+#' # Top apps by Daily Active Users with custom filter
+#' # Custom filter URLs from Sensor Tower web interface can be used directly
+#' # Extract the custom_fields_filter_id from the URL parameter 'uai'
+#' top_word_puzzles <- st_top_charts(
 #'   os = "unified",
-#'   measure = "MAU", 
-#'   category = 7014,  # Role Playing
-#'   regions = c("US", "GB", "JP")
+#'   measure = "revenue",  # Use revenue but custom filter handles DAU sorting
+#'   custom_fields_filter_id = "5a39e9681454d22f5a5e75ca",  # Word puzzle filter
+#'   custom_tags_mode = "include_unified_apps",
+#'   category = 7019,  # Puzzle category
+#'   regions = "US",
+#'   date = "2025-07-20",
+#'   end_date = "2025-08-18"
 #' )
 #' 
 #' # Custom time range and region
@@ -140,9 +146,9 @@ st_top_charts <- function(measure = "revenue",
   # --- Input Validation ---
   measure <- match.arg(measure, c("revenue", "units", "DAU", "WAU", "MAU"))
   
-  # Determine which API to use based on measure
-  is_active_users <- measure %in% c("DAU", "WAU", "MAU")
-  is_sales <- measure %in% c("revenue", "units")
+  # Always use sales endpoint - it handles all measures including DAU
+  is_active_users <- FALSE  # Don't use active_users endpoint
+  is_sales <- TRUE  # Always use sales_report_estimates_comparison_attributes
   
   # Validate category requirement - either category or custom_fields_filter_id must be provided
   if (is.null(category) && is.null(custom_fields_filter_id)) {

@@ -1,3 +1,19 @@
+# sensortowerR 0.8.1
+
+## Critical Fix
+
+* **FIXED** DAU/WAU/MAU measures now correctly sort when using custom filters
+  - Previously routed incorrectly to `active_users` endpoint
+  - Now all measures use `sales_report_estimates_comparison_attributes` endpoint
+  - Custom filters from web URLs now work correctly with DAU sorting
+  - Use `measure = "revenue"` when working with custom filters that sort by DAU
+
+## Documentation Updates
+
+* Updated `st_top_charts()` documentation to reflect endpoint changes
+* Added examples showing how to use custom filter URLs from web interface
+* Clarified that all measures now use the sales endpoint
+
 # sensortowerR 0.8.0
 
 ## Breaking Changes

@@ -54,8 +54,8 @@ st_get_unified_mapping <- function(app_ids,
   }
   
   # Get auth token
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
+  auth_token_val <- auth_token
+  if (!nzchar(auth_token_val)) {
     stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   

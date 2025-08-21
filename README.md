@@ -6,6 +6,32 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.7.6 - Critical Fix for DAU/WAU/MAU Sorting with Custom Filters
+- **BREAKING FIX**: DAU/WAU/MAU measures now correctly use the sales endpoint
+  - Previously, these measures incorrectly routed to `active_users` endpoint
+  - This caused incorrect sorting when using custom filters from web interface
+  - Now all measures use `sales_report_estimates_comparison_attributes` endpoint
+- **Custom Filter URL Support**: 
+  - Copy URLs directly from Sensor Tower web interface
+  - Extract `custom_fields_filter_id` from the 'uai' parameter
+  - Works correctly with DAU sorting when using `measure = "revenue"`
+- **Example - Using Custom Filter URLs**:
+  ```r
+  # URL from Sensor Tower: ...&uai=5a39e9681454d22f5a5e75ca&...
+  # Extract the custom_fields_filter_id and use:
+  top_word_puzzles <- st_top_charts(
+    os = "unified",
+    measure = "revenue",  # Use revenue endpoint, custom filter handles DAU
+    custom_fields_filter_id = "5a39e9681454d22f5a5e75ca",
+    custom_tags_mode = "include_unified_apps",
+    category = 7019,  # Still required with custom filter
+    regions = "US",
+    date = "2025-07-20",
+    end_date = "2025-08-18"
+  )
+  # Results will be sorted by DAU as shown in web interface
+  ```
+
 ### v0.7.5 - Custom Filter Support Across Functions
 - **Enhanced Custom Filter Integration**: 
   - `st_category_rankings()` now supports custom field filters from Sensor Tower web interface
@@ -874,8 +900,14 @@ The `st_top_charts()` function combines revenue, downloads, and active user metr
 # All these use the same function with different measures:
 st_top_charts(measure = "revenue", category = 6000)    # Default
 st_top_charts(measure = "units", category = 6000)      # Downloads  
-st_top_charts(measure = "MAU", category = 7014)        # Monthly Active Users
-st_top_charts(measure = "DAU", category = 7014)        # Daily Active Users
+
+# Note: When using custom filters with DAU sorting, use measure = "revenue"
+# The custom filter will handle the actual DAU sorting
+st_top_charts(
+  measure = "revenue",  # Use revenue endpoint
+  custom_fields_filter_id = "your_filter_id",
+  category = 7014
+)
 ```
 
 ## Enhanced Custom Metrics

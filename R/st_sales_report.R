@@ -95,7 +95,7 @@ st_sales_report <- function(os,
                            custom_fields_filter_id = NULL,
                            custom_tags_mode = NULL,
                            limit = 100,
-                           auth_token = NULL,
+                            auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                            auto_segment = TRUE,
                            verbose = TRUE) {
   
@@ -143,8 +143,8 @@ st_sales_report <- function(os,
   end_date <- as.Date(end_date)
   
   # Authentication
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
+  auth_token_val <- trimws(auth_token)
+  if (!nzchar(auth_token_val)) {
     stop("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
