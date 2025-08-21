@@ -271,7 +271,7 @@ st_top_charts <- function(measure = "revenue",
   
   # --- Deduplicate Apps ---
   # For unified OS, resolve true unified IDs and consolidate
-  if (os == "unified" && "unified_app_name" %in% names(result) && nrow(result) > 1 && deduplicate_apps) {
+  if (os == "unified" && "unified_app_id" %in% names(result) && nrow(result) > 1 && deduplicate_apps) {
     original_count <- nrow(result)
     
     # Get unique platform IDs and their corresponding names

@@ -231,14 +231,23 @@ process_response <- function(resp, enrich_response = TRUE) {
       result_tbl$unified_app_name <- result_tbl$app.name
     }
     
-    if ("entities.app_id" %in% names(result_tbl)) {
-      result_tbl$unified_app_id <- result_tbl$entities.app_id
-      
-      # If we have app_ids but missing app names, look them up
-      if (!"unified_app_name" %in% names(result_tbl) || 
-          any(is.na(result_tbl$unified_app_name))) {
-        result_tbl <- lookup_app_names_by_id(result_tbl)
-      }
+    # IMPORTANT: Keep the original app_id as unified_app_id if it exists
+    # This is the true unified hex ID from the API
+    # Don't overwrite with entities.app_id which contains platform-specific IDs
+    if ("app_id" %in% names(result_tbl) && !"unified_app_id" %in% names(result_tbl)) {
+      result_tbl$unified_app_id <- result_tbl$app_id
+    }
+    
+    # Store platform-specific app_id separately for reference
+    if ("entities.app_id" %in% names(result_tbl) && !"platform_app_id" %in% names(result_tbl)) {
+      result_tbl$platform_app_id <- result_tbl$entities.app_id
+    }
+    
+    # If we have app_ids but missing app names, look them up
+    if ((!"unified_app_name" %in% names(result_tbl) || 
+         any(is.na(result_tbl$unified_app_name))) &&
+        "unified_app_id" %in% names(result_tbl)) {
+      result_tbl <- lookup_app_names_by_id(result_tbl)
     }
     
     # Extract custom metrics with clean names
