@@ -6,12 +6,15 @@
 \usage{
 st_get_unified_mapping(
   app_ids,
+  app_names = NULL,
   os = "unified",
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
 )
 }
 \arguments{
 \item{app_ids}{Character vector of app IDs (can be iOS, Android, or unified hex IDs)}
+
+\item{app_names}{Character vector of app names (optional, helps with resolution)}
 
 \item{os}{Character string. Operating system: "ios", "android", or "unified"}
 
@@ -29,24 +32,30 @@ A data frame with columns:
   - `publisher_name`: Publisher name
 }
 \description{
-Retrieves the mapping between platform-specific app IDs and unified app IDs
-using Sensor Tower's comparison attributes endpoint. This function helps resolve
-the relationship between iOS/Android app IDs and their unified counterparts.
+Retrieves the mapping between platform-specific app IDs and unified app IDs.
+This function handles cases where platform IDs from st_top_charts may not be
+directly searchable, using app names as a fallback resolution method.
+}
+\details{
+This function uses an ID-first approach (no name-based resolution):
+1. For hex IDs (24-char), uses st_app_lookup to get platform IDs
+2. For platform IDs, first tries to look them up via st_app_lookup
+3. If direct lookup fails, searches the unified index using the platform ID
+   as the term and matches exact IDs within nested ios_apps/android_apps
+4. Returns the best available mapping for each app using IDs only
+
+Note: Platform IDs from st_top_charts may be regional or legacy IDs that
+aren't directly searchable. In these cases, name-based search provides
+the most reliable resolution to unified IDs.
 }
 \examples{
 \dontrun{
-# Get mapping for specific apps
-mapping <- st_get_unified_mapping(c("1427744264", "com.scopely.startrek"))
-
-# Use with st_ytd_metrics
-map_data <- st_get_unified_mapping("5ba4585f539ce75b97db6bcb")
-if (!is.null(map_data)) {
-  metrics <- st_ytd_metrics(
-    ios_app_id = map_data$ios_app_id,
-    android_app_id = map_data$android_app_id,
-    years = 2025
-  )
-}
+# Get mapping with app names for better resolution
+mapping <- st_get_unified_mapping(
+  app_ids = c("943599237", "com.bandainamcogames.dbzdokkan"),
+  app_names = c("Dragon Ball Z Dokkan Battle", "Dragon Ball Z Dokkan Battle"),
+  os = "unified"
+)
 }
 
 }

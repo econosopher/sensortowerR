@@ -5,13 +5,18 @@
 \title{Get All Apps from a Publisher}
 \usage{
 st_publisher_apps(
-  publisher_id,
+  unified_id = NULL,
+  publisher_id = NULL,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
 )
 }
 \arguments{
-\item{publisher_id}{Character. The Unified Publisher ID from Sensor Tower
-for which to retrieve associated apps.}
+\item{unified_id}{Character. Unified ID to resolve apps for. May be either:
+- Unified Publisher ID (24-char hex)
+- Unified App ID (24-char hex) belonging to a publisher
+The API returns the unified publisher and all associated apps in both cases.}
+
+\item{publisher_id}{Deprecated alias for `unified_id`.}
 
 \item{auth_token}{Character. Your Sensor Tower API authentication token.
 Defaults to the value stored in the `SENSORTOWER_AUTH_TOKEN` environment

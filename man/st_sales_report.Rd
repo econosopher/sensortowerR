@@ -17,7 +17,7 @@ st_sales_report(
   custom_fields_filter_id = NULL,
   custom_tags_mode = NULL,
   limit = 100,
-  auth_token = NULL,
+  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
   auto_segment = TRUE,
   verbose = TRUE
 )

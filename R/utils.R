@@ -687,10 +687,21 @@ deduplicate_apps_by_name <- function(data) {
   }
   
   # Create normalized names first to check for duplicates
+  # Group similar app names more aggressively
   data_check <- data %>%
     dplyr::mutate(
       .name_check = .data$unified_app_name %>%
-        gsub("™|®|©|:|\\*", "", .) %>%
+        # Remove special characters and symbols
+        gsub("™|®|©|:|\\*|¤", "", .) %>%
+        # Handle specific known patterns
+        gsub("NYT Games.*|NYTimes.*", "nyt crossword", ., ignore.case = TRUE) %>%
+        gsub("Scrabble.*GO.*", "scrabble go", ., ignore.case = TRUE) %>%
+        gsub("Words With Friends.*", "words with friends", ., ignore.case = TRUE) %>%
+        gsub("Elevate.*Brain.*", "elevate brain training", ., ignore.case = TRUE) %>%
+        gsub("Word Trip.*|WordTrip.*", "word trip", ., ignore.case = TRUE) %>%
+        gsub("Heads Up.*|Warner.*Heads Up", "heads up", ., ignore.case = TRUE) %>%
+        gsub("Word Connect.*", "word connect", ., ignore.case = TRUE) %>%
+        # General cleanup
         gsub("\\s+", " ", .) %>%
         trimws() %>%
         tolower()
@@ -727,24 +738,41 @@ deduplicate_apps_by_name <- function(data) {
   # Explicitly exclude user metrics from sum
   sum_metrics <- sum_metrics[!grepl("dau|mau|wau|users", sum_metrics, ignore.case = TRUE)]
   
-  # Metrics to AVERAGE (rates, percentages, ratios, AND user counts)
+  # Metrics to take MAX of (user counts - same users across platforms)
+  max_metrics <- numeric_cols[grepl(
+    "dau|mau|wau|users", 
+    numeric_cols, ignore.case = TRUE
+  )]
+  # Exclude from max if it's a ratio/rate
+  max_metrics <- max_metrics[!grepl("rate|ratio|percent", max_metrics, ignore.case = TRUE)]
+  
+  # Metrics to AVERAGE (rates, percentages, ratios)
   avg_metrics <- numeric_cols[grepl(
-    "retention|rpd|rating|age|share|percent|rate|ratio|transformed|dau|mau|wau|users", 
+    "retention|rpd|rating|age|share|percent|rate|ratio|transformed", 
     numeric_cols, ignore.case = TRUE
   )]
   
   # Everything else (first value)
-  other_metrics <- setdiff(numeric_cols, c(sum_metrics, avg_metrics))
+  other_metrics <- setdiff(numeric_cols, c(sum_metrics, avg_metrics, max_metrics))
   
-  # Create normalized name for grouping (case-insensitive)
-  # Remove special characters like ™, ®, ©, :, and extra spaces
+  # Create normalized name for grouping using the same aggressive patterns
   data <- data %>%
     dplyr::mutate(
       .name_normalized = .data$unified_app_name %>%
-        gsub("™|®|©|:|\\*", "", .) %>%  # Remove trademark/copyright symbols and colons
-        gsub("\\s+", " ", .) %>%         # Replace multiple spaces with single space
-        trimws() %>%                      # Trim whitespace
-        tolower()                         # Convert to lowercase
+        # Remove special characters and symbols
+        gsub("™|®|©|:|\\*|¤", "", .) %>%
+        # Handle specific known patterns - SAME AS ABOVE
+        gsub("NYT Games.*|NYTimes.*", "nyt crossword", ., ignore.case = TRUE) %>%
+        gsub("Scrabble.*GO.*", "scrabble go", ., ignore.case = TRUE) %>%
+        gsub("Words With Friends.*", "words with friends", ., ignore.case = TRUE) %>%
+        gsub("Elevate.*Brain.*", "elevate brain training", ., ignore.case = TRUE) %>%
+        gsub("Word Trip.*|WordTrip.*", "word trip", ., ignore.case = TRUE) %>%
+        gsub("Heads Up.*|Warner.*Heads Up", "heads up", ., ignore.case = TRUE) %>%
+        gsub("Word Connect.*", "word connect", ., ignore.case = TRUE) %>%
+        # General cleanup
+        gsub("\\s+", " ", .) %>%
+        trimws() %>%
+        tolower()
     )
   
   # Group by normalized name
@@ -769,6 +797,9 @@ deduplicate_apps_by_name <- function(data) {
       # Sum metrics that should be additive
       dplyr::across(dplyr::all_of(sum_metrics), ~ sum(.x, na.rm = TRUE)),
       
+      # Max for user metrics (same users across platforms)
+      dplyr::across(dplyr::all_of(max_metrics), ~ max(.x, na.rm = TRUE)),
+      
       # Average metrics that are rates/percentages  
       dplyr::across(dplyr::all_of(avg_metrics), ~ mean(.x, na.rm = TRUE)),
       
@@ -789,9 +820,14 @@ deduplicate_apps_by_name <- function(data) {
     return(data)  # Return original data on error
   })
   
-  # Convert 0 values back to NA where appropriate for averaged metrics
-  for (col in avg_metrics) {
+  # Convert 0 values back to NA where appropriate for averaged and max metrics
+  for (col in c(avg_metrics, max_metrics)) {
     if (col %in% names(result)) {
+      # For max metrics, -Inf means all were NA, convert to NA
+      if (col %in% max_metrics) {
+        result[[col]][is.infinite(result[[col]])] <- NA
+      }
+      # For avg metrics, 0 from all NAs should be NA
       result[[col]][result[[col]] == 0] <- NA
     }
   }

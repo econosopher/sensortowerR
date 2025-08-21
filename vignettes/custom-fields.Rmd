@@ -1,0 +1,446 @@
+---
+title: "Working with Custom Fields Filters"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Working with Custom Fields Filters}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+```{r}
+library(sensortowerR)
+library(dplyr)
+```
+
+## Introduction
+
+Custom Fields Filters are a powerful feature in Sensor Tower that allow you to create complex, reusable queries to segment apps based on hundreds of different attributes. This vignette demonstrates how to use the sensortowerR package to work with custom fields filters.
+
+## Understanding Custom Fields
+
+Sensor Tower tracks over 400 custom fields for apps, including:
+
+- **Game attributes**: Genre, sub-genre, art style, camera POV
+- **Monetization**: Free/paid, IAP, ads, subscriptions
+- **Technical**: SDKs used, platform support, device compatibility
+- **Performance**: Retention rates, ratings, download counts
+- **Metadata**: Release dates, publisher info, update frequency
+
+## Basic Workflow
+
+### 1. Discover Available Fields
+
+First, explore what custom fields are available:
+
+```{r discover}
+# See all available fields
+all_fields <- st_discover_fields()
+head(all_fields)
+
+# Search for specific fields
+game_fields <- st_discover_fields("game")
+monetization_fields <- st_discover_fields("monetization")
+
+# Show fields with their possible values
+genre_fields <- st_discover_fields("genre", show_values = TRUE)
+```
+
+### 2. Create Simple Filters
+
+Create filters for common scenarios:
+
+```{r simple-filters}
+# Filter for Word games
+word_filter <- st_create_simple_filter(
+  field_name = "Game Sub-genre",
+  field_values = "Word"
+)
+
+# Filter for free apps with ads
+free_with_ads <- st_create_simple_filter(
+  field_name = "Free",
+  field_values = list(),  # Boolean field
+  global = TRUE
+)
+```
+
+### 3. Retrieve Filtered Apps
+
+Use filters to get app data:
+
+```{r get-apps}
+# Get top Word games by DAU
+word_games <- st_get_filtered_apps(
+  field_name = "Game Sub-genre",
+  field_values = "Word",
+  measure = "DAU",
+  regions = "US",
+  limit = 20
+)
+
+# Use an existing filter ID
+apps <- st_get_filtered_apps(
+  filter_id = word_filter,
+  measure = "revenue",
+  regions = "US",
+  date = "2025-07-01",
+  end_date = "2025-07-31"
+)
+```
+
+## Advanced Filtering
+
+### Genre and Sub-Genre Filtering
+
+```{r genre-filtering}
+# Get Puzzle games
+puzzle_filter <- st_filter_by_genre(genres = "Puzzle")
+
+# Get Word Puzzle games (multiple criteria)
+word_puzzle_filter <- st_filter_by_genre(
+  genres = "Puzzle",
+  sub_genres = "Word"
+)
+
+# Exclude certain genres
+no_action_filter <- st_filter_by_genre(
+  genres = c("Action", "Shooter"),
+  exclude_genres = TRUE
+)
+```
+
+### Monetization Model Filtering
+
+```{r monetization}
+# Free-to-play with ads
+f2p_ads <- st_filter_by_monetization(
+  free_only = TRUE,
+  has_ads = TRUE
+)
+
+# Premium games (paid, no IAP)
+premium <- st_filter_by_monetization(
+  free_only = FALSE,
+  has_iap = FALSE
+)
+
+# Subscription-based apps
+subscription <- st_filter_by_monetization(
+  has_subscription = TRUE
+)
+
+# Hybrid monetization (IAP + Ads)
+hybrid <- st_filter_by_monetization(
+  has_iap = TRUE,
+  has_ads = TRUE
+)
+```
+
+### SDK and Technology Filtering
+
+```{r sdk-filtering}
+# Unity-based games
+unity_games <- st_filter_by_sdk(sdk_names = "Unity")
+
+# Apps using multiple SDKs
+firebase_admob <- st_filter_by_sdk(
+  sdk_names = c("Firebase", "AdMob")
+)
+
+# Apps NOT using certain SDKs
+no_facebook <- st_filter_by_sdk(
+  sdk_names = "Facebook",
+  exclude = TRUE
+)
+```
+
+### Date-Based Filtering
+
+```{r date-filtering}
+# New releases (last 30 days)
+new_releases <- st_filter_by_date(
+  released_after = Sys.Date() - 30,
+  region = "US"
+)
+
+# Apps released in 2024
+apps_2024 <- st_filter_by_date(
+  released_after = "2024-01-01",
+  released_before = "2024-12-31",
+  region = "WW"
+)
+
+# Established apps (>1 year old)
+established <- st_filter_by_date(
+  released_before = Sys.Date() - 365,
+  region = "US"
+)
+```
+
+### Publisher Filtering
+
+```{r publisher}
+# Apps from specific publishers
+ea_games <- st_filter_by_publisher(
+  publisher_names = c("Electronic Arts", "EA Swiss Sarl")
+)
+
+# Exclude certain publishers
+indie_games <- st_filter_by_publisher(
+  publisher_names = c("Electronic Arts", "Activision", "Ubisoft"),
+  exclude = TRUE
+)
+```
+
+## Working with Filter Collections
+
+Use pre-built filter collections for common analyses:
+
+```{r collections}
+# Get genre filter collection
+genres <- st_get_filter_collection("top_genres")
+
+# Use filters from collection
+puzzle_apps <- st_top_charts(
+  os = "unified",
+  category = 0,
+  custom_fields_filter_id = genres$puzzle,
+  custom_tags_mode = "include_unified_apps",
+  measure = "DAU",
+  regions = "US"
+)
+
+# Get monetization model filters
+monetization <- st_get_filter_collection("monetization_models")
+
+# Compare F2P with ads vs F2P with IAP
+f2p_ads_apps <- st_get_filtered_apps(
+  filter_id = monetization$free_with_ads,
+  measure = "DAU",
+  regions = "US"
+)
+
+f2p_iap_apps <- st_get_filtered_apps(
+  filter_id = monetization$free_with_iap,
+  measure = "DAU",
+  regions = "US"
+)
+```
+
+## Complex Filter Combinations
+
+Create sophisticated filters by combining multiple criteria:
+
+```{r complex}
+# Create a complex filter manually
+complex_filter <- st_custom_fields_filter(
+  custom_fields = list(
+    list(
+      name = "Game Genre",
+      values = list("Puzzle"),
+      global = TRUE,
+      exclude = FALSE
+    ),
+    list(
+      name = "Free",
+      global = TRUE,
+      true = TRUE
+    ),
+    list(
+      name = "SDK: Unity",
+      global = TRUE,
+      true = TRUE
+    ),
+    list(
+      name = "Day 7 Retention (Last Quarter, US)",
+      values = list("30% - 100%"),  # High retention
+      global = TRUE,
+      exclude = FALSE
+    )
+  )
+)
+
+# Use the complex filter
+high_retention_puzzle <- st_get_filtered_apps(
+  filter_id = complex_filter,
+  measure = "DAU",
+  regions = "US"
+)
+```
+
+## Analyzing Filtered Results
+
+Once you have filtered apps, analyze them:
+
+```{r analysis}
+# Get comprehensive analysis
+analysis <- st_analyze_filter(
+  filter_id = word_filter,
+  measure = "DAU",
+  regions = "US",
+  top_n = 10
+)
+
+# Access analysis components
+print(analysis$filter_criteria)
+print(analysis$total_apps)
+print(analysis$top_apps)
+
+# Custom analysis on filtered data
+word_games %>%
+  mutate(
+    dau = `aggregate_tags.Last 30 Days Average DAU (US)`,
+    retention_d7 = `aggregate_tags.Day 7 Retention (Last Quarter, US)`
+  ) %>%
+  filter(!is.na(dau)) %>%
+  summarise(
+    total_dau = sum(dau, na.rm = TRUE),
+    avg_retention = mean(retention_d7, na.rm = TRUE),
+    median_dau = median(dau, na.rm = TRUE)
+  )
+```
+
+## Integration with Other sensortowerR Functions
+
+Custom fields filters integrate seamlessly with other package functions:
+
+```{r integration}
+# Use with st_top_charts
+top_word_games <- st_top_charts(
+  os = "unified",
+  category = 0,  # Required when using custom filter
+  custom_fields_filter_id = word_filter,
+  custom_tags_mode = "include_unified_apps",
+  measure = "DAU",
+  regions = "US",
+  date = "2025-07-01",
+  limit = 50
+)
+
+# Use with st_app_tag
+matching_apps <- st_app_tag(
+  app_id_type = "unified",
+  custom_fields_filter_id = word_filter
+)
+
+# Combine with metrics retrieval
+if (nrow(matching_apps$data) > 0) {
+  app_metrics <- st_metrics(
+    app_ids = matching_apps$data$unified_app_id[1:10],
+    metrics = c("dau", "revenue", "downloads"),
+    regions = "US"
+  )
+}
+```
+
+## Best Practices
+
+### 1. Cache Filter IDs
+
+Filter IDs are permanent and reusable. Save them for repeated use:
+
+```{r caching}
+# Save commonly used filters
+my_filters <- list(
+  word_games = "603697f4241bc16eb8570d37",
+  puzzle_games = st_filter_by_genre(genres = "Puzzle"),
+  f2p_games = st_filter_by_monetization(free_only = TRUE),
+  unity_games = st_filter_by_sdk(sdk_names = "Unity")
+)
+
+# Save to file for later use
+saveRDS(my_filters, "my_sensor_tower_filters.rds")
+
+# Load in future sessions
+my_filters <- readRDS("my_sensor_tower_filters.rds")
+```
+
+### 2. Validate Filters
+
+Always verify what a filter contains:
+
+```{r validation}
+# Check filter details
+filter_details <- st_custom_fields_filter_by_id(
+  id = "603697f4241bc16eb8570d37"
+)
+
+print(filter_details$custom_fields)
+```
+
+### 3. Handle Large Result Sets
+
+When working with broad filters:
+
+```{r large-results}
+# Use pagination for large result sets
+all_puzzle_games <- st_app_tag(
+  app_id_type = "unified",
+  custom_fields_filter_id = puzzle_filter
+)
+
+# Process in batches if needed
+if (!is.null(all_puzzle_games$last_known_id)) {
+  # Get next page
+  next_page <- st_app_tag(
+    app_id_type = "unified",
+    custom_fields_filter_id = puzzle_filter,
+    last_known_id = all_puzzle_games$last_known_id
+  )
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Empty Results**: Check that the filter criteria are not too restrictive
+2. **API Errors**: Ensure your authentication token has necessary permissions
+3. **Performance**: Use specific filters rather than broad ones for better performance
+
+### Debugging Filters
+
+```{r debug}
+# Test filter creation
+tryCatch({
+  filter_id <- st_create_simple_filter(
+    field_name = "Invalid Field Name",
+    field_values = "test"
+  )
+}, error = function(e) {
+  message("Filter creation failed: ", e$message)
+})
+
+# Verify field exists
+fields <- st_discover_fields("Invalid Field")
+if (nrow(fields) == 0) {
+  message("No matching fields found")
+}
+```
+
+## Conclusion
+
+Custom Fields Filters provide powerful segmentation capabilities for app market analysis. By combining different filter criteria, you can create precise queries to identify specific app segments, analyze market trends, and track competitor strategies.
+
+Key takeaways:
+
+- Use `st_discover_fields()` to explore available filtering options
+- Create reusable filters with utility functions like `st_filter_by_genre()`
+- Combine filters for complex queries
+- Integrate filters with other sensortowerR functions for comprehensive analysis
+- Cache filter IDs for improved performance
+
+For more information, see the function documentation:
+```{r help, eval=FALSE}
+?st_custom_fields_filter
+?st_get_filtered_apps
+?st_filter_by_genre
+```

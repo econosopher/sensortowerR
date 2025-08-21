@@ -17,7 +17,9 @@ st_yoy_metrics(
   countries,
   cache_dir = NULL,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
-  verbose = TRUE
+  verbose = TRUE,
+  granularity,
+  use_single_fetch = TRUE
 )
 }
 \arguments{

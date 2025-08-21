@@ -5,6 +5,7 @@
 #' directly searchable, using app names as a fallback resolution method.
 #'
 #' @param app_ids Character vector of app IDs (can be iOS, Android, or unified hex IDs)
+#' @param app_names Character vector of app names (optional, helps with resolution)
 #' @param os Character string. Operating system: "ios", "android", or "unified"
 #' @param auth_token Character string. Sensor Tower API authentication token.
 #'   Defaults to environment variable SENSORTOWER_AUTH_TOKEN.
@@ -45,6 +46,7 @@
 #' @importFrom dplyr %>%
 #' @export
 st_get_unified_mapping <- function(app_ids, 
+                                   app_names = NULL,
                                    os = "unified",
                                    auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
   
@@ -155,8 +157,8 @@ st_get_unified_mapping <- function(app_ids,
       }
       
       # Use the provided name if available
-      if (!is.na(app_name)) {
-        result_df$unified_app_name[i] <- app_name
+      if (!is.null(app_names) && length(app_names) >= i && !is.na(app_names[i])) {
+        result_df$unified_app_name[i] <- app_names[i]
       }
     }
   }

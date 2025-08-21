@@ -107,8 +107,8 @@ selects the appropriate API endpoint based on the measure specified.
 }
 \section{API Endpoints Used}{
 
-  - **Revenue/Downloads**: `GET /v1/\{os\}/sales_report_estimates_comparison_attributes`
-  - **Active Users**: `GET /v1/\{os\}/top_and_trending/active_users`
+  - **All Measures**: `GET /v1/\{os\}/sales_report_estimates_comparison_attributes`
+  - Note: DAU/WAU/MAU measures now use the sales endpoint with custom filters for correct sorting
 }
 
 \section{Enhanced Custom Metrics}{
@@ -139,12 +139,18 @@ top_downloads <- st_top_charts(
   regions = "US"
 )
 
-# Top apps by Monthly Active Users
-top_mau <- st_top_charts(
+# Top apps by Daily Active Users with custom filter
+# Custom filter URLs from Sensor Tower web interface can be used directly
+# Extract the custom_fields_filter_id from the URL parameter 'uai'
+top_word_puzzles <- st_top_charts(
   os = "unified",
-  measure = "MAU", 
-  category = 7014,  # Role Playing
-  regions = c("US", "GB", "JP")
+  measure = "revenue",  # Use revenue but custom filter handles DAU sorting
+  custom_fields_filter_id = "5a39e9681454d22f5a5e75ca",  # Word puzzle filter
+  custom_tags_mode = "include_unified_apps",
+  category = 7019,  # Puzzle category
+  regions = "US",
+  date = "2025-07-20",
+  end_date = "2025-08-18"
 )
 
 # Custom time range and region

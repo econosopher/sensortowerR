@@ -147,8 +147,9 @@ st_top_charts <- function(measure = "revenue",
   measure <- match.arg(measure, c("revenue", "units", "DAU", "WAU", "MAU"))
   
   # Always use sales endpoint - it handles all measures including DAU
-  is_active_users <- FALSE  # Don't use active_users endpoint
-  is_sales <- TRUE  # Always use sales_report_estimates_comparison_attributes
+  # Determine which endpoint to use based on measure
+  is_active_users <- toupper(measure) %in% c("DAU", "WAU", "MAU")
+  is_sales <- !is_active_users
   
   # Validate category requirement - either category or custom_fields_filter_id must be provided
   if (is.null(category) && is.null(custom_fields_filter_id)) {

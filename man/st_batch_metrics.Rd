@@ -10,11 +10,16 @@ st_batch_metrics(
   metrics = c("revenue", "downloads"),
   date_range = list(start_date = Sys.Date() - 90, end_date = Sys.Date() - 1),
   countries,
-  granularity = "monthly",
+  granularity,
   parallel = TRUE,
   cache_dir = NULL,
   verbose = TRUE,
-  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
+  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
+  max_cores = 2,
+  max_concurrent_requests = 2,
+  retry = TRUE,
+  max_retries = 3,
+  publisher_ids = NULL
 )
 }
 \arguments{
