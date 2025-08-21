@@ -375,6 +375,36 @@ st_top_charts <- function(measure = "revenue",
       result$app_id <- result$unified_app_id
       result$app_id_type <- os  # The OS parameter determines the type
     }
+    
+    # --- Sort by the requested measure ---
+    # After enrichment, the relevant columns are renamed
+    if (is_active_users) {
+      # For DAU/WAU/MAU, sort by the appropriate active user metric
+      sort_col <- switch(
+        toupper(measure),
+        "DAU" = "dau_30d_us",
+        "WAU" = "wau_4w_us", 
+        "MAU" = "mau_month_us",
+        NULL
+      )
+      # Fallback to users_absolute if enrichment didn't happen
+      if (!is.null(sort_col) && sort_col %in% names(result)) {
+        result <- result %>% dplyr::arrange(dplyr::desc(!!rlang::sym(sort_col)))
+      } else if ("users_absolute" %in% names(result)) {
+        result <- result %>% dplyr::arrange(dplyr::desc(users_absolute))
+      }
+    } else {
+      # For sales measures, sort by the appropriate column
+      sort_col <- switch(
+        toupper(measure),
+        "REVENUE" = if ("revenue_30d_ww" %in% names(result)) "revenue_30d_ww" else "revenue_absolute",
+        "UNITS" = if ("downloads_30d_ww" %in% names(result)) "downloads_30d_ww" else "units_absolute",
+        NULL
+      )
+      if (!is.null(sort_col) && sort_col %in% names(result)) {
+        result <- result %>% dplyr::arrange(dplyr::desc(!!rlang::sym(sort_col)))
+      }
+    }
   }
   
   return(result)
