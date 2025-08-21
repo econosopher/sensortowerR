@@ -177,6 +177,21 @@ perform_request <- function(req) {
 
 # --- Response Processing ---
 
+# Helper function to perform unnesting of entities
+perform_unnest <- function(result_tbl) {
+  # Proactively coerce app_id to character in the nested data frames
+  # to prevent type errors during the unnest operation. The API can return
+  # a mix of integer and character IDs, which vctrs cannot combine.
+  result_tbl$entities <- lapply(result_tbl$entities, function(df) {
+    if (!is.null(df) && "app_id" %in% names(df)) {
+      df$app_id <- as.character(df$app_id)
+    }
+    df
+  })
+  
+  tidyr::unnest(result_tbl, dplyr::all_of("entities"), names_sep = ".")
+}
+
 process_response <- function(resp, enrich_response = TRUE) {
   body_raw <- httr2::resp_body_raw(resp)
   if (length(body_raw) == 0) {
@@ -198,19 +213,40 @@ process_response <- function(resp, enrich_response = TRUE) {
     # This is the true unified hex ID from the API
     if ("app_id" %in% names(result_tbl)) {
       result_tbl$unified_app_id <- result_tbl$app_id
-    }
-    
-    # Proactively coerce app_id to character in the nested data frames
-    # to prevent type errors during the unnest operation. The API can return
-    # a mix of integer and character IDs, which vctrs cannot combine.
-    result_tbl$entities <- lapply(result_tbl$entities, function(df) {
-      if (!is.null(df) && "app_id" %in% names(df)) {
-        df$app_id <- as.character(df$app_id)
+      
+      # OPTIMIZATION: If we already have unified hex IDs, check if unnesting is necessary
+      # When using os="unified" with custom filters, the API returns unified data already
+      non_na_ids <- result_tbl$app_id[!is.na(result_tbl$app_id)]
+      if (length(non_na_ids) > 0 && all(grepl("^[a-f0-9]{24}$", non_na_ids))) {
+        # We have unified hex IDs - check if entities just contains redundant platform data
+        # If the entities only contain platform-specific versions of the same app,
+        # we can skip unnesting to avoid creating duplicates that need consolidation
+        
+        # Check first entity to see if it would create duplicates
+        first_entity <- result_tbl$entities[[1]]
+        if (!is.null(first_entity) && is.data.frame(first_entity) && nrow(first_entity) > 1) {
+          # Multiple rows in entity = iOS + Android versions = will create duplicates
+          # For unified data, we can use aggregate_tags instead of unnesting entities
+          message("Streamlined processing: Using unified data without unnesting platform entities")
+          
+          # Instead of unnesting, just flatten aggregate_tags if present
+          if ("aggregate_tags" %in% names(result_tbl)) {
+            # The aggregate_tags column already contains the unified metrics
+            # No need to unnest entities which would just duplicate the data
+            result_tbl$entities <- NULL  # Remove entities to prevent confusion
+          }
+        } else {
+          # Single row or empty entity - safe to unnest
+          result_tbl <- perform_unnest(result_tbl)
+        }
+      } else {
+        # Not all unified IDs - need to unnest for platform resolution
+        result_tbl <- perform_unnest(result_tbl)
       }
-      df
-    })
-
-    result_tbl <- tidyr::unnest(result_tbl, dplyr::all_of("entities"), names_sep = ".")
+    } else {
+      # No app_id column - proceed with normal unnesting
+      result_tbl <- perform_unnest(result_tbl)
+    }
     
     # Clean up duplicate columns - prefer the entities.* versions for detailed data
     base_cols <- setdiff(names(result_tbl), grep("^entities\\.", names(result_tbl), value = TRUE))
@@ -492,7 +528,20 @@ clean_numeric_values <- function(data) {
 
 # Helper function to lookup app names by app ID (for sales endpoint which doesn't provide names)
 lookup_app_names_by_id <- function(data) {
-  if (!"entities.app_id" %in% names(data) || nrow(data) == 0) {
+  # Determine which ID column to use for lookups
+  # Priority: entities.app_id (for backward compatibility), then unified_app_id, then app_id
+  id_column <- NULL
+  if ("entities.app_id" %in% names(data)) {
+    id_column <- "entities.app_id"
+  } else if ("unified_app_id" %in% names(data)) {
+    id_column <- "unified_app_id"
+  } else if ("app_id" %in% names(data)) {
+    id_column <- "app_id"
+  } else {
+    return(data)  # No ID column available
+  }
+  
+  if (nrow(data) == 0) {
     return(data)
   }
   
@@ -502,13 +551,13 @@ lookup_app_names_by_id <- function(data) {
   # If unified_app_name already exists, only lookup IDs where name is missing
   if ("unified_app_name" %in% names(data)) {
     # Find rows where app_id exists but unified_app_name is missing
-    needs_lookup <- !is.na(data$entities.app_id) & 
-                    data$entities.app_id != "" & 
+    needs_lookup <- !is.na(data[[id_column]]) & 
+                    data[[id_column]] != "" & 
                     (is.na(data$unified_app_name) | data$unified_app_name == "")
-    unique_app_ids <- unique(data$entities.app_id[needs_lookup])
+    unique_app_ids <- unique(data[[id_column]][needs_lookup])
   } else {
     # If no unified_app_name column exists, lookup all valid app_ids
-    unique_app_ids <- unique(data$entities.app_id)
+    unique_app_ids <- unique(data[[id_column]])
     unique_app_ids <- unique_app_ids[!is.na(unique_app_ids) & unique_app_ids != ""]
   }
   
@@ -516,7 +565,7 @@ lookup_app_names_by_id <- function(data) {
     # No valid app IDs to lookup
     if (!"unified_app_name" %in% names(data)) {
       # If no unified_app_name column exists, create it using app IDs
-      data$unified_app_name <- data$entities.app_id
+      data$unified_app_name <- data[[id_column]]
     }
     return(data)
   }
@@ -613,17 +662,17 @@ lookup_app_names_by_id <- function(data) {
   if (!"unified_app_name" %in% names(data)) {
     # If no unified_app_name column exists, create it
     data$unified_app_name <- ifelse(
-      is.na(app_id_to_name[data$entities.app_id]), 
-      data$entities.app_id,  # Fallback to app ID if lookup failed
-      app_id_to_name[data$entities.app_id]  # Use looked up name
+      is.na(app_id_to_name[data[[id_column]]]), 
+      data[[id_column]],  # Fallback to app ID if lookup failed
+      app_id_to_name[data[[id_column]]]  # Use looked up name
     )
   } else {
     # If unified_app_name exists, only update missing values
     missing_names <- is.na(data$unified_app_name) | data$unified_app_name == ""
     data$unified_app_name[missing_names] <- ifelse(
-      is.na(app_id_to_name[data$entities.app_id[missing_names]]), 
-      data$entities.app_id[missing_names],  # Fallback to app ID if lookup failed
-      app_id_to_name[data$entities.app_id[missing_names]]  # Use looked up name
+      is.na(app_id_to_name[data[[id_column]][missing_names]]), 
+      data[[id_column]][missing_names],  # Fallback to app ID if lookup failed
+      app_id_to_name[data[[id_column]][missing_names]]  # Use looked up name
     )
   }
   
