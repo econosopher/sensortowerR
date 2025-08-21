@@ -274,6 +274,22 @@ st_top_charts <- function(measure = "revenue",
   if (os == "unified" && "unified_app_id" %in% names(result) && nrow(result) > 1 && deduplicate_apps) {
     original_count <- nrow(result)
     
+    # First, check if we have duplicate unified_app_ids (can happen after unnesting)
+    if (any(duplicated(result$unified_app_id))) {
+      message(sprintf("Consolidating %d duplicate entries...", sum(duplicated(result$unified_app_id))))
+      
+      # Group by unified_app_id and aggregate metrics
+      result <- deduplicate_by_group_id(result, "unified_app_id")
+      
+      # Update count after initial deduplication
+      new_count <- nrow(result)
+      if (original_count != new_count) {
+        message(sprintf("Consolidated %d app entries into %d unique apps", 
+                       original_count, new_count))
+      }
+      original_count <- new_count
+    }
+    
     # Get unique platform IDs and their corresponding names
     unique_ids <- unique(result$unified_app_id)
     # Create a mapping that handles duplicate keys by taking the first occurrence
@@ -282,7 +298,7 @@ st_top_charts <- function(measure = "revenue",
       dplyr::distinct(unified_app_id, .keep_all = TRUE)
     id_to_name <- stats::setNames(id_name_df$unified_app_name, id_name_df$unified_app_id)
     
-    # Skip if all IDs are already hex format (true unified IDs)
+    # Check if we need to resolve platform IDs to true unified IDs
     # Filter out NA values first
     non_na_ids <- unique_ids[!is.na(unique_ids)]
     non_hex_ids <- non_na_ids[!grepl("^[a-f0-9]{24}$", non_na_ids)]
@@ -357,7 +373,7 @@ st_top_charts <- function(measure = "revenue",
         })
       }
     }
-    # If all IDs are already hex format, no action needed
+    # Note: We already handled hex format duplicates above
   } else if (deduplicate_apps && "unified_app_name" %in% names(result) && os != "unified") {
     # For non-unified OS, use simple name deduplication if requested
     result <- deduplicate_apps_by_name(result)

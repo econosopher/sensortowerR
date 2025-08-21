@@ -1,7 +1,7 @@
 # Example: Getting Unified Daily Revenue Data
 # 
-# This example shows how to work around the issue where st_metrics()
-# returns no data for daily granularity with unified app IDs
+# This example shows how to get unified daily revenue data
+# using the improved st_sales_report() with proper deduplication
 
 library(sensortowerR)
 library(dplyr)
@@ -20,42 +20,73 @@ start_date <- end_date - 30
 
 cat("Method 1: Using st_sales_report() for platform-specific data\n\n")
 
-# Fetch iOS daily revenue
-ios_daily <- st_sales_report(
-  app_ids = homescapes_ios,
-  os = "ios",
-  countries = "US",
-  start_date = start_date,
-  end_date = end_date,
-  date_granularity = "daily"
-)
-
-cat(sprintf("iOS records: %d\n", nrow(ios_daily)))
-
-# Fetch Android daily revenue
-android_daily <- st_sales_report(
-  app_ids = homescapes_android,
-  os = "android",
-  countries = "US",
-  start_date = start_date,
-  end_date = end_date,
-  date_granularity = "daily"
-)
-
-cat(sprintf("Android records: %d\n", nrow(android_daily)))
-
-# Combine into unified daily totals
-unified_daily <- bind_rows(
-  ios_daily %>% mutate(platform = "iOS"),
-  android_daily %>% mutate(platform = "Android")
-) %>%
-  group_by(date) %>%
-  summarise(
-    total_revenue = sum(coalesce(total_revenue, revenue), na.rm = TRUE),
-    total_downloads = sum(coalesce(total_downloads, downloads), na.rm = TRUE),
-    platforms = paste(unique(platform), collapse = "+"),
-    .groups = "drop"
+# Method 1a: Try unified approach first (if supported)
+cat("Attempting unified approach...\n")
+unified_attempt <- tryCatch({
+  st_sales_report(
+    app_ids = c(homescapes_ios, homescapes_android),
+    os = "unified",
+    countries = "US",
+    start_date = start_date,
+    end_date = end_date,
+    date_granularity = "daily"
   )
+}, error = function(e) {
+  cat("  Unified not supported for this endpoint, falling back to platform-specific\n")
+  NULL
+})
+
+if (!is.null(unified_attempt) && nrow(unified_attempt) > 0) {
+  cat(sprintf("  ✅ Unified records: %d\n", nrow(unified_attempt)))
+  unified_daily <- unified_attempt %>%
+    group_by(date) %>%
+    summarise(
+      total_revenue = sum(coalesce(total_revenue, revenue), na.rm = TRUE),
+      total_downloads = sum(coalesce(total_downloads, downloads), na.rm = TRUE),
+      .groups = "drop"
+    )
+} else {
+  # Method 1b: Platform-specific fallback
+  cat("Using platform-specific approach...\n")
+  
+  # Fetch iOS daily revenue
+  ios_daily <- st_sales_report(
+    app_ids = homescapes_ios,
+    os = "ios",
+    countries = "US",
+    start_date = start_date,
+    end_date = end_date,
+    date_granularity = "daily"
+  )
+  
+  cat(sprintf("  iOS records: %d\n", nrow(ios_daily)))
+  
+  # Fetch Android daily revenue
+  android_daily <- st_sales_report(
+    app_ids = homescapes_android,
+    os = "android",
+    countries = "US",
+    start_date = start_date,
+    end_date = end_date,
+    date_granularity = "daily"
+  )
+  
+  cat(sprintf("  Android records: %d\n", nrow(android_daily)))
+  
+  # Combine into unified daily totals
+  unified_daily <- bind_rows(
+    ios_daily %>% mutate(platform = "iOS"),
+    android_daily %>% mutate(platform = "Android")
+  ) %>%
+    group_by(date) %>%
+    summarise(
+      total_revenue = sum(coalesce(total_revenue, revenue), na.rm = TRUE),
+      total_downloads = sum(coalesce(total_downloads, downloads), na.rm = TRUE),
+      platforms = paste(unique(platform), collapse = "+"),
+      .groups = "drop"
+    )
+}
+
 
 cat(sprintf("\nUnified daily records: %d\n", nrow(unified_daily)))
 cat(sprintf("Total revenue: $%s\n", format(sum(unified_daily$total_revenue), big.mark = ",")))
@@ -113,25 +144,52 @@ if (exists("st_metrics_v2")) {
 }
 
 
-# Example 3: Demonstrating the issue with original st_metrics()
-# -------------------------------------------------------------
-cat("\n\nMethod 3: Original st_metrics() - demonstrating the issue\n\n")
+# Example 3: Using st_top_charts with deduplication for market analysis
+# ---------------------------------------------------------------------
+cat("\n\nMethod 3: Using st_top_charts() with proper deduplication\n\n")
 
-tryCatch({
-  metrics_original <- st_metrics(
-    unified_app_id = homescapes_ios,
-    start_date = start_date,
-    end_date = end_date
+# Get top puzzle games with proper deduplication
+top_games <- tryCatch({
+  st_top_charts(
+    measure = "revenue",
+    category = 7003,  # Puzzle games
+    os = "unified",
+    regions = "US",
+    time_range = "month",
+    limit = 10,
+    enrich_response = TRUE,
+    deduplicate_apps = TRUE  # Ensure proper deduplication
   )
-  
-  cat(sprintf("Original st_metrics records: %d\n", nrow(metrics_original)))
-  
-  if (nrow(metrics_original) == 0) {
-    cat("❌ As expected, st_metrics() returned no data for daily granularity\n")
-    cat("   This is why we need to use st_sales_report() instead\n")
-  }
 }, error = function(e) {
   cat("Error:", e$message, "\n")
+  NULL
 })
 
-cat("\n✅ Recommendation: Use st_sales_report() with platform-specific IDs for daily data\n")
+if (!is.null(top_games)) {
+  cat(sprintf("Top games retrieved: %d\n", nrow(top_games)))
+  
+  # Check for unified IDs
+  if ("unified_app_id" %in% names(top_games)) {
+    # Verify unified IDs are preserved (24-char hex format)
+    sample_ids <- head(top_games$unified_app_id, 3)
+    cat("\nChecking unified ID format:\n")
+    for (id in sample_ids) {
+      is_hex <- grepl("^[a-f0-9]{24}$", id)
+      cat(sprintf("  %s: %s\n", 
+                  substr(id, 1, 8), 
+                  ifelse(is_hex, "✅ Valid unified ID", "❌ Platform-specific ID")))
+    }
+    
+    # Count unique apps after deduplication
+    n_unique <- length(unique(top_games$unified_app_id))
+    cat(sprintf("\nUnique apps after deduplication: %d\n", n_unique))
+    
+    if (n_unique < nrow(top_games)) {
+      cat("⚠️  Deduplication may not be working properly\n")
+    } else {
+      cat("✅ Deduplication working correctly\n")
+    }
+  }
+}
+
+cat("\n✅ Recommendation: Try unified OS first, then fall back to platform-specific if needed\n")

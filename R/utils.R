@@ -194,6 +194,12 @@ process_response <- function(resp, enrich_response = TRUE) {
 
   # Enrich with app names if requested and possible
   if (enrich_response && "entities" %in% names(result_tbl) && is.list(result_tbl$entities)) {
+    # IMPORTANT: Preserve the original app_id as unified_app_id BEFORE unnesting
+    # This is the true unified hex ID from the API
+    if ("app_id" %in% names(result_tbl)) {
+      result_tbl$unified_app_id <- result_tbl$app_id
+    }
+    
     # Proactively coerce app_id to character in the nested data frames
     # to prevent type errors during the unnest operation. The API can return
     # a mix of integer and character IDs, which vctrs cannot combine.
@@ -210,10 +216,16 @@ process_response <- function(resp, enrich_response = TRUE) {
     base_cols <- setdiff(names(result_tbl), grep("^entities\\.", names(result_tbl), value = TRUE))
     entities_cols <- grep("^entities\\.", names(result_tbl), value = TRUE)
     
-    # Remove base columns that have entities.* equivalents (except unified_app_id)
+    # Remove base columns that have entities.* equivalents
+    # But preserve unified_app_id and app_id if they're hex format unified IDs
+    preserve_cols <- "unified_app_id"
+    if ("app_id" %in% base_cols && all(grepl("^[a-f0-9]{24}$", result_tbl$app_id[!is.na(result_tbl$app_id)]))) {
+      # If app_id contains hex unified IDs, don't remove it
+      preserve_cols <- c(preserve_cols, "app_id")
+    }
     duplicated_bases <- intersect(
       gsub("^entities\\.", "", entities_cols),
-      setdiff(base_cols, "unified_app_id")
+      setdiff(base_cols, preserve_cols)
     )
     result_tbl <- result_tbl[, !names(result_tbl) %in% duplicated_bases]
     
@@ -231,12 +243,8 @@ process_response <- function(resp, enrich_response = TRUE) {
       result_tbl$unified_app_name <- result_tbl$app.name
     }
     
-    # IMPORTANT: Keep the original app_id as unified_app_id if it exists
-    # This is the true unified hex ID from the API
-    # Don't overwrite with entities.app_id which contains platform-specific IDs
-    if ("app_id" %in% names(result_tbl) && !"unified_app_id" %in% names(result_tbl)) {
-      result_tbl$unified_app_id <- result_tbl$app_id
-    }
+    # Note: unified_app_id was already set above before unnesting
+    # The entities.app_id contains platform-specific IDs, not unified IDs
     
     # Store platform-specific app_id separately for reference
     if ("entities.app_id" %in% names(result_tbl) && !"platform_app_id" %in% names(result_tbl)) {
