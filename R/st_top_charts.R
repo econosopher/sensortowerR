@@ -304,7 +304,7 @@ st_top_charts <- function(measure = "revenue",
           app_ids = non_hex_ids,
           app_names = app_names,
           os = "unified",
-          auth_token = auth_token
+          auth_token = auth_token_val
         )
       }, error = function(e) {
         message("Warning: Error resolving unified IDs: ", e$message)
