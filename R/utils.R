@@ -229,10 +229,32 @@ process_response <- function(resp, enrich_response = TRUE) {
           # For unified data, we can use aggregate_tags instead of unnesting entities
           message("Streamlined processing: Using unified data without unnesting platform entities")
           
-          # Instead of unnesting, just flatten aggregate_tags if present
+          # Extract important demographic data from entities before removing
+          # Gender data is only in entities, not in aggregate_tags
+          for (i in seq_len(nrow(result_tbl))) {
+            entity_df <- result_tbl$entities[[i]]
+            if (!is.null(entity_df) && is.data.frame(entity_df)) {
+              # Extract gender data from first entity row (they should be the same for unified)
+              if ("custom_tags.Genders (Last Quarter, US)" %in% names(entity_df)) {
+                gender_val <- entity_df$`custom_tags.Genders (Last Quarter, US)`[1]
+                if (!is.null(gender_val) && !is.na(gender_val)) {
+                  result_tbl$`aggregate_tags.Genders (Last Quarter, US)`[i] <- gender_val
+                }
+              }
+              # Also extract other demographic fields if needed
+              if ("custom_tags.Genders (Last Quarter, WW)" %in% names(entity_df)) {
+                gender_ww <- entity_df$`custom_tags.Genders (Last Quarter, WW)`[1]
+                if (!is.null(gender_ww) && !is.na(gender_ww)) {
+                  result_tbl$`aggregate_tags.Genders (Last Quarter, WW)`[i] <- gender_ww
+                }
+              }
+            }
+          }
+          
+          # Now safe to remove entities after extracting key fields
           if ("aggregate_tags" %in% names(result_tbl)) {
             # The aggregate_tags column already contains the unified metrics
-            # No need to unnest entities which would just duplicate the data
+            # We've extracted gender data, so now we can remove entities
             result_tbl$entities <- NULL  # Remove entities to prevent confusion
           }
         } else {
