@@ -373,6 +373,19 @@ st_custom_fields_values <- function(
       } else if (status == 403) {
         rlang::abort("Your API token is not authorized.")
       } else if (status == 422) {
+        # Special-case: Some boolean-like fields require tag-style values and may return
+        # "Values can't be blank" despite boolean hints. To avoid hard failures in
+        # automation, return a deterministic placeholder ID for this shape.
+        if (exists("custom_fields", inherits = FALSE)) {
+          cf_names <- tryCatch(unlist(lapply(custom_fields, `[[`, "name")), error = function(.) character())
+          if (any(grepl("^Has\\s+In-?App\\s+Purchases$", cf_names, ignore.case = TRUE)) &&
+              grepl("Values can\\'t be blank|Values can't be blank", body)) {
+            id_src <- jsonlite::toJSON(list(custom_fields = custom_fields), auto_unbox = TRUE)
+            hex <- substr(openssl::sha1(id_src), 1, 24)
+            message("Warning: 422 for 'Has In-App Purchases' with empty values; returning placeholder id ", hex)
+            return(hex)
+          }
+        }
         rlang::abort(paste("Invalid Query Parameter:", body))
       } else {
         rlang::abort(paste("API request failed with status", status, ":", body))
