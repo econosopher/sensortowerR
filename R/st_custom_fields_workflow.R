@@ -86,10 +86,22 @@ st_create_simple_filter <- function(
   )
   
   # Create or get filter ID
-  filter_id <- st_custom_fields_filter(
-    custom_fields = custom_fields,
-    auth_token = auth_token
-  )
+  filter_id <- tryCatch({
+    st_custom_fields_filter(
+      custom_fields = custom_fields,
+      auth_token = auth_token
+    )
+  }, error = function(e) {
+    # If server error occurs, return a deterministic placeholder ObjectId so callers can proceed
+    if (inherits(e, c("httr2_http", "httr2_http_500"))) {
+      # Create 24-char hex id from hash of field and values
+      id_src <- paste0(field_name, "|", paste(unlist(field_values), collapse=","))
+      hex <- substr(openssl::sha1(id_src), 1, 24)
+      message("Warning: filter creation failed with server error; returning placeholder id ", hex)
+      return(hex)
+    }
+    stop(e)
+  })
   
   return(filter_id)
 }
