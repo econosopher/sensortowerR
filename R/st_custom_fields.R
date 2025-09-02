@@ -113,8 +113,8 @@ st_custom_fields_filter <- function(
       if (grepl("^(Free|Has|Is|Contains|In-App)", field$name, ignore.case = FALSE)) {
         custom_fields[[i]]$true <- TRUE
         custom_fields[[i]]$value <- TRUE
-        # Remove empty values for boolean fields to satisfy API
-        custom_fields[[i]]$values <- NULL
+        # Some backends require a non-empty 'values'; provide boolean TRUE
+        custom_fields[[i]]$values <- list(TRUE)
       }
     }
   }
