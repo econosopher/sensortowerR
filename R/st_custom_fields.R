@@ -93,6 +93,20 @@ st_custom_fields_filter <- function(
       custom_fields[[i]]$values <- list()
     }
     
+    # Canonicalize common boolean field names
+    if (!is.null(field$name)) {
+      nm <- as.character(field$name)
+      if (grepl("^Has\\s+In-?App\\s+Purchases$", nm, ignore.case = TRUE)) {
+        custom_fields[[i]]$name <- "In-App Purchases"
+      } else if (grepl("^Has\\s+(In-?App\\s+)?Subscription$", nm, ignore.case = TRUE)) {
+        custom_fields[[i]]$name <- "In-App Subscription"
+      } else if (grepl("^Has\\s+Ads$", nm, ignore.case = TRUE)) {
+        custom_fields[[i]]$name <- "Contains Ads"
+      } else if (grepl("^Is\\s+Free$", nm, ignore.case = TRUE)) {
+        custom_fields[[i]]$name <- "Free"
+      }
+    }
+
     # For boolean fields, ensure 'true' is set if values is empty
     if (length(custom_fields[[i]]$values) == 0 && is.null(field$true)) {
       # Check if this looks like a boolean field
