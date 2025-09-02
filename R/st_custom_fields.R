@@ -120,21 +120,46 @@ st_custom_fields_filter <- function(
     httr2::req_body_json(request_body) %>%
     httr2::req_timeout(30)
   
-  # --- Perform Request ---
-  tryCatch({
+  # --- Perform Request (with simple retry on server errors) ---
+  attempt_request <- function() {
     resp <- httr2::req_perform(req)
-    
-    # Parse response
     content <- httr2::resp_body_string(resp)
-    data <- jsonlite::fromJSON(content, flatten = TRUE)
+    jsonlite::fromJSON(content, flatten = TRUE)
+  }
+  
+  attempt <- 1
+  while (attempt <= 2) {
+    result <- tryCatch({
+      attempt_request()
+    }, error = function(e) {
+      resp_obj <- NULL
+      if (!is.null(e$response)) resp_obj <- e$response
+      if (is.null(resp_obj) && !is.null(e$resp)) resp_obj <- e$resp
+      if (!is.null(resp_obj)) {
+        status <- httr2::resp_status(resp_obj)
+        if (status >= 500 && attempt < 2) {
+          # Retry once on server error
+          attempt <<- attempt + 1
+          Sys.sleep(0.5)
+          return(structure(list(.retry = TRUE), class = "retry_marker"))
+        }
+      }
+      stop(e)
+    })
     
-    # Extract filter ID
-    if (!is.null(data$custom_fields_filter_id)) {
-      return(data$custom_fields_filter_id)
+    if (inherits(result, "retry_marker")) next
+    
+    # Success path
+    if (!is.null(result$custom_fields_filter_id)) {
+      return(result$custom_fields_filter_id)
     } else {
       rlang::abort("No filter ID returned in response")
     }
-    
+  }
+  
+  # If we somehow fall through, handle error
+  tryCatch({
+    attempt_request()
   }, error = function(e) {
     resp_obj <- NULL
     if (!is.null(e$response)) resp_obj <- e$response
