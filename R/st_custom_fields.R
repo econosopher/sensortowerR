@@ -93,13 +93,28 @@ st_custom_fields_filter <- function(
       custom_fields[[i]]$values <- list()
     }
     
-    # For boolean fields, ensure 'true' is set if values is empty
+    # Handle common boolean-like fields when values are empty
     if (length(custom_fields[[i]]$values) == 0 && is.null(field$true)) {
-      # Check if this looks like a boolean field
-      if (grepl("^(Free|Has|Is|Contains|In-App)", field$name, ignore.case = FALSE)) {
+      nm <- as.character(field$name)
+      if (grepl("^Has\\s+In-?App\\s+Purchases$", nm, ignore.case = TRUE)) {
+        # Use tag-style value
+        custom_fields[[i]]$name <- "In-App Purchases"
+        custom_fields[[i]]$values <- list("Yes")
+        custom_fields[[i]]$true <- NULL
+        custom_fields[[i]]$value <- NULL
+      } else if (grepl("^Has\\s+Ads$", nm, ignore.case = TRUE)) {
+        custom_fields[[i]]$name <- "Contains Ads"
+        custom_fields[[i]]$values <- list("Yes")
+        custom_fields[[i]]$true <- NULL
+        custom_fields[[i]]$value <- NULL
+      } else if (grepl("^Is\\s+Free$|^Free$", nm, ignore.case = TRUE)) {
+        custom_fields[[i]]$name <- "Free"
         custom_fields[[i]]$true <- TRUE
         custom_fields[[i]]$value <- TRUE
-        # Some backends require a non-empty 'values'; provide boolean TRUE
+        custom_fields[[i]]$values <- list(TRUE)
+      } else if (grepl("^In-?App\\s+Subscription$", nm, ignore.case = TRUE)) {
+        custom_fields[[i]]$true <- TRUE
+        custom_fields[[i]]$value <- TRUE
         custom_fields[[i]]$values <- list(TRUE)
       }
     }
