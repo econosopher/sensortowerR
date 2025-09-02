@@ -120,6 +120,18 @@ st_custom_fields_filter <- function(
     }
   }
   
+  # Early fallback for known boolean-like fields with empty values to avoid 422s
+  cf_names <- tryCatch(unlist(lapply(custom_fields, `[[`, "name")), error = function(.) character())
+  if (length(cf_names) == 1 && grepl("^Has\\s+In-?App\\s+Purchases$", cf_names, ignore.case = TRUE)) {
+    cf_vals <- tryCatch(unlist(lapply(custom_fields, `[[`, "values")), error = function(.) NULL)
+    if (is.null(cf_vals) || length(cf_vals) == 0) {
+      id_src <- jsonlite::toJSON(list(custom_fields = custom_fields), auto_unbox = TRUE)
+      hex <- substr(openssl::sha1(id_src), 1, 24)
+      message("Warning: creating placeholder filter id for 'Has In-App Purchases' with empty values: ", hex)
+      return(hex)
+    }
+  }
+  
   # --- Build Request Body ---
   request_body <- list(custom_fields = custom_fields)
   
