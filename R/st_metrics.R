@@ -372,11 +372,11 @@ fetch_and_combine_platforms <- function(
       if (verbose) message(sprintf("No data for iOS (%s) or Android (%s) in %s for %s to %s", as.character(ios_app_id), as.character(android_app_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
       stop("No data available for either iOS or Android platform")
     } else if (!ios_has_data) {
-      if (verbose) message(sprintf("Missing iOS data for app %s in %s for %s to %s (Android had rows)", as.character(ios_app_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
-      stop("Unified data requested but iOS data is not available")
+      if (verbose) message(sprintf("Missing iOS data for app %s in %s for %s to %s (Android had rows) — returning Android data only", as.character(ios_app_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
+      # proceed with available Android data
     } else if (!android_has_data) {
-      if (verbose) message(sprintf("Missing Android data for app %s in %s for %s to %s (iOS had rows)", as.character(android_app_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
-      stop("Unified data requested but Android data is not available")
+      if (verbose) message(sprintf("Missing Android data for app %s in %s for %s to %s (iOS had rows) — returning iOS data only", as.character(android_app_id), paste(countries, collapse=","), as.character(start_date), as.character(end_date)))
+      # proceed with available iOS data
     }
   }
   

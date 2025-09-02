@@ -40,8 +40,10 @@ validate_top_charts_data <- function(data, measure, regions) {
     if (length(cols) > 0) {
       available_regions <- unique(gsub(".*_([a-z]{2})$", "\\1", cols))
       # If a specific region is requested, and region-specific metrics are missing,
-      # fail loudly rather than implying WW values.
-      if (requested_region != "ww" && pattern %in% c("mau", "retention")) {
+      # fail loudly rather than implying WW values, but only when working with
+      # active user measures where these columns are expected to be present.
+      if (requested_region != "ww" && pattern %in% c("mau", "retention") &&
+          toupper(measure) %in% c("DAU", "WAU", "MAU")) {
         if (!(requested_region %in% available_regions)) {
           stop(sprintf(
             "Region-specific '%s' metrics for '%s' are not available in the response. Available regions for '%s': %s",

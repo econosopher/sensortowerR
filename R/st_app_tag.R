@@ -104,9 +104,12 @@ st_app_tag <- function(
     return(result)
     
   }, error = function(e) {
-    if (inherits(e, "httr2_http")) {
-      status <- httr2::resp_status(e$response)
-      body <- httr2::resp_body_string(e$response)
+    resp_obj <- NULL
+    if (!is.null(e$response)) resp_obj <- e$response
+    if (is.null(resp_obj) && !is.null(e$resp)) resp_obj <- e$resp
+    if (inherits(e, "httr2_http") && !is.null(resp_obj)) {
+      status <- httr2::resp_status(resp_obj)
+      body <- httr2::resp_body_string(resp_obj)
       
       if (status == 401) {
         rlang::abort("Invalid authentication token.")
