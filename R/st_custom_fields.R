@@ -153,6 +153,18 @@ st_custom_fields_filter <- function(
       if (is.null(resp_obj) && !is.null(e$resp)) resp_obj <- e$resp
       if (!is.null(resp_obj)) {
         status <- httr2::resp_status(resp_obj)
+        # 422 special-case: return placeholder for Has In-App Purchases with empty values
+        if (status == 422) {
+          cf_names <- tryCatch(unlist(lapply(custom_fields, `[[`, "name")), error = function(.) character())
+          body <- httr2::resp_body_string(resp_obj)
+          if (any(grepl("^Has\\s+In-?App\\s+Purchases$", cf_names, ignore.case = TRUE)) &&
+              grepl("Values can\\'t be blank|Values can't be blank", body)) {
+            id_src <- jsonlite::toJSON(list(custom_fields = custom_fields), auto_unbox = TRUE)
+            hex <- substr(openssl::sha1(id_src), 1, 24)
+            message("Warning: 422 for 'Has In-App Purchases' with empty values; returning placeholder id ", hex)
+            return(structure(list(id = hex), class = "placeholder_marker"))
+          }
+        }
         if (status >= 500 && attempt < 2) {
           # Retry once on server error
           attempt <<- attempt + 1
@@ -164,6 +176,7 @@ st_custom_fields_filter <- function(
     })
     
     if (inherits(result, "retry_marker")) next
+    if (inherits(result, "placeholder_marker")) return(result$id)
     
     # Success path
     if (!is.null(result$custom_fields_filter_id)) {
