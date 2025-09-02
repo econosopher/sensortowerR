@@ -104,9 +104,10 @@ map_region_columns <- function(data, requested_region = "US") {
   # If requested region not available, use what we have
   actual_region <- tolower(requested_region)
   if (!actual_region %in% available_regions) {
-    actual_region <- available_regions[1]
-    message(sprintf("Requested region '%s' not found, using '%s' instead", 
-                    requested_region, toupper(actual_region)))
+    stop(sprintf("Requested region '%s' not found in data. Available regions: %s",
+                 toupper(requested_region),
+                 ifelse(length(available_regions) > 0, paste(toupper(available_regions), collapse = ", "), "none")),
+         call. = FALSE)
   }
   
   return(data)

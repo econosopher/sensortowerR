@@ -29,25 +29,25 @@ validate_top_charts_data <- function(data, measure, regions) {
     message(sprintf("Renamed '%s' to 'unified_app_name'", found_name_col[1]))
   }
   
-  # 2. Check for region-specific column availability
+  # 2. Enforce region-specific column availability (no fallbacks)
   requested_region <- tolower(regions[1])
   
-  # Look for metric columns with region suffixes
+  # Look for metric columns with 2-letter region suffixes
   metric_patterns <- c("revenue", "download", "retention", "dau", "mau", "wau", "rpd")
   
   for (pattern in metric_patterns) {
-    cols <- grep(paste0(pattern, ".*_(us|ww)$"), names(data), value = TRUE)
+    cols <- grep(paste0(pattern, ".*_([a-z]{2})$"), names(data), value = TRUE)
     if (length(cols) > 0) {
-      available_regions <- unique(gsub(".*_([a-z]+)$", "\\1", cols))
-      
-      # If requested US but only have WW, notify user
-      if (requested_region == "us" && !"us" %in% available_regions && "ww" %in% available_regions) {
-        us_cols <- grep(paste0(pattern, ".*_us$"), cols, value = TRUE)
-        ww_cols <- grep(paste0(pattern, ".*_ww$"), cols, value = TRUE)
-        
-        if (length(us_cols) == 0 && length(ww_cols) > 0) {
-          message(sprintf("Note: %s metrics only available as worldwide (_ww) despite US region request", 
-                         toupper(pattern)))
+      available_regions <- unique(gsub(".*_([a-z]{2})$", "\\1", cols))
+      # If a specific region is requested, and region-specific metrics are missing,
+      # fail loudly rather than implying WW values.
+      if (requested_region != "ww" && pattern %in% c("mau", "retention")) {
+        if (!(requested_region %in% available_regions)) {
+          stop(sprintf(
+            "Region-specific '%s' metrics for '%s' are not available in the response. Available regions for '%s': %s",
+            toupper(pattern), toupper(requested_region), toupper(pattern),
+            ifelse(length(available_regions) > 0, paste(toupper(available_regions), collapse = ", "), "none")
+          ), call. = FALSE)
         }
       }
     }
@@ -182,4 +182,3 @@ select_robust <- function(data, ...) {
   
   return(dplyr::select(data, all_of(selected)))
 }
-
