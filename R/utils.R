@@ -231,6 +231,13 @@ process_response <- function(resp, enrich_response = TRUE) {
           
           # Extract important demographic data from entities before removing
           # Gender data is only in entities, not in aggregate_tags
+          # Pre-create columns to avoid tibble recycling issues
+          if (!"aggregate_tags.Genders (Last Quarter, US)" %in% names(result_tbl)) {
+            result_tbl[["aggregate_tags.Genders (Last Quarter, US)"]] <- rep(NA_character_, nrow(result_tbl))
+          }
+          if (!"aggregate_tags.Genders (Last Quarter, WW)" %in% names(result_tbl)) {
+            result_tbl[["aggregate_tags.Genders (Last Quarter, WW)"]] <- rep(NA_character_, nrow(result_tbl))
+          }
           for (i in seq_len(nrow(result_tbl))) {
             entity_df <- result_tbl$entities[[i]]
             if (!is.null(entity_df) && is.data.frame(entity_df)) {

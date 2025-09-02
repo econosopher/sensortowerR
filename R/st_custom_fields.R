@@ -57,6 +57,10 @@ st_custom_fields_filter <- function(
   if (!is.list(custom_fields)) {
     rlang::abort("'custom_fields' must be a list.")
   }
+  # Require at least one filter entry
+  if (length(custom_fields) == 0) {
+    rlang::abort("custom_fields must include at least one filter")
+  }
   
   # --- Authentication ---
   auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
@@ -140,6 +144,8 @@ st_custom_fields_filter <- function(
         rlang::abort("Your API token is not authorized.")
       } else if (status == 422) {
         rlang::abort(paste("Invalid Query Parameter:", body))
+      } else if (status == 404) {
+        rlang::abort("Invalid filter ID or not found")
       } else {
         rlang::abort(paste("API request failed with status", status, ":", body))
       }
@@ -223,6 +229,8 @@ st_custom_fields_filter_by_id <- function(
         rlang::abort("Your API token is not authorized.")
       } else if (status == 422) {
         rlang::abort(paste("Invalid Query Parameter:", body))
+      } else if (status == 404) {
+        rlang::abort("Invalid filter ID or not found")
       } else {
         rlang::abort(paste("API request failed with status", status, ":", body))
       }

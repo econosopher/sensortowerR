@@ -177,6 +177,18 @@ st_top_charts <- function(measure = "revenue",
     }
   }
   
+  # If using a custom filter, enforce category = 0 and message when overridden
+  if (!is.null(custom_fields_filter_id)) {
+    if (!is.null(category) && !(as.character(category) %in% c("0"))) {
+      message("Using category = 0 when a custom filter is provided (ignoring non-zero category)")
+      category <- 0
+    }
+    if (is.null(category)) {
+      # Default to 0 when custom filter is set and category omitted
+      category <- 0
+    }
+  }
+  
   # Route to appropriate API endpoint based on measure type
   if (is_active_users) {
     # --- Input Validation for Active Users ---
