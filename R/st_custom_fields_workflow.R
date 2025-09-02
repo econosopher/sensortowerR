@@ -59,6 +59,22 @@ st_create_simple_filter <- function(
     }
   }
   
+  # If possible, validate values for the given field and drop invalid entries
+  valid_values <- NULL
+  try({
+    fields_df <- st_custom_fields_values(auth_token = auth_token)
+    if (nrow(fields_df) > 0 && "name" %in% names(fields_df) && "values" %in% names(fields_df)) {
+      row <- fields_df[fields_df$name == field_name, , drop = FALSE]
+      if (nrow(row) == 1 && length(row$values[[1]]) > 0) {
+        valid_values <- as.character(unlist(row$values[[1]]))
+      }
+    }
+  }, silent = TRUE)
+  if (!is.null(valid_values)) {
+    # Keep only values present for this field
+    field_values <- Filter(function(v) v %in% valid_values, field_values)
+  }
+  
   # Create filter criteria
   custom_fields <- list(
     list(

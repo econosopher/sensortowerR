@@ -98,6 +98,8 @@ st_custom_fields_filter <- function(
       # Check if this looks like a boolean field
       if (grepl("^(Free|Has|Is|Contains|In-App)", field$name, ignore.case = FALSE)) {
         custom_fields[[i]]$true <- TRUE
+        # Remove empty values for boolean fields to satisfy API
+        custom_fields[[i]]$values <- NULL
       }
     }
   }

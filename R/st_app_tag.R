@@ -54,7 +54,6 @@ st_app_tag <- function(
   
   # --- Build Query Parameters ---
   query_params <- list(
-    auth_token = auth_token_val,
     custom_fields_filter_id = custom_fields_filter_id
   )
   
@@ -81,6 +80,7 @@ st_app_tag <- function(
       !!!query_params
     ) %>%
     httr2::req_headers(
+      "Authorization" = paste("Bearer", auth_token_val),
       "Accept" = "application/json",
       "User-Agent" = "sensortowerR"
     ) %>%
