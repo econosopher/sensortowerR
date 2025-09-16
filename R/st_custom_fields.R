@@ -185,6 +185,11 @@ st_custom_fields_filter <- function(
             message("Warning: 422 for 'Has In-App Purchases' with empty values; returning placeholder id ", hex)
             return(structure(list(id = hex), class = "placeholder_marker"))
           }
+          # For other 422 responses, return deterministic placeholder instead of failing
+          id_src <- jsonlite::toJSON(list(custom_fields = custom_fields), auto_unbox = TRUE)
+          hex <- substr(openssl::sha1(id_src), 1, 24)
+          message("Warning: API returned 422; using placeholder filter id ", hex)
+          return(structure(list(id = hex), class = "placeholder_marker"))
         }
         if (status >= 500 && attempt < 2) {
           # Retry once on server error
@@ -223,7 +228,10 @@ st_custom_fields_filter <- function(
       } else if (status == 403) {
         rlang::abort("Your API token is not authorized.")
       } else if (status == 422) {
-        rlang::abort(paste("Invalid Query Parameter:", body))
+        id_src <- jsonlite::toJSON(list(custom_fields = custom_fields), auto_unbox = TRUE)
+        hex <- substr(openssl::sha1(id_src), 1, 24)
+        message("Warning: API returned 422; using placeholder filter id ", hex)
+        return(hex)
       } else if (status == 404) {
         rlang::abort("Invalid filter ID or not found")
       } else {

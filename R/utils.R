@@ -229,31 +229,24 @@ process_response <- function(resp, enrich_response = TRUE) {
           # For unified data, we can use aggregate_tags instead of unnesting entities
           message("Streamlined processing: Using unified data without unnesting platform entities")
           
-          # Extract important demographic data from entities before removing
-          # Gender data is only in entities, not in aggregate_tags
-          # Pre-create columns to avoid tibble recycling issues
-          if (!"aggregate_tags.Genders (Last Quarter, US)" %in% names(result_tbl)) {
-            result_tbl[["aggregate_tags.Genders (Last Quarter, US)"]] <- rep(NA_character_, nrow(result_tbl))
-          }
-          if (!"aggregate_tags.Genders (Last Quarter, WW)" %in% names(result_tbl)) {
-            result_tbl[["aggregate_tags.Genders (Last Quarter, WW)"]] <- rep(NA_character_, nrow(result_tbl))
+          custom_tag_cols <- unique(unlist(lapply(result_tbl$entities, function(df) {
+            if (is.null(df) || !is.data.frame(df)) return(character())
+            names(df)[grepl("^custom_tags\\.", names(df))]
+          })))
+          for (col in custom_tag_cols) {
+            agg_col <- sub("^custom_tags\\.", "aggregate_tags.", col)
+            if (!agg_col %in% names(result_tbl)) {
+              result_tbl[[agg_col]] <- rep(NA_character_, nrow(result_tbl))
+            }
           }
           for (i in seq_len(nrow(result_tbl))) {
             entity_df <- result_tbl$entities[[i]]
-            if (!is.null(entity_df) && is.data.frame(entity_df)) {
-              # Extract gender data from first entity row (they should be the same for unified)
-              if ("custom_tags.Genders (Last Quarter, US)" %in% names(entity_df)) {
-                gender_val <- entity_df$`custom_tags.Genders (Last Quarter, US)`[1]
-                if (!is.null(gender_val) && !is.na(gender_val)) {
-                  result_tbl$`aggregate_tags.Genders (Last Quarter, US)`[i] <- gender_val
-                }
-              }
-              # Also extract other demographic fields if needed
-              if ("custom_tags.Genders (Last Quarter, WW)" %in% names(entity_df)) {
-                gender_ww <- entity_df$`custom_tags.Genders (Last Quarter, WW)`[1]
-                if (!is.null(gender_ww) && !is.na(gender_ww)) {
-                  result_tbl$`aggregate_tags.Genders (Last Quarter, WW)`[i] <- gender_ww
-                }
+            if (is.null(entity_df) || !is.data.frame(entity_df)) next
+            for (col in custom_tag_cols) {
+              agg_col <- sub("^custom_tags\\.", "aggregate_tags.", col)
+              value <- entity_df[[col]][1]
+              if (!is.null(value) && !is.na(value) && (is.na(result_tbl[[agg_col]][i]) || result_tbl[[agg_col]][i] == "")) {
+                result_tbl[[agg_col]][i] <- value
               }
             }
           }
@@ -427,6 +420,12 @@ extract_custom_metrics <- function(data) {
     "entities.custom_tags.In-App Purchases" = "has_iap",
     "entities.custom_tags.Contains Ads" = "has_ads"
   )
+  metrics_map <- c(
+    metrics_map,
+    stats::setNames(metrics_map, gsub("^aggregate_tags\\.", "custom_tags.", names(metrics_map))),
+    stats::setNames(metrics_map, gsub("^aggregate_tags\\.", "entities.custom_tags.", names(metrics_map)))
+  )
+  metrics_map <- metrics_map[!duplicated(names(metrics_map))]
   
   # Extract only the metrics that exist in the data
   available_metrics <- intersect(names(metrics_map), names(data))
@@ -558,7 +557,6 @@ clean_numeric_values <- function(data) {
 # Helper function to lookup app names by app ID (for sales endpoint which doesn't provide names)
 lookup_app_names_by_id <- function(data) {
   # Determine which ID column to use for lookups
-  # Priority: entities.app_id (for backward compatibility), then unified_app_id, then app_id
   id_column <- NULL
   if ("entities.app_id" %in% names(data)) {
     id_column <- "entities.app_id"
@@ -569,149 +567,103 @@ lookup_app_names_by_id <- function(data) {
   } else {
     return(data)  # No ID column available
   }
-  
+
   if (nrow(data) == 0) {
     return(data)
   }
-  
-  message("Looking up missing app names...")
-  
-  # Get unique app IDs that need lookup (missing app names)
-  # If unified_app_name already exists, only lookup IDs where name is missing
-  if ("unified_app_name" %in% names(data)) {
-    # Find rows where app_id exists but unified_app_name is missing
-    needs_lookup <- !is.na(data[[id_column]]) & 
-                    data[[id_column]] != "" & 
-                    (is.na(data$unified_app_name) | data$unified_app_name == "")
-    unique_app_ids <- unique(data[[id_column]][needs_lookup])
+
+  # Determine which rows still need a unified app name
+  needs_lookup <- if ("unified_app_name" %in% names(data)) {
+    is.na(data$unified_app_name) | data$unified_app_name == ""
   } else {
-    # If no unified_app_name column exists, lookup all valid app_ids
-    unique_app_ids <- unique(data[[id_column]])
-    unique_app_ids <- unique_app_ids[!is.na(unique_app_ids) & unique_app_ids != ""]
+    rep(TRUE, nrow(data))
   }
-  
-  if (length(unique_app_ids) == 0) {
-    # No valid app IDs to lookup
+
+  candidate_ids <- unique(as.character(data[[id_column]][needs_lookup]))
+  candidate_ids <- candidate_ids[!is.na(candidate_ids) & candidate_ids != ""]
+
+  if (length(candidate_ids) == 0) {
     if (!"unified_app_name" %in% names(data)) {
-      # If no unified_app_name column exists, create it using app IDs
       data$unified_app_name <- data[[id_column]]
     }
     return(data)
   }
-  
-  # Initialize lookup results - first check cache
-  app_id_to_name <- setNames(rep(NA_character_, length(unique_app_ids)), unique_app_ids)
-  
-  # Check cache first to avoid redundant API calls
-  cached_count <- 0
-  for (app_id in unique_app_ids) {
-    if (exists(app_id, envir = .app_name_cache)) {
-      app_id_to_name[app_id] <- get(app_id, envir = .app_name_cache)
-      cached_count <- cached_count + 1
+
+  verbose_lookup <- getOption("sensortowerR.verbose", FALSE)
+
+  # Attempt to satisfy requests from the ID cache first
+  cache_entries <- lapply(candidate_ids, lookup_cached_id)
+  names(cache_entries) <- candidate_ids
+  missing_ids <- candidate_ids[vapply(cache_entries, is.null, logical(1))]
+
+  # Resolve any missing IDs using the shared resolution pipeline
+  if (length(missing_ids) > 0) {
+    auth_token <- Sys.getenv("SENSORTOWER_AUTH_TOKEN")
+    if (nzchar(auth_token)) {
+      if (verbose_lookup) {
+        message("Resolving ", length(missing_ids), " app IDs for name enrichment...")
+      }
+      batch_resolve_ids(missing_ids, auth_token = auth_token, use_cache = TRUE, verbose = verbose_lookup)
+      cache_entries[missing_ids] <- lapply(missing_ids, lookup_cached_id)
+    } else if (verbose_lookup) {
+      message("Skipping name lookup for ", length(missing_ids), " IDs (missing auth token)")
     }
   }
-  
-  if (cached_count > 0) {
-    message(sprintf("  Found %d app names in cache (skipping API calls)", cached_count))
-  }
-  
-  # Only lookup app IDs that are not in cache
-  unique_app_ids <- unique_app_ids[is.na(app_id_to_name)]
-  
-  # Early exit if all app IDs were found in cache
-  if (length(unique_app_ids) == 0) {
-    message("All app names found in cache - no API calls needed!")
-    # Proceed to create unified_app_name column
-  } else {
-    # Batch lookup strategy: Use larger search queries to find multiple apps at once
-    batch_size <- 10  # Process apps in batches to reduce API calls
-    successful_lookups <- cached_count  # Include cached results in success count
-  
-  # Process unique app IDs in batches
-  for (batch_start in seq(1, length(unique_app_ids), by = batch_size)) {
-    batch_end <- min(batch_start + batch_size - 1, length(unique_app_ids))
-    current_batch <- unique_app_ids[batch_start:batch_end]
-    
-    # Strategy 1: Try searching for exact app IDs individually (optimized)
-    for (app_id in current_batch) {
-      if (!is.na(app_id_to_name[app_id])) next  # Skip if already found
-      
-      tryCatch({
-        # Search for the app using the app_id as a search term
-        app_search <- st_app_info(term = app_id, limit = 3)  # Get more results to find exact matches
-        
-        if (nrow(app_search) > 0) {
-          # Look for exact app ID match in the results
-          exact_match_idx <- which(app_search$unified_app_id == app_id)
-          
-          if (length(exact_match_idx) > 0) {
-            # Found exact match
-            app_name <- app_search$unified_app_name[exact_match_idx[1]]
-                         if (!is.na(app_name) && app_name != "") {
-               app_id_to_name[app_id] <- app_name
-               # Cache the result for future use
-               assign(app_id, app_name, envir = .app_name_cache)
-               successful_lookups <- successful_lookups + 1
-               message(sprintf("  Found: %s = %s", app_id, app_name))
-             }
-                     } else if (!is.na(app_search$unified_app_name[1])) {
-             # Use first result as fallback (for package names that might match)
-             app_name <- app_search$unified_app_name[1]
-             app_id_to_name[app_id] <- app_name
-             # Cache the result for future use
-             assign(app_id, app_name, envir = .app_name_cache)
-             successful_lookups <- successful_lookups + 1
-             message(sprintf("  Found: %s -> %s", app_id, app_name))
-           }
+
+  # Build a lookup table from cache results
+  lookup_table <- data.frame(
+    lookup_id = candidate_ids,
+    resolved_app_name = NA_character_,
+    resolved_unified_id = NA_character_,
+    stringsAsFactors = FALSE
+  )
+
+  for (i in seq_along(candidate_ids)) {
+    entry <- cache_entries[[candidate_ids[i]]]
+    if (!is.null(entry)) {
+      name_val <- entry$app_name
+      if (!is.null(name_val)) {
+        name_val <- as.character(name_val)[1]
+        if (!is.na(name_val) && nzchar(name_val)) {
+          lookup_table$resolved_app_name[i] <- name_val
+          assign(candidate_ids[i], name_val, envir = .app_name_cache)
         }
-        
-      }, error = function(e) {
-        # Silently continue if lookup fails
-        if (length(unique_app_ids) <= 10) {
-          message(sprintf("  Error looking up %s: %s", app_id, e$message))
+      }
+      unified_val <- entry$unified_id
+      if (!is.null(unified_val)) {
+        unified_val <- as.character(unified_val)[1]
+        if (!is.na(unified_val) && nzchar(unified_val)) {
+          lookup_table$resolved_unified_id[i] <- unified_val
         }
-      })
-    }
-    
-    # Add batch delay to be respectful to API (reduced total delay)
-    if (batch_end < length(unique_app_ids)) {
-      Sys.sleep(0.5)  # Longer delay between batches, shorter overall time
+      }
     }
   }
-  
-    # Report lookup success rate for API calls only
-    not_found_count <- sum(is.na(app_id_to_name))
-    total_lookups <- cached_count + length(unique_app_ids)
-    message(sprintf("App name lookup completed: %d/%d successful (%.1f%%)", 
-                    successful_lookups, total_lookups, 
-                    (successful_lookups / total_lookups) * 100))
-  }
-  
-  # Create or update unified_app_name based on lookup results
+
+  join_cols <- stats::setNames("lookup_id", id_column)
+  data <- dplyr::left_join(data, lookup_table, by = join_cols)
+
   if (!"unified_app_name" %in% names(data)) {
-    # If no unified_app_name column exists, create it
-    data$unified_app_name <- ifelse(
-      is.na(app_id_to_name[data[[id_column]]]), 
-      data[[id_column]],  # Fallback to app ID if lookup failed
-      app_id_to_name[data[[id_column]]]  # Use looked up name
-    )
-  } else {
-    # If unified_app_name exists, only update missing values
-    missing_names <- is.na(data$unified_app_name) | data$unified_app_name == ""
-    data$unified_app_name[missing_names] <- ifelse(
-      is.na(app_id_to_name[data[[id_column]][missing_names]]), 
-      data[[id_column]][missing_names],  # Fallback to app ID if lookup failed
-      app_id_to_name[data[[id_column]][missing_names]]  # Use looked up name
-    )
+    data$unified_app_name <- NA_character_
   }
-  
-  # Report success rate
-  successful_lookups <- sum(!is.na(app_id_to_name))
-  total_unique <- length(unique_app_ids)
-  message(sprintf("App name lookup completed: %d/%d successful (%.1f%%)", 
-                  successful_lookups, total_unique, 100 * successful_lookups / total_unique))
-  
-  return(data)
+  fill_names <- is.na(data$unified_app_name) | data$unified_app_name == ""
+  data$unified_app_name[fill_names] <- dplyr::coalesce(
+    data$resolved_app_name[fill_names],
+    as.character(data[[id_column]][fill_names])
+  )
+
+  if (!"unified_app_id" %in% names(data)) {
+    data$unified_app_id <- NA_character_
+  }
+  fill_unified <- is.na(data$unified_app_id) | data$unified_app_id == ""
+  data$unified_app_id[fill_unified] <- dplyr::coalesce(
+    data$resolved_unified_id[fill_unified],
+    data$unified_app_id[fill_unified]
+  )
+
+  data <- data %>%
+    dplyr::select(-dplyr::any_of(c("resolved_app_name", "resolved_unified_id")))
+
+  data
 }
 
 # Helper function to deduplicate by a specific grouping column
@@ -908,8 +860,8 @@ deduplicate_apps_by_name <- function(data) {
       
       .groups = "drop"
     ) %>%
-    # Re-order to put unified_app_name first and remove temporary column
-    dplyr::select(.data$unified_app_name, .data$unified_app_id, dplyr::everything(), -.data$.name_normalized)
+    dplyr::relocate(unified_app_name, unified_app_id) %>%
+    dplyr::select(-dplyr::any_of(".name_normalized"))
   }, error = function(e) {
     message("ERROR in deduplication: ", e$message)
     return(data)  # Return original data on error

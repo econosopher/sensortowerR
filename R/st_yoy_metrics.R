@@ -408,7 +408,7 @@ st_yoy_metrics <- function(
       )
     ) %>%
     # Remove the temporary prev_value column
-    select(-.data$prev_value) %>%
+    select(-prev_value) %>%
     ungroup()
   
   if (verbose) {
@@ -453,7 +453,7 @@ calculate_yoy_growth <- function(yoy_data, baseline_year = NULL) {
   # Get baseline values
   baseline_data <- yoy_data %>%
     filter(.data$year == baseline_year) %>%
-    select(.data$entity_id, .data$country, .data$metric, baseline_value = .data$value)
+    select(entity_id, country, metric, baseline_value = value)
   
   # Calculate growth rates
   growth_data <- yoy_data %>%

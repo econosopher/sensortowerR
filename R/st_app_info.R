@@ -143,10 +143,10 @@ st_app_info <- function(term,
     }
     
     extracted_info <- unified_apps %>%
-      select(all_of(base_columns)) %>%
-      rename(
-        unified_app_id = .data$app_id,
-        unified_app_name = .data$name
+      dplyr::select(dplyr::all_of(base_columns)) %>%
+      dplyr::rename(
+        unified_app_id = app_id,
+        unified_app_name = name
       )
     return(tibble::as_tibble(extracted_info))
   }

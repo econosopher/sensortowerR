@@ -115,147 +115,143 @@ st_smart_metrics <- function(
     })
   }
   
-  # Step 3: Group apps by optimal fetching strategy
-  fetch_groups <- list()
-  
-  for (app in app_list) {
-    # Prefer platform-specific IDs over unified
-    if (!is.null(app$ios_id) && !is.null(app$android_id)) {
-      # Has both platforms
-      key <- paste0(app$ios_id, "_", app$android_id)
-      if (is.null(fetch_groups[["both"]])) fetch_groups[["both"]] <- list()
-      fetch_groups[["both"]][[key]] <- app
-    } else if (!is.null(app$ios_id)) {
-      # iOS only
-      if (is.null(fetch_groups[["ios"]])) fetch_groups[["ios"]] <- list()
-      fetch_groups[["ios"]][[app$ios_id]] <- app
-    } else if (!is.null(app$android_id)) {
-      # Android only
-      if (is.null(fetch_groups[["android"]])) fetch_groups[["android"]] <- list()
-      fetch_groups[["android"]][[app$android_id]] <- app
-    } else if (!is.null(app$unified_id)) {
-      # Unified only (last resort)
-      if (is.null(fetch_groups[["unified"]])) fetch_groups[["unified"]] <- list()
-      fetch_groups[["unified"]][[app$unified_id]] <- app
-    }
+  # Convert resolved app metadata into a data frame for grouping
+  to_safe_char <- function(x) {
+    if (is.null(x)) return(NA_character_)
+    val <- as.character(x)[1]
+    if (is.na(val) || !nzchar(val)) return(NA_character_)
+    val
   }
+  resolved_apps <- dplyr::bind_rows(lapply(app_list, function(app) {
+    data.frame(
+      input_id = to_safe_char(app$input_id),
+      ios_id = to_safe_char(app$ios_id),
+      android_id = to_safe_char(app$android_id),
+      unified_id = to_safe_char(app$unified_id),
+      app_name = to_safe_char(app$app_name),
+      stringsAsFactors = FALSE
+    )
+  }))
+  
+  valid_ios <- !is.na(resolved_apps$ios_id) & nzchar(resolved_apps$ios_id)
+  valid_android <- !is.na(resolved_apps$android_id) & nzchar(resolved_apps$android_id)
+  valid_unified <- !is.na(resolved_apps$unified_id) & nzchar(resolved_apps$unified_id)
+  
+  fetch_groups <- list()
+  fetch_groups$both <- resolved_apps[valid_ios & valid_android, , drop = FALSE]
+  fetch_groups$ios <- resolved_apps[valid_ios & !valid_android, , drop = FALSE]
+  fetch_groups$android <- resolved_apps[!valid_ios & valid_android, , drop = FALSE]
+  fetch_groups$unified <- resolved_apps[!valid_ios & !valid_android & valid_unified, , drop = FALSE]
+  
+  # Remove empty groups
+  fetch_groups <- fetch_groups[vapply(fetch_groups, nrow, integer(1)) > 0]
+  unresolved <- resolved_apps[!valid_ios & !valid_android & !valid_unified, , drop = FALSE]
   
   if (verbose) {
     message("\nOptimized fetch groups:")
-    for (group in names(fetch_groups)) {
-      message("  ", group, ": ", length(fetch_groups[[group]]), " apps")
+    if (length(fetch_groups) == 0) {
+      message("  None - no resolvable IDs")
+    } else {
+      for (group in names(fetch_groups)) {
+        message("  ", group, ": ", nrow(fetch_groups[[group]]), " apps")
+      }
+    }
+    if (nrow(unresolved) > 0) {
+      message("  Skipped ", nrow(unresolved), " app(s) with unresolved identifiers")
     }
   }
   
   # Step 4: Fetch metrics using st_batch_metrics
   all_results <- list()
   
-  # Process each group
   for (group_name in names(fetch_groups)) {
     group_apps <- fetch_groups[[group_name]]
-    
-    if (length(group_apps) == 0) next
-    
+    if (nrow(group_apps) == 0) next
     if (verbose) message("\nFetching ", group_name, " group...")
     
-    # Create appropriate app list for st_batch_metrics
-    if (group_name == "both") {
-      # Extract iOS and Android IDs
-      ios_ids <- sapply(group_apps, function(x) x$ios_id)
-      android_ids <- sapply(group_apps, function(x) x$android_id)
-      
-      # Create app list for batch metrics
-      app_list <- data.frame(
-        ios_id = ios_ids,
-        android_id = android_ids,
-        stringsAsFactors = FALSE
-      )
-      
-      result <- st_batch_metrics(
-        os = "unified",
-        app_list = app_list,
-        metrics = metrics,
-        date_range = list(start_date = start_date, end_date = end_date),
-        countries = countries,
-        granularity = granularity,
-        parallel = parallel,
-        auth_token = auth_token,
-        verbose = FALSE
-      )
-      
-    } else if (group_name == "ios") {
-      ios_ids <- names(group_apps)
-      
-      result <- st_batch_metrics(
-        os = "ios",
-        app_list = ios_ids,
-        metrics = metrics,
-        date_range = list(start_date = start_date, end_date = end_date),
-        countries = countries,
-        granularity = granularity,
-        parallel = parallel,
-        auth_token = auth_token,
-        verbose = FALSE
-      )
-      
-    } else if (group_name == "android") {
-      android_ids <- names(group_apps)
-      
-      result <- st_batch_metrics(
-        os = "android",
-        app_list = android_ids,
-        metrics = metrics,
-        date_range = list(start_date = start_date, end_date = end_date),
-        countries = countries,
-        granularity = granularity,
-        parallel = parallel,
-        auth_token = auth_token,
-        verbose = FALSE
-      )
-      
-    } else if (group_name == "unified") {
-      unified_ids <- names(group_apps)
-      
-      result <- st_batch_metrics(
-        os = "unified",
-        app_list = unified_ids,
-        metrics = metrics,
-        date_range = list(start_date = start_date, end_date = end_date),
-        countries = countries,
-        granularity = granularity,
-        parallel = parallel,
-        auth_token = auth_token,
-        verbose = FALSE
-      )
-    }
+    app_list_df <- data.frame(
+      app_id = group_apps$input_id,
+      ios_id = group_apps$ios_id,
+      android_id = group_apps$android_id,
+      unified_id = group_apps$unified_id,
+      app_name = group_apps$app_name,
+      stringsAsFactors = FALSE
+    )
     
-    # Map results back to input IDs
+    result <- switch(
+      group_name,
+      both = st_batch_metrics(
+        os = "unified",
+        app_list = app_list_df,
+        metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
+        countries = countries,
+        granularity = granularity,
+        parallel = parallel,
+        auth_token = auth_token,
+        verbose = FALSE
+      ),
+      ios = st_batch_metrics(
+        os = "ios",
+        app_list = app_list_df,
+        metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
+        countries = countries,
+        granularity = granularity,
+        parallel = parallel,
+        auth_token = auth_token,
+        verbose = FALSE
+      ),
+      android = st_batch_metrics(
+        os = "android",
+        app_list = app_list_df,
+        metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
+        countries = countries,
+        granularity = granularity,
+        parallel = parallel,
+        auth_token = auth_token,
+        verbose = FALSE
+      ),
+      unified = st_batch_metrics(
+        os = "unified",
+        app_list = app_list_df,
+        metrics = metrics,
+        date_range = list(start_date = start_date, end_date = end_date),
+        countries = countries,
+        granularity = granularity,
+        parallel = parallel,
+        auth_token = auth_token,
+        verbose = FALSE
+      )
+    )
+    
     if (!is.null(result) && nrow(result) > 0) {
-      # Add input_id column for tracking
       result$group <- group_name
       all_results[[group_name]] <- result
     }
   }
   
-  # Combine all results
-  final_results <- dplyr::bind_rows(all_results)
+  final_results <- if (length(all_results) > 0) {
+    dplyr::bind_rows(all_results)
+  } else {
+    tibble::tibble()
+  }
   
-  # Map back to original input IDs
   if (nrow(final_results) > 0) {
-    # Create a mapping from entity_id to input_id
-    id_map <- data.frame(
-      input_id = app_ids,
-      stringsAsFactors = FALSE
-    )
-    
-    # Add app names if available
-    for (app in app_list) {
-      if (!is.null(app$app_name)) {
-        final_results$app_name[final_results$entity_id %in% 
-                              c(app$ios_id, app$android_id, app$unified_id,
-                                paste0(app$ios_id, "_", app$android_id))] <- app$app_name
-      }
+    resolved_apps$input_position <- seq_len(nrow(resolved_apps))
+    ordering <- resolved_apps[, c("input_id", "input_position"), drop = FALSE]
+    names(ordering)[1] <- "original_id"
+    final_results <- final_results %>%
+      dplyr::left_join(ordering, by = "original_id")
+    if ("date" %in% names(final_results)) {
+      final_results <- final_results %>%
+        dplyr::arrange(.data$input_position, .data$original_id, .data$date)
+    } else {
+      final_results <- final_results %>%
+        dplyr::arrange(.data$input_position, .data$original_id)
     }
+    final_results <- final_results %>% dplyr::select(-.data$input_position)
   }
   
   # Save cache if it's grown
@@ -266,8 +262,11 @@ st_smart_metrics <- function(
   if (verbose) {
     message("\nFetch complete:")
     message("  Total records: ", nrow(final_results))
-    message("  Unique apps: ", length(unique(final_results$entity_id)))
-    message("  Metrics: ", paste(unique(final_results$metric), collapse = ", "))
+    unique_apps <- if ("app_id" %in% names(final_results)) length(unique(final_results$app_id)) else 0
+    message("  Unique apps: ", unique_apps)
+    if ("metric" %in% names(final_results) && nrow(final_results) > 0) {
+      message("  Metrics: ", paste(unique(final_results$metric), collapse = ", "))
+    }
   }
   
   return(final_results)

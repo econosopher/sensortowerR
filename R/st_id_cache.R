@@ -135,6 +135,12 @@ resolve_app_id <- function(id, auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
 batch_resolve_ids <- function(ids, auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                             use_cache = TRUE, verbose = FALSE) {
   
+  ids <- as.character(unique(ids))
+  ids <- ids[!is.na(ids) & nzchar(ids)]
+  if (length(ids) == 0) {
+    return(list())
+  }
+  
   if (verbose) message("Resolving ", length(ids), " app IDs...")
   
   # First pass: check cache
