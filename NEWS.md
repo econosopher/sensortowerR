@@ -1,4 +1,12 @@
-# sensortowerR 0.8.1
+# sensortowerR 0.8.3
+
+## Internal Refactoring & Robustness
+
+* **Refactored Core Logic**: Streamlined `st_batch_metrics` and `st_metrics` to use centralized data fetching and constant definitions.
+* **Improved Stability**: Fixed regression in `resolve_ids_for_os` to ensure consistent ID handling across platforms.
+* **Enhanced Testing**: Expanded test suite to cover edge cases in batch processing and ID resolution.
+
+# sensortowerR 0.8.2
 
 ## Critical Fix
 

@@ -6,6 +6,11 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.8.3 - Robustness & Refactoring
+- **Core Refactoring**: Streamlined internal logic for `st_batch_metrics` and `st_metrics` for better maintainability and performance.
+- **Enhanced Stability**: Improved ID resolution consistency across all functions.
+- **Expanded Testing**: Comprehensive test coverage for batch processing and edge cases.
+
 ### v0.7.6 - Critical Fix for DAU/WAU/MAU Sorting with Custom Filters
 - **BREAKING FIX**: DAU/WAU/MAU measures now correctly use the sales endpoint
   - Previously, these measures incorrectly routed to `active_users` endpoint
