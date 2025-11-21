@@ -82,7 +82,7 @@ prepare_query_params_sales <- function(auth_token,
     time_range = time_range,
     measure = measure,
     date = as.character(date),
-    category = category,  # Keep category even with custom filter
+    category = category, # Keep category even with custom filter
     end_date = if (!is.null(end_date)) as.character(end_date) else NULL,
     regions = paste(regions, collapse = ","),
     limit = limit,
@@ -93,15 +93,15 @@ prepare_query_params_sales <- function(auth_token,
   )
   # Remove NULLs
   params <- params[!sapply(params, is.null)]
-  
+
   # Debug: print params when using custom filter
   if (!is.null(custom_fields_filter_id)) {
     message("Debug: Query params with custom filter (sales):")
     message("  custom_fields_filter_id: ", params$custom_fields_filter_id)
-    message("  category: ", if(is.null(params$category)) "NULL" else params$category)
+    message("  category: ", if (is.null(params$category)) "NULL" else params$category)
     message("  custom_tags_mode: ", params$custom_tags_mode)
   }
-  
+
   params
 }
 
@@ -125,7 +125,7 @@ prepare_query_params_active_users <- function(auth_token,
     time_range = time_range,
     measure = measure,
     date = as.character(date),
-    category = category,  # Keep category even with custom filter
+    category = category, # Keep category even with custom filter
     regions = paste(regions, collapse = ","),
     limit = limit,
     offset = offset,
@@ -175,6 +175,64 @@ perform_request <- function(req) {
   )
 }
 
+#' Core Data Fetching Function
+#'
+#' A reusable function to handle the common pattern of fetching data from the API.
+#' Handles URL building, request execution, error handling, and response processing.
+#'
+#' @param endpoint Character. API endpoint path (e.g. "ios/sales_report_estimates").
+#' @param params List. Query parameters.
+#' @param auth_token Character. API token.
+#' @param verbose Logical. Whether to print debug messages.
+#' @param enrich_response Logical. Whether to enrich the response with metadata.
+#' @param processor Function. Function to process the response. Defaults to process_response.
+#'
+#' @return A tibble with the results.
+#' @keywords internal
+fetch_data_core <- function(endpoint, params, auth_token, verbose = FALSE, enrich_response = TRUE, processor = process_response) {
+  base_url <- "https://api.sensortower.com/v1"
+
+  # Clean up params
+  params <- params[!sapply(params, is.null)]
+  params$auth_token <- auth_token
+
+  if (verbose) {
+    message("Requesting: ", endpoint)
+    # Don't print auth token in debug
+    debug_params <- params
+    debug_params$auth_token <- "HIDDEN"
+    print(debug_params)
+  }
+
+  req <- httr2::request(base_url) %>%
+    httr2::req_url_path_append(endpoint) %>%
+    httr2::req_url_query(!!!params) %>%
+    httr2::req_user_agent("sensortowerR") %>%
+    httr2::req_retry(max_tries = 3, backoff = function(i) 2^i)
+
+  resp <- tryCatch(
+    {
+      httr2::req_perform(req)
+    },
+    error = function(e) {
+      if (verbose) message("API Request Failed: ", e$message)
+      return(NULL)
+    }
+  )
+
+  if (is.null(resp)) {
+    return(NULL)
+  }
+
+  # Call the processor function
+  # Check if processor accepts enrich_response argument
+  if ("enrich_response" %in% names(formals(processor))) {
+    processor(resp, enrich_response = enrich_response)
+  } else {
+    processor(resp)
+  }
+}
+
 # --- Response Processing ---
 
 # Helper function to perform unnesting of entities
@@ -188,7 +246,7 @@ perform_unnest <- function(result_tbl) {
     }
     df
   })
-  
+
   tidyr::unnest(result_tbl, dplyr::all_of("entities"), names_sep = ".")
 }
 
@@ -213,7 +271,7 @@ process_response <- function(resp, enrich_response = TRUE) {
     # This is the true unified hex ID from the API
     if ("app_id" %in% names(result_tbl)) {
       result_tbl$unified_app_id <- result_tbl$app_id
-      
+
       # OPTIMIZATION: If we already have unified hex IDs, check if unnesting is necessary
       # When using os="unified" with custom filters, the API returns unified data already
       non_na_ids <- result_tbl$app_id[!is.na(result_tbl$app_id)]
@@ -221,16 +279,18 @@ process_response <- function(resp, enrich_response = TRUE) {
         # We have unified hex IDs - check if entities just contains redundant platform data
         # If the entities only contain platform-specific versions of the same app,
         # we can skip unnesting to avoid creating duplicates that need consolidation
-        
+
         # Check first entity to see if it would create duplicates
         first_entity <- result_tbl$entities[[1]]
         if (!is.null(first_entity) && is.data.frame(first_entity) && nrow(first_entity) > 1) {
           # Multiple rows in entity = iOS + Android versions = will create duplicates
           # For unified data, we can use aggregate_tags instead of unnesting entities
           message("Streamlined processing: Using unified data without unnesting platform entities")
-          
+
           custom_tag_cols <- unique(unlist(lapply(result_tbl$entities, function(df) {
-            if (is.null(df) || !is.data.frame(df)) return(character())
+            if (is.null(df) || !is.data.frame(df)) {
+              return(character())
+            }
             names(df)[grepl("^custom_tags\\.", names(df))]
           })))
           for (col in custom_tag_cols) {
@@ -250,12 +310,12 @@ process_response <- function(resp, enrich_response = TRUE) {
               }
             }
           }
-          
+
           # Now safe to remove entities after extracting key fields
           if ("aggregate_tags" %in% names(result_tbl)) {
             # The aggregate_tags column already contains the unified metrics
             # We've extracted gender data, so now we can remove entities
-            result_tbl$entities <- NULL  # Remove entities to prevent confusion
+            result_tbl$entities <- NULL # Remove entities to prevent confusion
           }
         } else {
           # Single row or empty entity - safe to unnest
@@ -269,11 +329,11 @@ process_response <- function(resp, enrich_response = TRUE) {
       # No app_id column - proceed with normal unnesting
       result_tbl <- perform_unnest(result_tbl)
     }
-    
+
     # Clean up duplicate columns - prefer the entities.* versions for detailed data
     base_cols <- setdiff(names(result_tbl), grep("^entities\\.", names(result_tbl), value = TRUE))
     entities_cols <- grep("^entities\\.", names(result_tbl), value = TRUE)
-    
+
     # Remove base columns that have entities.* equivalents
     # But preserve unified_app_id and app_id if they're hex format unified IDs
     preserve_cols <- "unified_app_id"
@@ -286,7 +346,7 @@ process_response <- function(resp, enrich_response = TRUE) {
       setdiff(base_cols, preserve_cols)
     )
     result_tbl <- result_tbl[, !names(result_tbl) %in% duplicated_bases]
-    
+
     # Handle app name column - check multiple possible sources
     if ("entities.custom_tags.unified_product_name" %in% names(result_tbl)) {
       result_tbl <- dplyr::rename(result_tbl, app.name = "entities.custom_tags.unified_product_name")
@@ -295,39 +355,39 @@ process_response <- function(resp, enrich_response = TRUE) {
     } else if ("name" %in% names(result_tbl) && !"app.name" %in% names(result_tbl)) {
       result_tbl <- dplyr::rename(result_tbl, app.name = "name")
     }
-    
+
     # Create unified_app_name and unified_app_id for consistency
     if ("app.name" %in% names(result_tbl)) {
       result_tbl$unified_app_name <- result_tbl$app.name
     }
-    
+
     # Note: unified_app_id was already set above before unnesting
     # The entities.app_id contains platform-specific IDs, not unified IDs
-    
+
     # Store platform-specific app_id separately for reference
     if ("entities.app_id" %in% names(result_tbl) && !"platform_app_id" %in% names(result_tbl)) {
       result_tbl$platform_app_id <- result_tbl$entities.app_id
     }
-    
+
     # If we have app_ids but missing app names, look them up
-    if ((!"unified_app_name" %in% names(result_tbl) || 
-         any(is.na(result_tbl$unified_app_name))) &&
-        "unified_app_id" %in% names(result_tbl)) {
+    if ((!"unified_app_name" %in% names(result_tbl) ||
+      any(is.na(result_tbl$unified_app_name))) &&
+      "unified_app_id" %in% names(result_tbl)) {
       result_tbl <- lookup_app_names_by_id(result_tbl)
     }
-    
+
     # Extract custom metrics with clean names
     result_tbl <- extract_custom_metrics(result_tbl)
-    
+
     # Clean special characters from numeric values
     result_tbl <- clean_numeric_values(result_tbl)
-    
+
     # Convert date columns to proper Date class
     result_tbl <- clean_date_values(result_tbl)
   } else {
     # Even without enrichment, clean any numeric values that might have special characters
     result_tbl <- clean_numeric_values(result_tbl)
-    
+
     # Convert date columns to proper Date class
     result_tbl <- clean_date_values(result_tbl)
   }
@@ -337,148 +397,71 @@ process_response <- function(resp, enrich_response = TRUE) {
 
 # Helper function to extract useful custom metrics from entities.custom_tags and aggregate_tags columns
 extract_custom_metrics <- function(data) {
-  if (nrow(data) == 0) return(data)
-  
-  # Define the metrics we want to extract with cleaner names
-  # Based on actual API response structure
-  metrics_map <- c(
-    # Performance metrics (from aggregate_tags - these are available)
-    "aggregate_tags.Last 180 Days Downloads (WW)" = "downloads_180d_ww",
-    "aggregate_tags.Last 180 Days Revenue (WW)" = "revenue_180d_ww", 
-    "aggregate_tags.Last 30 Days Average DAU (US)" = "dau_30d_us",
-    "aggregate_tags.Last 30 Days Average DAU (WW)" = "dau_30d_ww",
-    "aggregate_tags.Last 30 Days Downloads (WW)" = "downloads_30d_ww",
-    "aggregate_tags.Last 30 Days Revenue (WW)" = "revenue_30d_ww",
-    "aggregate_tags.Last 4 Weeks Average WAU (US)" = "wau_4w_us",
-    "aggregate_tags.Last 4 Weeks Average WAU (WW)" = "wau_4w_ww",
-    "aggregate_tags.Last Month Average MAU (US)" = "mau_month_us",
-    "aggregate_tags.Last Month Average MAU (WW)" = "mau_month_ww",
-    
-    # Historical metrics
-    "aggregate_tags.All Time Downloads (US)" = "downloads_alltime_us",
-    "aggregate_tags.All Time Downloads (WW)" = "downloads_alltime_ww",
-    "aggregate_tags.All Time Revenue (US)" = "revenue_alltime_us", 
-    "aggregate_tags.All Time Revenue (WW)" = "revenue_alltime_ww",
-    "aggregate_tags.All Time Publisher Downloads (WW)" = "publisher_downloads_alltime_ww",
-    "aggregate_tags.All Time Publisher Revenue (WW)" = "publisher_revenue_alltime_ww",
-    
-    # RPD metrics
-    "aggregate_tags.RPD (All Time, US)" = "rpd_alltime_us",
-    "aggregate_tags.RPD (All Time, WW)" = "rpd_alltime_ww",
-    
-    # Launch metrics
-    "aggregate_tags.Release Date (US)" = "release_date_us",
-    "aggregate_tags.Release Date (WW)" = "release_date_ww",
-    "aggregate_tags.Release Date (JP)" = "release_date_jp",
-    "aggregate_tags.Earliest Release Date" = "earliest_release_date",
-    "aggregate_tags.Revenue First 30 Days (WW)" = "revenue_first30d_ww",
-    "aggregate_tags.Downloads First 30 Days (WW)" = "downloads_first30d_ww",
-    
-    # Retention metrics
-    "aggregate_tags.Day 1 Retention (Last Quarter, US)" = "retention_1d_us",
-    "aggregate_tags.Day 1 Retention (Last Quarter, WW)" = "retention_1d_ww",
-    "aggregate_tags.Day 7 Retention (Last Quarter, US)" = "retention_7d_us",
-    "aggregate_tags.Day 7 Retention (Last Quarter, WW)" = "retention_7d_ww",
-    "aggregate_tags.Day 14 Retention (Last Quarter, US)" = "retention_14d_us",
-    "aggregate_tags.Day 14 Retention (Last Quarter, WW)" = "retention_14d_ww",
-    "aggregate_tags.Day 30 Retention (Last Quarter, US)" = "retention_30d_us",
-    "aggregate_tags.Day 30 Retention (Last Quarter, WW)" = "retention_30d_ww",
-    "aggregate_tags.Day 60 Retention (Last Quarter, US)" = "retention_60d_us",
-    "aggregate_tags.Day 60 Retention (Last Quarter, WW)" = "retention_60d_ww",
-    
-    # Demographics
-    "aggregate_tags.Age (Last Quarter, US)" = "age_us",
-    "aggregate_tags.Age (Last Quarter, WW)" = "age_ww",
-    "aggregate_tags.Genders (Last Quarter, US)" = "genders_us",
-    "aggregate_tags.Genders (Last Quarter, WW)" = "genders_ww",
-    "aggregate_tags.Gender (Last Quarter, US)" = "gender_us",
-    "aggregate_tags.Gender (Last Quarter, WW)" = "gender_ww",
-    
-    # Additional revenue metrics
-    "aggregate_tags.Most Popular Country by Revenue" = "most_popular_country_revenue",
-    "aggregate_tags.Last 90 Days Downloads (US)" = "downloads_90d_us",
-    "aggregate_tags.Last 90 Days Downloads (WW)" = "downloads_90d_ww",
-    "aggregate_tags.Last 90 Days Revenue (US)" = "revenue_90d_us",
-    "aggregate_tags.Last 90 Days Revenue (WW)" = "revenue_90d_ww",
-    "aggregate_tags.ARPU (90 Days, US)" = "arpu_90d_us",
-    "aggregate_tags.ARPU (90 Days, WW)" = "arpu_90d_ww",
-    
-    # Platform shares
-    "aggregate_tags.Android Share (WW)" = "android_share_ww",
-    "aggregate_tags.iOS Share (WW)" = "ios_share_ww",
-    "aggregate_tags.Female Share (US)" = "female_share_us",
-    "aggregate_tags.Male Share (US)" = "male_share_us",
-    
-    # Additional useful metrics from entities.custom_tags (when available)
-    "entities.custom_tags.Game Sub-genre" = "game_subgenre",
-    "entities.custom_tags.Game Genre" = "game_genre",
-    "entities.custom_tags.Game Art Style" = "game_art_style",
-    "entities.custom_tags.Primary Category" = "primary_category",
-    "entities.custom_tags.Overall US Rating" = "us_rating",
-    "entities.custom_tags.Current US Rating" = "current_us_rating",
-    "entities.custom_tags.Free" = "is_free",
-    "entities.custom_tags.In-App Purchases" = "has_iap",
-    "entities.custom_tags.Contains Ads" = "has_ads"
-  )
+  if (nrow(data) == 0) {
+    return(data)
+  }
+
+  # Use the global constant METRIC_MAPPING
+  metrics_map <- METRIC_MAPPING
+
+  # Also add variations for custom_tags and entities.custom_tags prefixes
   metrics_map <- c(
     metrics_map,
     stats::setNames(metrics_map, gsub("^aggregate_tags\\.", "custom_tags.", names(metrics_map))),
     stats::setNames(metrics_map, gsub("^aggregate_tags\\.", "entities.custom_tags.", names(metrics_map)))
   )
   metrics_map <- metrics_map[!duplicated(names(metrics_map))]
-  
+
   # Extract only the metrics that exist in the data
   available_metrics <- intersect(names(metrics_map), names(data))
-  
+
   if (length(available_metrics) > 0) {
     # Create a new data frame with the extracted metrics
     extracted_data <- data[, available_metrics, drop = FALSE]
     names(extracted_data) <- metrics_map[available_metrics]
-    
+
     # Remove the original entities.custom_tags columns to avoid duplication
     data <- data[, !names(data) %in% available_metrics, drop = FALSE]
-    
+
     # Bind the cleaned metrics back to the data using dplyr::bind_cols for safety
     data <- dplyr::bind_cols(data, extracted_data)
   }
-  
-    return(data)
+
+  return(data)
 }
 
 # Helper function to clean special characters from numeric values
+# Helper function to clean special characters from numeric values
 clean_numeric_values <- function(data) {
-  if (nrow(data) == 0) return(data)
-  
+  if (nrow(data) == 0) {
+    return(data)
+  }
+
   # Define patterns of metrics that should be treated as numeric
   # These patterns match the metric names we extract in extract_custom_metrics
-  numeric_metric_patterns <- c(
-    "downloads", "revenue", "users", "dau", "wau", "mau", "rpd", 
-    "retention", "age", "rating", "count", "days", "size", "absolute",
-    "delta", "share", "percent", "time", "last", "average", "total",
-    "first", "all time", "180", "30", "90", "7d", "14d", "month"
-  )
-  
-  # Find columns that likely contain numeric data  
+  numeric_metric_patterns <- NUMERIC_METRIC_PATTERNS
+
+  # Find columns that likely contain numeric data
   numeric_cols <- names(data)[sapply(names(data), function(col_name) {
     # Skip non-character columns
     if (!is.character(data[[col_name]])) {
       return(FALSE)
     }
-    
+
     # Check if column name matches our numeric patterns
     matches_pattern <- any(sapply(numeric_metric_patterns, function(pattern) {
       grepl(pattern, col_name, ignore.case = TRUE)
     }))
-    
+
     # Also check for aggregate_tags columns that might contain numeric data
     is_aggregate_tag <- grepl("^aggregate_tags\\.", col_name)
-    
+
     # Check for entities.custom_tags columns that might be numeric
     is_custom_tag <- grepl("^entities\\.custom_tags\\.", col_name)
-    
-    # Skip obvious text columns 
+
+    # Skip obvious text columns
     is_text_column <- grepl("\\bname$|\\burl$|\\bdate$|app_id$|country$|gender|genre|style|category", col_name, ignore.case = TRUE)
-    
+
     # If column matches our criteria and isn't obviously text, check the content
     if ((matches_pattern || is_aggregate_tag || is_custom_tag) && !is_text_column) {
       sample_values <- head(data[[col_name]][!is.na(data[[col_name]]) & data[[col_name]] != ""], 10)
@@ -486,50 +469,50 @@ clean_numeric_values <- function(data) {
         # Check if values contain digits with special characters OR pure numbers
         has_numeric_with_special <- any(grepl("[0-9].*[%$,]|[%$,].*[0-9]", sample_values))
         has_pure_numeric <- any(grepl("^[0-9]+\\.?[0-9]*$", sample_values))
-        
+
         # Also check for formatted numbers like "1,234" or scientific notation
         has_formatted_numeric <- any(grepl("^[0-9,]+\\.?[0-9]*$", sample_values))
-        
+
         return(has_numeric_with_special || has_pure_numeric || has_formatted_numeric)
       }
     }
     return(FALSE)
   })]
-  
+
   # Clean each numeric column
   for (col in numeric_cols) {
     if (is.character(data[[col]])) {
       original_values <- data[[col]]
-      
+
       # Handle percentage values (convert "45%" to 45, not 0.45)
       # Most analytics metrics use percentages as whole numbers
       has_percentages <- any(grepl("%", original_values, fixed = TRUE), na.rm = TRUE)
-      
+
       # Remove currency symbols, commas, spaces, and other formatting
       cleaned_values <- gsub("[$,\\s]", "", original_values)
-      
+
       # Remove percentage signs (but track that they were there)
       cleaned_values <- gsub("%", "", cleaned_values)
-      
+
       # Remove any remaining non-numeric characters except decimal points and minus signs
       cleaned_values <- gsub("[^0-9.-]", "", cleaned_values)
-      
+
       # Convert empty strings to NA
       cleaned_values[cleaned_values == ""] <- NA
-      
+
       # Convert to numeric, suppressing warnings for values that can't be converted
       numeric_values <- suppressWarnings(as.numeric(cleaned_values))
-      
+
       # Only replace if we successfully converted most values
       # This prevents accidentally converting text columns that happen to match patterns
       non_na_original <- sum(!is.na(original_values))
       non_na_converted <- sum(!is.na(numeric_values))
-      
+
       if (non_na_original > 0) {
         conversion_rate <- non_na_converted / non_na_original
-        if (conversion_rate > 0.5) {  # If more than 50% converted successfully
+        if (conversion_rate > 0.5) { # If more than 50% converted successfully
           data[[col]] <- numeric_values
-          
+
           # Special handling for retention metrics - convert to decimals
           if (grepl("retention", col, ignore.case = TRUE) && has_percentages) {
             # Convert retention percentages to decimals (15.5% becomes 0.155)
@@ -547,7 +530,7 @@ clean_numeric_values <- function(data) {
       }
     }
   }
-  
+
   return(data)
 }
 
@@ -565,7 +548,7 @@ lookup_app_names_by_id <- function(data) {
   } else if ("app_id" %in% names(data)) {
     id_column <- "app_id"
   } else {
-    return(data)  # No ID column available
+    return(data) # No ID column available
   }
 
   if (nrow(data) == 0) {
@@ -671,202 +654,181 @@ deduplicate_by_group_id <- function(data, group_col) {
   if (nrow(data) == 0 || !group_col %in% names(data)) {
     return(data)
   }
-  
+
   # Separate numeric and non-numeric columns
   numeric_cols <- names(data)[sapply(data, is.numeric)]
   non_numeric_cols <- setdiff(names(data), numeric_cols)
-  
+
   # Metrics to sum (downloads, revenue, counts)
   sum_metrics <- numeric_cols[grepl("downloads|revenue|units|count|absolute", numeric_cols, ignore.case = TRUE)]
-  
+
   # Metrics to average (DAU, MAU, WAU, retention, ratings, percentages)
   avg_metrics <- numeric_cols[grepl("dau|mau|wau|retention|rating|percentage|arpdau|rpd|avg|average", numeric_cols, ignore.case = TRUE)]
-  
+
   # Everything else (first value)
   other_metrics <- setdiff(numeric_cols, c(sum_metrics, avg_metrics))
-  
+
   # Group by the specified column and aggregate
   result <- data %>%
     dplyr::group_by(!!rlang::sym(group_col)) %>%
     dplyr::summarise(
       # Keep the first unified_app_name
       unified_app_name = dplyr::first(.data$unified_app_name),
-      
+
       # Keep first unified_app_id
       unified_app_id = dplyr::first(.data$unified_app_id),
-      
+
       # Sum metrics that should be additive
       dplyr::across(dplyr::all_of(sum_metrics), ~ sum(.x, na.rm = TRUE)),
-      
+
       # Average metrics that should be averaged
       dplyr::across(dplyr::all_of(avg_metrics), ~ mean(.x, na.rm = TRUE)),
-      
+
       # Keep first value for other numeric metrics
       dplyr::across(dplyr::all_of(other_metrics), ~ dplyr::first(.x[!is.na(.x)])),
-      
+
       # Keep first value for non-numeric columns
-      dplyr::across(dplyr::all_of(setdiff(non_numeric_cols, c("unified_app_name", "unified_app_id", group_col))), 
-                   ~ dplyr::first(.x[!is.na(.x)])),
-      
+      dplyr::across(
+        dplyr::all_of(setdiff(non_numeric_cols, c("unified_app_name", "unified_app_id", group_col))),
+        ~ dplyr::first(.x[!is.na(.x)])
+      ),
+
       # Keep first non-NA date
       dplyr::across(where(lubridate::is.Date), ~ dplyr::first(.x[!is.na(.x)])),
       dplyr::across(where(lubridate::is.POSIXt), ~ dplyr::first(.x[!is.na(.x)])),
-      
       .groups = "drop"
     ) %>%
     # Remove the grouping column if it starts with a dot (temporary column)
-    { if (startsWith(group_col, ".")) dplyr::select(., -!!rlang::sym(group_col)) else . }
-  
+    {
+      if (startsWith(group_col, ".")) dplyr::select(., -!!rlang::sym(group_col)) else .
+    }
+
   # Convert 0 values back to NA where appropriate for averaged metrics
   for (col in avg_metrics) {
     if (col %in% names(result)) {
       result[[col]][result[[col]] == 0] <- NA
     }
   }
-  
+
   return(result)
 }
 
 # Helper function to deduplicate apps by consolidating metrics for the same app name
-deduplicate_apps_by_name <- function(data) {
+deduplicate_apps_by_name <- function(data, fuzzy_match = TRUE) {
   if (nrow(data) == 0 || !"unified_app_name" %in% names(data)) {
     return(data)
   }
-  
+
   # Create normalized names first to check for duplicates
-  # Group similar app names more aggressively
-  data_check <- data %>%
-    dplyr::mutate(
-      .name_check = .data$unified_app_name %>%
-        # Remove special characters and symbols
-        gsub("™|®|©|:|\\*|¤", "", .) %>%
-        # Handle specific known patterns
-        gsub("NYT Games.*|NYTimes.*", "nyt crossword", ., ignore.case = TRUE) %>%
-        gsub("Scrabble.*GO.*", "scrabble go", ., ignore.case = TRUE) %>%
-        gsub("Words With Friends.*", "words with friends", ., ignore.case = TRUE) %>%
-        gsub("Elevate.*Brain.*", "elevate brain training", ., ignore.case = TRUE) %>%
-        gsub("Word Trip.*|WordTrip.*", "word trip", ., ignore.case = TRUE) %>%
-        gsub("Heads Up.*|Warner.*Heads Up", "heads up", ., ignore.case = TRUE) %>%
-        gsub("Word Connect.*", "word connect", ., ignore.case = TRUE) %>%
-        # General cleanup
-        gsub("\\s+", " ", .) %>%
-        trimws() %>%
-        tolower()
-    )
-  
-  # Check if there are actually duplicates to consolidate (after normalization)
-  if (length(unique(data_check$.name_check)) == nrow(data)) {
-    return(data)  # No duplicates, return as-is
+  if (fuzzy_match) {
+    # Group similar app names more aggressively
+    data <- data %>%
+      dplyr::mutate(
+        .name_normalized = .data$unified_app_name %>%
+          # Remove special characters and symbols
+          gsub("™|®|©|:|\\*|¤", "", .) %>%
+          # Handle specific known patterns
+          gsub("NYT Games.*|NYTimes.*", "nyt crossword", ., ignore.case = TRUE) %>%
+          gsub("Scrabble.*GO.*", "scrabble go", ., ignore.case = TRUE) %>%
+          gsub("Words With Friends.*", "words with friends", ., ignore.case = TRUE) %>%
+          gsub("Elevate.*Brain.*", "elevate brain training", ., ignore.case = TRUE) %>%
+          gsub("Word Trip.*|WordTrip.*", "word trip", ., ignore.case = TRUE) %>%
+          gsub("Heads Up.*|Warner.*Heads Up", "heads up", ., ignore.case = TRUE) %>%
+          gsub("Word Connect.*", "word connect", ., ignore.case = TRUE) %>%
+          # General cleanup
+          gsub("\\s+", " ", .) %>%
+          trimws() %>%
+          tolower()
+      )
+  } else {
+    # Simple normalization
+    data <- data %>%
+      dplyr::mutate(
+        .name_normalized = tolower(trimws(.data$unified_app_name))
+      )
   }
-  
-  message(sprintf("Consolidating %d app entries into %d unique apps...", 
-                  nrow(data), length(unique(data_check$.name_check))))
-  
-  # The function seems to be crashing here - let's check
-  message("DEBUG: About to start deduplication logic...")
-  
-  # Debug: Check Star Wars entries
-  tryCatch({
-    sw_count <- sum(grepl("Star Wars.*Galaxy", data$unified_app_name, ignore.case = TRUE))
-    message(sprintf("DEBUG: Star Wars entries before dedup: %d", sw_count))
-  }, error = function(e) {
-    message("DEBUG ERROR: ", e$message)
-  })
-  
+
+  # Check if there are actually duplicates to consolidate (after normalization)
+  if (length(unique(data$.name_normalized)) == nrow(data)) {
+    return(dplyr::select(data, -dplyr::any_of(".name_normalized"))) # No duplicates, return as-is
+  }
+
+  message(sprintf(
+    "Consolidating %d app entries into %d unique apps...",
+    nrow(data), length(unique(data$.name_normalized))
+  ))
+
   # Identify numeric columns to sum vs average
   numeric_cols <- names(data)[sapply(data, is.numeric)]
-  
+
   # Metrics to SUM (additive across platforms)
   # IMPORTANT: DAU/MAU/WAU/users are NOT additive - same user can be on multiple platforms
   sum_metrics <- numeric_cols[grepl(
-    "downloads|revenue|units|count|absolute", 
-    numeric_cols, ignore.case = TRUE
+    "downloads|revenue|units|count|absolute",
+    numeric_cols,
+    ignore.case = TRUE
   )]
   # Explicitly exclude user metrics from sum
   sum_metrics <- sum_metrics[!grepl("dau|mau|wau|users", sum_metrics, ignore.case = TRUE)]
-  
-  # Metrics to take MAX of (user counts - same users across platforms)
+
+  # Metrics to TAKE MAX (user counts - same users across platforms)
   max_metrics <- numeric_cols[grepl(
-    "dau|mau|wau|users", 
-    numeric_cols, ignore.case = TRUE
+    "dau|mau|wau|users",
+    numeric_cols,
+    ignore.case = TRUE
   )]
   # Exclude from max if it's a ratio/rate
   max_metrics <- max_metrics[!grepl("rate|ratio|percent", max_metrics, ignore.case = TRUE)]
-  
+
   # Metrics to AVERAGE (rates, percentages, ratios)
   avg_metrics <- numeric_cols[grepl(
-    "retention|rpd|rating|age|share|percent|rate|ratio|transformed", 
-    numeric_cols, ignore.case = TRUE
+    "retention|rpd|rating|age|share|percent|rate|ratio|transformed",
+    numeric_cols,
+    ignore.case = TRUE
   )]
-  
+
   # Everything else (first value)
   other_metrics <- setdiff(numeric_cols, c(sum_metrics, avg_metrics, max_metrics))
-  
-  # Create normalized name for grouping using the same aggressive patterns
-  data <- data %>%
-    dplyr::mutate(
-      .name_normalized = .data$unified_app_name %>%
-        # Remove special characters and symbols
-        gsub("™|®|©|:|\\*|¤", "", .) %>%
-        # Handle specific known patterns - SAME AS ABOVE
-        gsub("NYT Games.*|NYTimes.*", "nyt crossword", ., ignore.case = TRUE) %>%
-        gsub("Scrabble.*GO.*", "scrabble go", ., ignore.case = TRUE) %>%
-        gsub("Words With Friends.*", "words with friends", ., ignore.case = TRUE) %>%
-        gsub("Elevate.*Brain.*", "elevate brain training", ., ignore.case = TRUE) %>%
-        gsub("Word Trip.*|WordTrip.*", "word trip", ., ignore.case = TRUE) %>%
-        gsub("Heads Up.*|Warner.*Heads Up", "heads up", ., ignore.case = TRUE) %>%
-        gsub("Word Connect.*", "word connect", ., ignore.case = TRUE) %>%
-        # General cleanup
-        gsub("\\s+", " ", .) %>%
-        trimws() %>%
-        tolower()
-    )
-  
+
   # Group by normalized name
-  message("Starting grouping operation...")
-  
-  # Debug: Check if we have the columns we need
-  if (!all(c("unified_app_name", "unified_app_id") %in% names(data))) {
-    message("ERROR: Missing required columns")
-    return(data)
-  }
-  
-  result <- tryCatch({
-    data %>%
-    dplyr::group_by(.data$.name_normalized) %>%
-    dplyr::summarise(
-      # Keep the first unified_app_name
-      unified_app_name = dplyr::first(.data$unified_app_name),
-      
-      # Keep first unified_app_id
-      unified_app_id = dplyr::first(.data$unified_app_id),
-      
-      # Sum metrics that should be additive
-      dplyr::across(dplyr::all_of(sum_metrics), ~ sum(.x, na.rm = TRUE)),
-      
-      # Max for user metrics (same users across platforms)
-      dplyr::across(dplyr::all_of(max_metrics), ~ max(.x, na.rm = TRUE)),
-      
-      # Average metrics that are rates/percentages  
-      dplyr::across(dplyr::all_of(avg_metrics), ~ mean(.x, na.rm = TRUE)),
-      
-      # First value for other metrics
-      dplyr::across(dplyr::all_of(other_metrics), ~ dplyr::first(.x[!is.na(.x)])),
-      
-      # First value for character/date columns
-      dplyr::across(where(is.character), ~ dplyr::first(.x[!is.na(.x) & .x != ""])),
-      dplyr::across(where(lubridate::is.Date), ~ dplyr::first(.x[!is.na(.x)])),
-      dplyr::across(where(lubridate::is.POSIXt), ~ dplyr::first(.x[!is.na(.x)])),
-      
-      .groups = "drop"
-    ) %>%
-    dplyr::relocate(unified_app_name, unified_app_id) %>%
-    dplyr::select(-dplyr::any_of(".name_normalized"))
-  }, error = function(e) {
-    message("ERROR in deduplication: ", e$message)
-    return(data)  # Return original data on error
-  })
-  
+  result <- tryCatch(
+    {
+      data %>%
+        dplyr::group_by(.data$.name_normalized) %>%
+        dplyr::summarise(
+          # Keep the first unified_app_name
+          unified_app_name = dplyr::first(.data$unified_app_name),
+
+          # Keep first unified_app_id
+          unified_app_id = dplyr::first(.data$unified_app_id),
+
+          # Sum metrics that should be additive
+          dplyr::across(dplyr::all_of(sum_metrics), ~ sum(.x, na.rm = TRUE)),
+
+          # Max for user metrics (same users across platforms)
+          dplyr::across(dplyr::all_of(max_metrics), ~ max(.x, na.rm = TRUE)),
+
+          # Average metrics that are rates/percentages
+          dplyr::across(dplyr::all_of(avg_metrics), ~ mean(.x, na.rm = TRUE)),
+
+          # First value for other metrics
+          dplyr::across(dplyr::all_of(other_metrics), ~ dplyr::first(.x[!is.na(.x)])),
+
+          # First value for character/date columns
+          dplyr::across(where(is.character), ~ dplyr::first(.x[!is.na(.x) & .x != ""])),
+          dplyr::across(where(lubridate::is.Date), ~ dplyr::first(.x[!is.na(.x)])),
+          dplyr::across(where(lubridate::is.POSIXt), ~ dplyr::first(.x[!is.na(.x)])),
+          .groups = "drop"
+        ) %>%
+        dplyr::relocate(unified_app_name, unified_app_id) %>%
+        dplyr::select(-dplyr::any_of(".name_normalized"))
+    },
+    error = function(e) {
+      message("Warning: Deduplication failed, returning original data. Error: ", e$message)
+      return(dplyr::select(data, -dplyr::any_of(".name_normalized")))
+    }
+  )
+
   # Convert 0 values back to NA where appropriate for averaged and max metrics
   for (col in c(avg_metrics, max_metrics)) {
     if (col %in% names(result)) {
@@ -878,35 +840,29 @@ deduplicate_apps_by_name <- function(data) {
       result[[col]][result[[col]] == 0] <- NA
     }
   }
-  
-  # Debug: Check Star Wars entries after dedup
-  sw_after <- result %>% 
-    dplyr::filter(grepl("Star Wars.*Galaxy", unified_app_name, ignore.case = TRUE))
-  if (nrow(sw_after) > 0) {
-    message(sprintf("DEBUG: Star Wars entries after dedup: %d", nrow(sw_after)))
-  }
-  
-  message(sprintf("Deduplication complete: returning %d rows (was %d)", nrow(result), nrow(data)))
+
   return(result)
 }
 
 # Helper function to convert date columns to proper Date class
 clean_date_values <- function(data) {
-  if (nrow(data) == 0) return(data)
-  
+  if (nrow(data) == 0) {
+    return(data)
+  }
+
   # Find columns that likely contain date data
   date_cols <- names(data)[sapply(names(data), function(col_name) {
     # Skip non-character columns
     if (!is.character(data[[col_name]])) {
       return(FALSE)
     }
-    
+
     # Check if column name suggests it contains dates
     is_date_column <- grepl("date|release", col_name, ignore.case = TRUE)
-    
+
     # Skip columns that are clearly not dates (like frequency, days ago)
     is_non_date <- grepl("frequency|days ago|update|freq", col_name, ignore.case = TRUE)
-    
+
     if (is_date_column && !is_non_date) {
       # Check if the column actually contains date-like values
       sample_values <- head(data[[col_name]][!is.na(data[[col_name]]) & data[[col_name]] != ""], 5)
@@ -915,59 +871,62 @@ clean_date_values <- function(data) {
         has_iso_dates <- any(grepl("\\d{4}-\\d{2}-\\d{2}", sample_values))
         has_slash_dates <- any(grepl("\\d{4}/\\d{2}/\\d{2}", sample_values))
         has_datetime <- any(grepl("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}", sample_values))
-        
+
         return(has_iso_dates || has_slash_dates || has_datetime)
       }
     }
     return(FALSE)
   })]
-  
+
   if (length(date_cols) == 0) {
     return(data)
   }
-  
+
   # Convert each date column
   for (col in date_cols) {
     if (is.character(data[[col]])) {
       original_values <- data[[col]]
-      
+
       # Try to convert to dates
-      converted_dates <- tryCatch({
-        # Handle different date formats
-        parsed_dates <- rep(as.Date(NA), length(original_values))
-        
-        # Handle ISO datetime format (e.g., "2025-07-01T00:00:00Z")
-        iso_pattern <- grepl("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}", original_values)
-        if (any(iso_pattern, na.rm = TRUE)) {
-          parsed_dates[iso_pattern] <- as.Date(lubridate::ymd_hms(original_values[iso_pattern]))
+      converted_dates <- tryCatch(
+        {
+          # Handle different date formats
+          parsed_dates <- rep(as.Date(NA), length(original_values))
+
+          # Handle ISO datetime format (e.g., "2025-07-01T00:00:00Z")
+          iso_pattern <- grepl("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}", original_values)
+          if (any(iso_pattern, na.rm = TRUE)) {
+            parsed_dates[iso_pattern] <- as.Date(lubridate::ymd_hms(original_values[iso_pattern]))
+          }
+
+          # Handle YYYY-MM-DD format
+          ymd_pattern <- grepl("^\\d{4}-\\d{2}-\\d{2}$", original_values) & !iso_pattern
+          if (any(ymd_pattern, na.rm = TRUE)) {
+            parsed_dates[ymd_pattern] <- as.Date(original_values[ymd_pattern])
+          }
+
+          # Handle YYYY/MM/DD format
+          slash_pattern <- grepl("^\\d{4}/\\d{2}/\\d{2}$", original_values)
+          if (any(slash_pattern, na.rm = TRUE)) {
+            parsed_dates[slash_pattern] <- as.Date(original_values[slash_pattern], format = "%Y/%m/%d")
+          }
+
+          parsed_dates
+        },
+        error = function(e) {
+          # If conversion fails, return original
+          original_values
         }
-        
-        # Handle YYYY-MM-DD format
-        ymd_pattern <- grepl("^\\d{4}-\\d{2}-\\d{2}$", original_values) & !iso_pattern
-        if (any(ymd_pattern, na.rm = TRUE)) {
-          parsed_dates[ymd_pattern] <- as.Date(original_values[ymd_pattern])
-        }
-        
-        # Handle YYYY/MM/DD format
-        slash_pattern <- grepl("^\\d{4}/\\d{2}/\\d{2}$", original_values)
-        if (any(slash_pattern, na.rm = TRUE)) {
-          parsed_dates[slash_pattern] <- as.Date(original_values[slash_pattern], format = "%Y/%m/%d")
-        }
-        
-        parsed_dates
-      }, error = function(e) {
-        # If conversion fails, return original
-        original_values
-      })
-      
+      )
+
       # Only replace if we successfully converted most values
       if (inherits(converted_dates, "Date")) {
         non_na_original <- sum(!is.na(original_values) & original_values != "")
         non_na_converted <- sum(!is.na(converted_dates))
-        
+
         if (non_na_original > 0) {
           conversion_rate <- non_na_converted / non_na_original
-          if (conversion_rate > 0.5) {  # If more than 50% converted successfully
+          if (conversion_rate > 0.5) { # If more than 50% converted successfully
             data[[col]] <- converted_dates
             message(sprintf("Converted column '%s' to Date class", col))
           }
@@ -975,7 +934,7 @@ clean_date_values <- function(data) {
       }
     }
   }
-  
+
   return(data)
 }
 
@@ -991,4 +950,149 @@ st_clear_app_cache <- function() {
   message("App name cache cleared")
 }
 
- 
+#' Fetch and Unified Data from Platforms
+#'
+#' Fetches data from iOS and/or Android and optionally combines them.
+#' Handles missing data from one platform gracefully.
+#'
+#' @param ios_app_id Character. iOS App ID.
+#' @param android_app_id Character. Android App ID.
+#' @param start_date Date. Start date.
+#' @param end_date Date. End date.
+#' @param countries Character vector. Country codes.
+#' @param date_granularity Character. Granularity.
+#' @param auth_token Character. API token.
+#' @param verbose Logical. Verbose output.
+#' @param combine_to_unified Logical. Whether to sum metrics into a unified view.
+#'
+#' @return A tibble with columns date, country, revenue, downloads, and optionally platform/app_id.
+#' @keywords internal
+fetch_unified_data <- function(
+  ios_app_id = NULL,
+  android_app_id = NULL,
+  start_date,
+  end_date,
+  countries,
+  date_granularity,
+  auth_token,
+  verbose = FALSE,
+  combine_to_unified = TRUE
+) {
+  all_data <- tibble::tibble()
+
+  # Track what we requested vs what we got
+  ios_requested <- !is.null(ios_app_id) && !is.na(ios_app_id)
+  android_requested <- !is.null(android_app_id) && !is.na(android_app_id)
+  ios_has_data <- FALSE
+  android_has_data <- FALSE
+
+  # Fetch iOS data
+  if (ios_requested) {
+    if (verbose) message("Fetching iOS data for: ", ios_app_id)
+    ios_result <- tryCatch(
+      {
+        st_sales_report(
+          os = "ios",
+          ios_app_id = ios_app_id,
+          countries = countries,
+          start_date = start_date,
+          end_date = end_date,
+          date_granularity = date_granularity,
+          auth_token = auth_token,
+          verbose = FALSE # Suppress inner verbose to avoid noise
+        )
+      },
+      error = function(e) {
+        if (verbose) message("iOS fetch warning: ", e$message)
+        NULL
+      }
+    )
+
+    if (!is.null(ios_result) && nrow(ios_result) > 0) {
+      ios_has_data <- TRUE
+      # Standardize columns
+      ios_result <- ios_result %>%
+        dplyr::mutate(
+          platform = "ios",
+          app_id = as.character(ios_app_id),
+          app_id_type = "ios",
+          revenue = if ("total_revenue" %in% names(.)) total_revenue else if ("revenue" %in% names(.)) revenue else 0,
+          downloads = if ("total_downloads" %in% names(.)) total_downloads else if ("downloads" %in% names(.)) downloads else 0
+        ) %>%
+        dplyr::select(date, country, revenue, downloads, platform, .data$app_id, .data$app_id_type)
+
+      all_data <- dplyr::bind_rows(all_data, ios_result)
+    }
+  }
+
+  # Fetch Android data
+  if (android_requested) {
+    if (verbose) message("Fetching Android data for: ", android_app_id)
+    android_result <- tryCatch(
+      {
+        st_sales_report(
+          os = "android",
+          android_app_id = android_app_id,
+          countries = countries,
+          start_date = start_date,
+          end_date = end_date,
+          date_granularity = date_granularity,
+          auth_token = auth_token,
+          verbose = FALSE
+        )
+      },
+      error = function(e) {
+        if (verbose) message("Android fetch warning: ", e$message)
+        NULL
+      }
+    )
+
+    if (!is.null(android_result) && nrow(android_result) > 0) {
+      android_has_data <- TRUE
+      # Standardize columns
+      android_result <- android_result %>%
+        dplyr::mutate(
+          platform = "android",
+          app_id = as.character(android_app_id),
+          app_id_type = "android",
+          country = if ("c" %in% names(.)) c else country
+        ) %>%
+        dplyr::select(date, country, revenue, downloads, platform, .data$app_id, .data$app_id_type)
+
+      all_data <- dplyr::bind_rows(all_data, android_result)
+    }
+  }
+
+  # Handle missing data scenarios
+  if (ios_requested && android_requested) {
+    if (!ios_has_data && !android_has_data) {
+      if (verbose) message("No data available for either platform.")
+      return(tibble::tibble(date = as.Date(character()), country = character(), revenue = numeric(), downloads = numeric()))
+    } else if (!ios_has_data && verbose) {
+      message("Missing iOS data (returning Android only).")
+    } else if (!android_has_data && verbose) {
+      message("Missing Android data (returning iOS only).")
+    }
+  } else if ((ios_requested && !ios_has_data) || (android_requested && !android_has_data)) {
+    if (verbose) message("No data returned for requested platform.")
+    return(tibble::tibble(date = as.Date(character()), country = character(), revenue = numeric(), downloads = numeric()))
+  }
+
+  # Combine or return raw
+  if (nrow(all_data) > 0) {
+    if (combine_to_unified) {
+      combined <- all_data %>%
+        dplyr::group_by(date, country) %>%
+        dplyr::summarise(
+          revenue = sum(revenue, na.rm = TRUE),
+          downloads = sum(downloads, na.rm = TRUE),
+          .groups = "drop"
+        )
+      return(combined)
+    } else {
+      return(all_data)
+    }
+  }
+
+  return(all_data)
+}

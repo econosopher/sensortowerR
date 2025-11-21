@@ -25,37 +25,60 @@ resolve_ids_for_os <- function(
   auth_token,
   verbose = FALSE
 ) {
-  
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
     stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
-  
+
   # Check that at least one ID is provided
   if (is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id)) {
     stop("At least one app ID must be provided (unified_app_id, ios_app_id, or android_app_id)")
   }
-  
-  # Centralized mapping
+
+  # Centralized mapping using cache
   input_ids <- c(unified_app_id, ios_app_id, android_app_id)
   input_ids <- input_ids[!vapply(input_ids, is.null, logical(1))]
   input_ids <- as.character(input_ids)[1]
-  mapping <- tryCatch({ st_get_unified_mapping(input_ids, os = "unified", auth_token = auth_token) }, error = function(e) NULL)
-  unified_mapped <- if (!is.null(mapping)) mapping$unified_app_id[1] else unified_app_id
-  ios_mapped <- if (!is.null(mapping)) mapping$ios_app_id[1] else ios_app_id
-  android_mapped <- if (!is.null(mapping)) mapping$android_app_id[1] else android_app_id
+
+  # Use the cached resolution function
+  mapping <- tryCatch(
+    {
+      resolve_app_id(input_ids, auth_token = auth_token, verbose = verbose)
+    },
+    error = function(e) NULL
+  )
+
+  # Extract IDs from the mapping result (which uses slightly different names than st_get_unified_mapping)
+  # Prefer mapped ID, but fall back to input ID if mapped ID is missing/NA
+  unified_mapped <- if (!is.null(mapping) && !is.null(mapping$unified_id) && !is.na(mapping$unified_id)) mapping$unified_id else unified_app_id
+  ios_mapped <- if (!is.null(mapping) && !is.null(mapping$ios_id) && !is.na(mapping$ios_id)) mapping$ios_id else ios_app_id
+  android_mapped <- if (!is.null(mapping) && !is.null(mapping$android_id) && !is.na(mapping$android_id)) mapping$android_id else android_app_id
   lookup_performed <- !is.null(mapping)
-  
-  if (os == "ios" && !is.na(ios_mapped) && nzchar(ios_mapped)) {
+
+  if (os == "ios" && !is.null(ios_mapped) && !is.na(ios_mapped) && nzchar(as.character(ios_mapped))) {
     return(list(resolved_ids = list(ios_app_id = ios_mapped), app_id_type = "ios", lookup_performed = lookup_performed))
   }
-  if (os == "android" && !is.na(android_mapped) && nzchar(android_mapped)) {
+  if (os == "android" && !is.null(android_mapped) && !is.na(android_mapped) && nzchar(as.character(android_mapped))) {
     return(list(resolved_ids = list(android_app_id = android_mapped), app_id_type = "android", lookup_performed = lookup_performed))
   }
-  if (os == "unified" && !is.na(unified_mapped) && nzchar(unified_mapped)) {
-    return(list(resolved_ids = list(unified_app_id = unified_mapped), app_id_type = "unified", lookup_performed = lookup_performed))
+  if (os == "unified") {
+    if (!is.null(unified_mapped) && !is.na(unified_mapped) && nzchar(as.character(unified_mapped))) {
+      return(list(resolved_ids = list(unified_app_id = unified_mapped), app_id_type = "unified", lookup_performed = lookup_performed))
+    }
+    # Fallback: if we have platform IDs, return them
+    if ((!is.null(ios_mapped) && !is.na(ios_mapped)) || (!is.null(android_mapped) && !is.na(android_mapped))) {
+      return(list(
+        resolved_ids = list(
+          unified_app_id = NULL,
+          ios_app_id = ios_mapped,
+          android_app_id = android_mapped
+        ),
+        app_id_type = "unified",
+        lookup_performed = lookup_performed
+      ))
+    }
   }
-  
+
   stop("Failed to resolve appropriate IDs for OS: ", os)
 }
 
@@ -74,14 +97,14 @@ add_app_id_metadata <- function(data, app_id, app_id_type) {
   if (is.null(data) || nrow(data) == 0) {
     return(data)
   }
-  
+
   data$app_id <- app_id
   data$app_id_type <- app_id_type
-  
+
   # Move these columns to the front
   id_cols <- c("app_id", "app_id_type")
   other_cols <- setdiff(names(data), id_cols)
   data <- data[, c(id_cols, other_cols)]
-  
+
   return(data)
 }

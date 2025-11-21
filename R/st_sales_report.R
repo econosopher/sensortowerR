@@ -241,18 +241,20 @@ st_sales_report <- function(os,
     }
     
     # Build and perform request
-    if (verbose) {
-      qp_dbg <- query_params
-      # Avoid dumping token
-      if (!is.null(qp_dbg$auth_token)) qp_dbg$auth_token <- paste0(substr(qp_dbg$auth_token, 1, 4), "…")
-      message("Query params: ", paste(paste(names(qp_dbg), qp_dbg, sep = "="), collapse = "; "))
-    }
-    path <- c("v1", os, "sales_report_estimates")
-    req <- build_request("https://api.sensortower.com", path, query_params)
-    resp <- perform_request(req)
+    path <- paste0(os, "/sales_report_estimates")
     
-    # Process response
-    result <- process_sales_response(resp, os)
+    # Create a wrapper for process_sales_response that binds the 'os' argument
+    sales_processor <- function(resp, ...) {
+      process_sales_response(resp, os = os)
+    }
+    
+    result <- fetch_data_core(
+      endpoint = path,
+      params = query_params,
+      auth_token = auth_token_val,
+      verbose = verbose,
+      processor = sales_processor
+    )
     
     if (!is.null(result) && nrow(result) > 0) {
       all_results[[i]] <- result

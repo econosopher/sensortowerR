@@ -1,40 +1,44 @@
 #' Data validation functions for Sensor Tower API responses
-#' 
+#'
 #' @description Functions to validate and clean data from API responses
 
 #' Validate top charts data
-#' 
+#'
 #' @param data Data frame from st_top_charts
 #' @param measure The measure used (revenue, units, DAU, etc.)
 #' @param regions The regions requested
 #' @return Validated and potentially corrected data frame
 #' @export
 validate_top_charts_data <- function(data, measure, regions) {
-  if (nrow(data) == 0) return(data)
-  
+  if (nrow(data) == 0) {
+    return(data)
+  }
+
   # Check for common column issues
   message("Validating data columns...")
-  
+
   # 1. Handle app name column variations
   app_name_cols <- c("unified_app_name", "app_name", "app.name", "name")
   found_name_col <- intersect(app_name_cols, names(data))
-  
+
   if (length(found_name_col) == 0) {
-    warning("No app name column found. Available columns: ", 
-            paste(head(names(data), 10), collapse = ", "))
+    message(
+      "No app name column found. Available columns: ",
+      paste(head(names(data), 10), collapse = ", ")
+    )
   } else if (found_name_col[1] != "unified_app_name") {
     # Standardize to unified_app_name
     data <- data %>%
       dplyr::rename(unified_app_name = !!found_name_col[1])
     message(sprintf("Renamed '%s' to 'unified_app_name'", found_name_col[1]))
   }
-  
+
   # 2. Enforce region-specific column availability (no fallbacks)
   requested_region <- tolower(regions[1])
-  
+
   # Look for metric columns with 2-letter region suffixes
   metric_patterns <- c("revenue", "download", "retention", "dau", "mau", "wau", "rpd")
-  
+
   for (pattern in metric_patterns) {
     cols <- grep(paste0(pattern, ".*_([a-z]{2})$"), names(data), value = TRUE)
     if (length(cols) > 0) {
@@ -43,7 +47,7 @@ validate_top_charts_data <- function(data, measure, regions) {
       # fail loudly rather than implying WW values, but only when working with
       # active user measures where these columns are expected to be present.
       if (requested_region != "ww" && pattern %in% c("mau", "retention") &&
-          toupper(measure) %in% c("DAU", "WAU", "MAU")) {
+        toupper(measure) %in% c("DAU", "WAU", "MAU")) {
         if (!(requested_region %in% available_regions)) {
           stop(sprintf(
             "Region-specific '%s' metrics for '%s' are not available in the response. Available regions for '%s': %s",
@@ -54,11 +58,13 @@ validate_top_charts_data <- function(data, measure, regions) {
       }
     }
   }
-  
+
   # 3. Validate numeric columns are actually numeric
-  numeric_patterns <- c("revenue", "download", "retention", "dau", "mau", "wau", 
-                       "rpd", "arpu", "share", "rating", "age")
-  
+  numeric_patterns <- c(
+    "revenue", "download", "retention", "dau", "mau", "wau",
+    "rpd", "arpu", "share", "rating", "age"
+  )
+
   for (col in names(data)) {
     if (any(sapply(numeric_patterns, function(p) grepl(p, col, ignore.case = TRUE)))) {
       if (!is.numeric(data[[col]])) {
@@ -71,7 +77,7 @@ validate_top_charts_data <- function(data, measure, regions) {
       }
     }
   }
-  
+
   # 4. Check for essential columns based on measure
   essential_cols <- list(
     revenue = c("revenue_180d_ww", "revenue_30d_ww"),
@@ -80,52 +86,63 @@ validate_top_charts_data <- function(data, measure, regions) {
     MAU = c("mau_month_ww", "mau_month_us"),
     WAU = c("wau_4w_ww", "wau_4w_us")
   )
-  
+
   if (measure %in% names(essential_cols)) {
     missing_all <- !any(essential_cols[[measure]] %in% names(data))
     if (missing_all) {
-      warning(sprintf("Expected columns for %s not found: %s. Available metric columns: %s",
-                     measure,
-                     paste(essential_cols[[measure]], collapse = ", "),
-                     paste(grep("(revenue|download|dau|mau|wau)", names(data), 
-                           value = TRUE)[1:min(5, length(grep("(revenue|download|dau|mau|wau)", 
-                           names(data), value = TRUE)))], collapse = ", ")))
+      # Only warn if we have NO revenue/download data at all
+      # The API often doesn't return the 180d/30d metrics for standard sales calls
+      has_any_data <- any(grepl(paste0(measure, "|absolute|value"), names(data), ignore.case = TRUE))
+      if (!has_any_data) {
+        warning(sprintf(
+          "Expected columns for %s not found: %s. Available metric columns: %s",
+          measure,
+          paste(essential_cols[[measure]], collapse = ", "),
+          paste(grep("(revenue|download|dau|mau|wau)", names(data),
+            value = TRUE
+          )[seq_len(min(5, length(grep("(revenue|download|dau|mau|wau)",
+            names(data),
+            value = TRUE
+          ))))], collapse = ", ")
+        ))
+      }
     }
   }
-  
+
   return(data)
 }
 
 #' Clean numeric column by removing special characters
-#' 
+#'
 #' @param x Vector to clean
 #' @return Numeric vector
 #' @export
 clean_numeric_column <- function(x) {
-  if (is.numeric(x)) return(x)
-  
+  if (is.numeric(x)) {
+    return(x)
+  }
+
   # Convert to character first
   x <- as.character(x)
-  
+
   # Remove common formatting characters
   x <- gsub("[$,%]", "", x)
   x <- gsub(",", "", x)
-  
+
   # Handle percentages (keep as 0-100 not 0-1)
-  is_pct <- grepl("%", x)
   x <- gsub("%", "", x)
-  
+
   # Convert to numeric
   result <- suppressWarnings(as.numeric(x))
-  
+
   # Don't convert percentages to decimals
   # (they should stay as 0-100)
-  
+
   return(result)
 }
 
 #' Validate column exists with fallback options
-#' 
+#'
 #' @param data Data frame
 #' @param primary Primary column name
 #' @param fallbacks Character vector of fallback column names
@@ -135,29 +152,37 @@ clean_numeric_column <- function(x) {
 require_column <- function(data, primary, fallbacks = NULL, operation = "operation") {
   all_options <- c(primary, fallbacks)
   found <- intersect(all_options, names(data))
-  
+
   if (length(found) == 0) {
     available <- names(data)
     similar <- grep(gsub("_", ".*", primary), available, value = TRUE)
-    
+
     error_msg <- sprintf("Required column '%s' not found for %s.", primary, operation)
     if (length(similar) > 0) {
-      error_msg <- paste0(error_msg, 
-                         sprintf("\nDid you mean: %s?", 
-                                paste(similar[1:min(3, length(similar))], collapse = ", ")))
+      error_msg <- paste0(
+        error_msg,
+        sprintf(
+          "\nDid you mean: %s?",
+          paste(similar[seq_len(min(3, length(similar)))], collapse = ", ")
+        )
+      )
     }
-    error_msg <- paste0(error_msg, 
-                       sprintf("\nAvailable columns: %s", 
-                              paste(available[1:min(10, length(available))], collapse = ", ")))
-    
+    error_msg <- paste0(
+      error_msg,
+      sprintf(
+        "\nAvailable columns: %s",
+        paste(available[seq_len(min(10, length(available)))], collapse = ", ")
+      )
+    )
+
     stop(error_msg, call. = FALSE)
   }
-  
+
   return(found[1])
 }
 
 #' Safe column selection with automatic fallbacks
-#' 
+#'
 #' @param data Data frame
 #' @param ... Column specifications (can be character vectors)
 #' @return Data frame with selected columns
@@ -165,7 +190,7 @@ require_column <- function(data, primary, fallbacks = NULL, operation = "operati
 select_robust <- function(data, ...) {
   cols <- list(...)
   selected <- c()
-  
+
   for (col_spec in cols) {
     if (length(col_spec) == 1 && col_spec %in% names(data)) {
       selected <- c(selected, col_spec)
@@ -177,10 +202,10 @@ select_robust <- function(data, ...) {
       }
     }
   }
-  
+
   if (length(selected) == 0) {
     return(data)
   }
-  
+
   return(dplyr::select(data, all_of(selected)))
 }
