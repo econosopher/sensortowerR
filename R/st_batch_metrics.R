@@ -147,64 +147,6 @@ normalize_app_list <- function(app_list, os, auth_token, verbose) {
     stop("Invalid app_list format. Must be character vector, data frame, or list.")
   }
 
-  # Ensure required columns exist
-  if (!"app_id" %in% names(apps_df)) {
-    if ("id" %in% names(apps_df)) {
-      apps_df <- dplyr::rename(apps_df, app_id = .data$id)
-    } else {
-      stop("app_list must contain 'app_id' column")
-    }
-  }
-
-  # Add missing columns if they don't exist
-  if (!"unified_id" %in% names(apps_df)) apps_df$unified_id <- NA_character_
-  if (!"ios_id" %in% names(apps_df)) apps_df$ios_id <- NA_character_
-  if (!"android_id" %in% names(apps_df)) apps_df$android_id <- NA_character_
-
-  # Resolve IDs if missing
-  # This is a simplified version; full resolution logic is in st_resolve_ids.R
-  # But here we need to ensure we have platform IDs for the fetch
-
-  # If unified_id is present but platform IDs are missing, try to resolve
-  missing_platform <- is.na(apps_df$ios_id) & is.na(apps_df$android_id) & !is.na(apps_df$unified_id)
-  if (any(missing_platform)) {
-    if (verbose) message("Resolving platform IDs for ", sum(missing_platform), " unified apps...")
-    # In a real scenario, we would call resolve_app_id here
-    # For now, we assume the user provided enough info or we rely on what we have
-  }
-
-  apps_df
-}
-
-fetch_publisher_batch <- function(publisher_ids, os, metrics, countries, date_range, granularity, auth_token, verbose) {
-  # ... (existing code)
-  # Placeholder for the extracted function
-  # In the real file, this function is already defined.
-  # I am just showing context.
-  # Since I am using replace_file_content, I only need to replace the call site and the definition.
-  # But they are far apart. I should use multi_replace_file_content.
-  NULL
-}
-
-# I will use multi_replace_file_content in the next tool call.
-# This tool call is just a placeholder to show intent, but I will cancel it and use multi_replace.
-
-
-# --- Helper Functions ---
-
-normalize_app_list <- function(app_list, os, auth_token, verbose) {
-  # Convert input to data frame
-  if (is.vector(app_list) && is.character(app_list)) {
-    apps_df <- tibble::tibble(app_id = app_list)
-  } else if (is.data.frame(app_list)) {
-    apps_df <- app_list
-  } else if (is.list(app_list)) {
-    # Handle list of lists or list of named vectors
-    apps_df <- dplyr::bind_rows(app_list)
-  } else {
-    stop("Invalid app_list format. Must be character vector, data frame, or list.")
-  }
-
   # Ensure app_id column exists
   if (!"app_id" %in% names(apps_df)) {
     stop("app_list must contain an 'app_id' column or be a vector of IDs")
