@@ -48,11 +48,12 @@ resolve_ids_for_os <- function(
     error = function(e) NULL
   )
 
-  # Extract IDs from the mapping result (which uses slightly different names than st_get_unified_mapping)
+  # Extract IDs from the mapping result
+  # resolve_app_id returns: unified_app_id, ios_app_id, android_app_id
   # Prefer mapped ID, but fall back to input ID if mapped ID is missing/NA
-  unified_mapped <- if (!is.null(mapping) && !is.null(mapping$unified_id) && !is.na(mapping$unified_id)) mapping$unified_id else unified_app_id
-  ios_mapped <- if (!is.null(mapping) && !is.null(mapping$ios_id) && !is.na(mapping$ios_id)) mapping$ios_id else ios_app_id
-  android_mapped <- if (!is.null(mapping) && !is.null(mapping$android_id) && !is.na(mapping$android_id)) mapping$android_id else android_app_id
+  unified_mapped <- if (!is.null(mapping) && !is.null(mapping$unified_app_id) && !is.na(mapping$unified_app_id)) mapping$unified_app_id else unified_app_id
+  ios_mapped <- if (!is.null(mapping) && !is.null(mapping$ios_app_id) && !is.na(mapping$ios_app_id)) mapping$ios_app_id else ios_app_id
+  android_mapped <- if (!is.null(mapping) && !is.null(mapping$android_app_id) && !is.na(mapping$android_app_id)) mapping$android_app_id else android_app_id
   lookup_performed <- !is.null(mapping)
 
   if (os == "ios" && !is.null(ios_mapped) && !is.na(ios_mapped) && nzchar(as.character(ios_mapped))) {

@@ -6,6 +6,16 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.8.4 - ID Resolution Bug Fix & Documentation Update
+- **Critical Fix**: Fixed `unified_app_id` resolution in `st_sales_report()` and `st_batch_metrics()`
+  - Previously, passing `unified_app_id` would fail to resolve platform-specific IDs
+  - Now correctly looks up and uses `ios_app_id` or `android_app_id` as needed
+- **Cache Consistency**: Fixed ID cache to use consistent field naming (`ios_app_id` not `ios_id`)
+- **Documentation Update**: Updated README with validated workflow for finding and fetching app data
+  - Clear step-by-step guide: search by name → get IDs → fetch data
+  - Data availability matrix showing which functions provide what data
+  - Explicit notes on retention/demographics limitations
+
 ### v0.8.3 - Robustness & Refactoring
 - **Core Refactoring**: Streamlined internal logic for `st_batch_metrics` and `st_metrics` for better maintainability and performance.
 - **Enhanced Stability**: Improved ID resolution consistency across all functions.
@@ -192,6 +202,149 @@ Example output:
   Include Apps: TRUE
 ================================
 ```
+
+## IMPORTANT: Best Practices for Finding App Data
+
+### DO: Search for apps by name, then fetch their data
+
+The **validated workflow** for getting data about specific apps (v0.8.4+):
+
+```r
+# Step 1: Search for apps by name to get their unified IDs
+apps <- st_app_info("Royal Match")
+unified_id <- apps$unified_app_id[1]  # 24-char hex: "5f16a8019f7b275235017614"
+
+# Step 2: (Optional) Get platform-specific IDs
+platform_ids <- st_app_lookup(unified_id)
+# Returns: ios_app_id = 1482155847, android_app_id = "com.dreamgames.royalmatch"
+
+# Step 3: Fetch time-series revenue/downloads
+# Option A: Use unified_app_id directly (auto-resolves to platform IDs)
+revenue <- st_sales_report(
+  os = "ios",  # or "android"
+  unified_app_id = unified_id,
+  countries = "US",
+  start_date = "2024-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+)
+
+# Option B: Use platform-specific IDs directly
+revenue <- st_sales_report(
+  os = "ios",
+  ios_app_id = platform_ids$ios_app_id,
+  countries = "US",
+  start_date = "2024-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+)
+
+# Step 4: Fetch time-series MAU/DAU/WAU
+active_users <- st_batch_metrics(
+  os = "ios",
+  app_list = unified_id,
+  metrics = c("mau", "dau"),
+  date_range = list(start_date = "2024-01-01", end_date = "2024-12-31"),
+  countries = "US",
+  granularity = "monthly"
+)
+```
+
+### DON'T: Use st_top_charts() to find specific apps
+
+**Never use this pattern:**
+```r
+# BAD: Hoping your apps are in the top 1000
+top_apps <- st_top_charts(category = "6014", limit = 1000)
+my_apps <- filter(top_apps, name %in% c("Royal Match", "Candy Crush"))
+```
+
+This approach will fail because:
+1. Your target apps may not be in the top N results
+2. It wastes API calls fetching irrelevant data
+3. The ranking changes daily - your app may drop out
+4. Smaller/newer apps will never appear
+
+### Correct Workflow for Multiple Apps
+
+```r
+library(dplyr)
+library(purrr)
+
+# Step 1: Search for each app and get IDs
+game_names <- c("Royal Match", "Candy Crush", "Homescapes")
+
+app_lookup <- map_dfr(game_names, function(name) {
+  result <- st_app_info(name, limit = 5)
+  if (nrow(result) > 0) {
+    tibble(
+      search_term = name,
+      app_name = result$unified_app_name[1],
+      unified_app_id = result$unified_app_id[1]
+    )
+  }
+})
+
+# Step 2: Resolve platform IDs for each app
+app_lookup <- app_lookup %>%
+  mutate(
+    platform_ids = map(unified_app_id, st_app_lookup),
+    ios_app_id = map_chr(platform_ids, ~ .x$ios_app_id %||% NA_character_),
+    android_app_id = map_chr(platform_ids, ~ .x$android_app_id %||% NA_character_)
+  )
+
+# Step 3: Fetch revenue/downloads for each app
+all_data <- map2_dfr(app_lookup$unified_app_id, app_lookup$app_name, function(id, name) {
+  result <- st_sales_report(
+    os = "ios",
+    unified_app_id = id,
+    countries = c("US", "GB"),
+    start_date = "2024-01-01",
+    end_date = "2024-12-31",
+    date_granularity = "monthly"
+  )
+  result$app_name <- name
+  result
+})
+
+# Step 4: Fetch MAU/DAU time series
+user_metrics <- st_batch_metrics(
+  os = "unified",
+  app_list = app_lookup$unified_app_id,
+  metrics = c("mau", "dau"),
+  date_range = list(start_date = "2024-01-01", end_date = "2024-12-31"),
+  countries = "US",
+  granularity = "monthly"
+)
+```
+
+### Data Types and Their Appropriate Functions
+
+| Data Type | Function | Works With | Notes |
+|-----------|----------|------------|-------|
+| **App Search** | `st_app_info()` | app name | Returns unified_app_id |
+| **ID Resolution** | `st_app_lookup()` | any ID type | Returns all ID types |
+| **Revenue/Downloads** | `st_sales_report()` | unified_app_id, ios_app_id, android_app_id | Time-series by country/platform |
+| **Time-series DAU/WAU/MAU** | `st_batch_metrics()` | unified_app_id, platform IDs | Active users over time |
+| **Snapshot Retention/Demographics** | `st_app_enriched()` | unified_app_id only | NOT time-series, snapshot only |
+| **Top Charts** | `st_top_charts()` | category | Market analysis, NOT finding specific apps |
+
+### Data Availability Summary
+
+| Data Type | Endpoint | Time-Series? | Region Coverage |
+|-----------|----------|--------------|-----------------|
+| Revenue/Downloads | `st_sales_report()` | ✅ Yes | All countries |
+| MAU/DAU/WAU | `st_batch_metrics()` | ✅ Yes | All countries |
+| Retention (D1-D60) | `st_app_enriched()` | ❌ Snapshot | US, WW |
+| Demographics | `st_app_enriched()` | ❌ Snapshot | US only |
+
+### Retention & Demographics Limitations
+
+- **Retention cohorts available**: D1, D7, D14, D30, D60 only (**D90 is NOT available**)
+- **Demographics (age/gender)**: Primarily available for **US market only**
+- **Enriched metrics**: These are **snapshot aggregates**, not time-series data
+- **Smaller apps**: May not have retention/demographic data available
+- **No direct API endpoint**: Retention/demographics come from `aggregate_tags` in comparison endpoint
 
 ## Installation
 
@@ -445,7 +598,8 @@ web_url <- st_build_web_url(
 ## Core Functions
 
 - **`st_app_info()`**: Search for apps and get basic information
-- **`st_app_lookup()`**: **NEW!** Resolve platform-specific IDs from unified IDs
+- **`st_app_lookup()`**: Resolve platform-specific IDs from unified IDs
+- **`st_app_enriched()`**: **NEW!** Fetch retention, MAU, demographics for specific apps by ID
 - **`st_api_diagnostics()`**: **NEW!** Diagnose why app IDs aren't working and get recommendations
 - **`st_batch_metrics()`**: **NEW!** Efficiently fetch metrics for multiple apps with mixed ID types
 - **`st_publisher_apps()`**: Get all apps from a specific publisher  

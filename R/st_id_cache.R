@@ -20,26 +20,26 @@ get_id_cache <- function() {
 
 #' Save ID Mapping to Cache
 #' @noRd
-cache_id_mapping <- function(input_id, ios_id = NULL, android_id = NULL, 
+cache_id_mapping <- function(input_id, ios_id = NULL, android_id = NULL,
                            unified_id = NULL, app_name = NULL, publisher_id = NULL) {
   cache <- get_id_cache()
-  
-  # Create cache entry
+
+  # Create cache entry with consistent naming (use _app_id suffix to match st_app_lookup output)
   entry <- list(
-    ios_id = ios_id,
-    android_id = android_id,
-    unified_id = unified_id,
+    ios_app_id = ios_id,
+    android_app_id = android_id,
+    unified_app_id = unified_id,
     app_name = app_name,
     publisher_id = publisher_id,
     cached_at = Sys.time()
   )
-  
+
   # Store under all provided IDs for quick lookup
   if (!is.null(input_id)) cache[[as.character(input_id)]] <- entry
   if (!is.null(ios_id)) cache[[as.character(ios_id)]] <- entry
   if (!is.null(android_id)) cache[[as.character(android_id)]] <- entry
   if (!is.null(unified_id)) cache[[as.character(unified_id)]] <- entry
-  
+
   .sensortowerR_env$id_cache <- cache
   invisible(entry)
 }
@@ -180,9 +180,9 @@ batch_resolve_ids <- function(ids, auth_token = Sys.getenv("SENSORTOWER_AUTH_TOK
         for (i in seq_len(nrow(batch_result))) {
           id <- batch_result$input_id[i]
           results[[id]] <- list(
-            ios_id = batch_result$ios_app_id[i],
-            android_id = batch_result$android_app_id[i],
-            unified_id = batch_result$unified_app_id[i],
+            ios_app_id = batch_result$ios_app_id[i],
+            android_app_id = batch_result$android_app_id[i],
+            unified_app_id = batch_result$unified_app_id[i],
             app_name = batch_result$app_name[i],
             publisher_id = batch_result$publisher_id[i]
           )
