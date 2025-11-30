@@ -19,7 +19,7 @@ st_smart_metrics(
 )
 }
 \arguments{
-\item{app_ids}{Character vector. Can be any mix of iOS IDs, Android IDs, 
+\item{app_ids}{Character vector. Can be any mix of iOS IDs, Android IDs,
 or Sensor Tower unified IDs.}
 
 \item{metrics}{Character vector. Metrics to fetch (e.g., "revenue", "downloads", "dau").}
@@ -54,9 +54,9 @@ caching, and fallbacks to minimize API calls.
 # Mixed ID types - automatically resolved
 metrics <- st_smart_metrics(
   app_ids = c(
-    "553834731",                    # Candy Crush iOS
-    "com.king.candycrushsaga",      # Candy Crush Android
-    "5ba4585f539ce75b97db6bcb"      # Star Trek unified ID
+    "553834731", # Candy Crush iOS
+    "com.king.candycrushsaga", # Candy Crush Android
+    "5ba4585f539ce75b97db6bcb" # Star Trek unified ID
   ),
   metrics = c("revenue", "downloads", "dau"),
   start_date = "2024-01-01",

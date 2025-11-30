@@ -6,6 +6,16 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.8.5 - Enhanced Documentation for Enriched Data Limitations
+- **Documentation Clarification**: `st_app_enriched()` now clearly documents geographic limitations
+  - Enriched metrics (retention, demographics) are **US and Worldwide (WW) ONLY**
+  - Per-country data (GB, DE, FR, JP, etc.) is NOT available through enriched endpoint
+  - For per-country data: use `st_sales_report()` or `st_batch_metrics()` instead
+- **Data Availability Notes**: Updated to clarify which endpoints support which geographies
+  - Sales data: All countries supported
+  - MAU/DAU time-series: All countries supported via `st_batch_metrics()`
+  - Retention/Demographics: US + WW aggregates only via `st_app_enriched()`
+
 ### v0.8.4 - ID Resolution Bug Fix & Documentation Update
 - **Critical Fix**: Fixed `unified_app_id` resolution in `st_sales_report()` and `st_batch_metrics()`
   - Previously, passing `unified_app_id` would fail to resolve platform-specific IDs

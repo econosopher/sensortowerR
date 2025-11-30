@@ -55,7 +55,7 @@ The OS parameter controls what data is returned:
 
 - os = "ios": Returns iOS data only
 - os = "android": Returns Android data only
-- os = "unified": Returns combined iOS + Android data
+- os = "unified": Returns combined iOS + Android data (as separate rows)
 
 The function will automatically look up the appropriate IDs based on the OS parameter.
 For example, if you provide a unified_app_id but set os = "ios", it will look up
@@ -66,7 +66,7 @@ the iOS app ID and return iOS-only data.
 # Get iOS data only
 ios_metrics <- st_metrics(
   os = "ios",
-  ios_app_id = "1195621598",  # Homescapes iOS
+  ios_app_id = "1195621598", # Homescapes iOS
   countries = "US",
   date_granularity = "daily",
   start_date = Sys.Date() - 30,

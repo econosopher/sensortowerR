@@ -43,13 +43,20 @@
 #' ```
 #'
 #' @section Data Availability Notes:
-#' - Retention data is aggregated for the "last quarter" - not time-series
-#' - Demographics (age/gender) are primarily available for US market
-#' - Not all metrics are available for all apps - smaller apps may have NA values
-#' - D90 retention is NOT available through the SensorTower API
+#' - **IMPORTANT: Geographic Limitations** - All enriched metrics are only available
+#'   for **US market (`_us` suffix)** and **Worldwide aggregates (`_ww` suffix)**.
+#'   Per-country data (e.g., GB, DE, FR, JP) is NOT available through this endpoint.
+#'   For per-country data, use [st_sales_report()] for revenue/downloads or
+#'   [st_batch_metrics()] for MAU/DAU time-series.
+#' - Retention data (D1, D7, D14, D30, D60) is aggregated for the "last quarter" -
+#'   not time-series data. D90 retention is NOT available through the API.
+#' - Demographics (age/gender) are primarily available for US market only.
+#' - Not all metrics are available for all apps - smaller apps may have NA values.
+#' - This returns **snapshot data**, not time-series. For historical trends, use
+#'   [st_batch_metrics()] or [st_sales_report()].
 #'
 #' @examples
-#' \dontrun
+#' \dontrun{
 #' # Get enriched data for specific apps
 #' royal_match <- st_app_info("Royal Match")
 #' enriched <- st_app_enriched(royal_match$unified_app_id)

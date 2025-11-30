@@ -33,7 +33,7 @@ This determines which platform's data is returned for all apps.}
 
 \item{metrics}{Character vector. Metrics to fetch. Supported values:
 - "revenue" - App revenue estimates
-- "downloads" - App download estimates  
+- "downloads" - App download estimates
 - "dau" - Daily Active Users
 - "wau" - Weekly Active Users
 - "mau" - Monthly Active Users}
@@ -51,55 +51,22 @@ This determines which platform's data is returned for all apps.}
 \item{verbose}{Logical. Show progress messages (default TRUE)}
 
 \item{auth_token}{Character string. Your Sensor Tower API authentication token.}
+
+\item{max_cores}{Integer. Maximum number of cores to use for parallel processing.}
+
+\item{max_concurrent_requests}{Integer. Max concurrent requests (deprecated/unused).}
+
+\item{retry}{Logical. Whether to retry failed requests.}
+
+\item{max_retries}{Integer. Max retries.}
+
+\item{publisher_ids}{Character vector. Publisher IDs to fetch data for.}
 }
 \value{
-A tibble with all metrics for all apps, with columns:
-  - original_id: The app ID as provided in the input
-  - app_name: App name (if available)
-  - app_id: The app ID used for the API call (based on OS parameter)
-  - app_id_type: Type of app_id returned ("ios", "android", or "unified")
-  - date, country, metric, value: Metric data
+A tibble with all metrics for all apps.
 }
 \description{
 Efficiently fetch metrics for multiple apps by batching API calls and
 automatically handling platform-specific requirements. The OS parameter
 controls which platform's data is returned for all apps.
-}
-\details{
-Active user metrics (DAU, WAU, MAU) are fetched using batch API calls for
-efficiency. When fetching active users for many apps (>10), the function
-will display a warning about potential rate limits.
-
-The function automatically maps the granularity parameter to the appropriate
-time period for active user metrics:
-- DAU requires daily data
-- WAU requires weekly data  
-- MAU requires monthly data
-}
-\examples{
-\dontrun{
-# Simple usage with app IDs
-apps <- c("553834731", "com.supercell.clashofclans", "5ba4585f539ce75b97db6bcb")
-metrics <- st_batch_metrics(
-  os = "unified",
-  app_list = apps,
-  metrics = c("revenue", "downloads"),
-  date_range = list(start_date = "2025-01-01", end_date = "2025-06-30"),
-  countries = "WW"
-)
-
-# With app metadata
-app_df <- data.frame(
-  app_id = c("553834731", "com.king.candycrushsaga"),
-  app_name = c("Candy Crush iOS", "Candy Crush Android"),
-  platform = c("ios", "android")
-)
-metrics <- st_batch_metrics(
-  os = "unified",
-  app_list = app_df,
-  metrics = c("revenue", "downloads"),
-  countries = "US"
-)
-}
-
 }
