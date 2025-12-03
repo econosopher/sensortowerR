@@ -6,6 +6,16 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.8.7 - New st_unified_sales_report() for Multi-Regional SKU Aggregation
+- **New Function**: `st_unified_sales_report()` - Fetch revenue/downloads with proper aggregation of ALL regional SKUs
+  - Uses the `/v1/unified/sales_report_estimates` endpoint which automatically combines all app variants
+  - Solves the issue where games with multiple regional publishers (e.g., Watcher of Realms with Moonton, Vizta Games, Skystone Games) were undercounted
+  - Example: Watcher of Realms has 4 iOS + 3 Android apps across different publishers - this function aggregates them all
+- **When to use `st_unified_sales_report()` instead of `st_sales_report()`**:
+  - When an app has multiple regional SKUs (same game, different publishers in different regions)
+  - When you want TRUE unified revenue/downloads without manual aggregation
+  - When accuracy matters more than platform-specific breakdowns
+
 ### v0.8.5 - Enhanced Documentation for Enriched Data Limitations
 - **Documentation Clarification**: `st_app_enriched()` now clearly documents geographic limitations
   - Enriched metrics (retention, demographics) are **US and Worldwide (WW) ONLY**
@@ -334,7 +344,8 @@ user_metrics <- st_batch_metrics(
 |-----------|----------|------------|-------|
 | **App Search** | `st_app_info()` | app name | Returns unified_app_id |
 | **ID Resolution** | `st_app_lookup()` | any ID type | Returns all ID types |
-| **Revenue/Downloads** | `st_sales_report()` | unified_app_id, ios_app_id, android_app_id | Time-series by country/platform |
+| **Revenue/Downloads (platform)** | `st_sales_report()` | ios_app_id, android_app_id | Platform-specific, may miss regional SKUs |
+| **Revenue/Downloads (unified)** | `st_unified_sales_report()` | unified_app_id | **Aggregates ALL regional SKUs** |
 | **Time-series DAU/WAU/MAU** | `st_batch_metrics()` | unified_app_id, platform IDs | Active users over time |
 | **Snapshot Retention/Demographics** | `st_app_enriched()` | unified_app_id only | NOT time-series, snapshot only |
 | **Top Charts** | `st_top_charts()` | category | Market analysis, NOT finding specific apps |
@@ -343,10 +354,37 @@ user_metrics <- st_batch_metrics(
 
 | Data Type | Endpoint | Time-Series? | Region Coverage |
 |-----------|----------|--------------|-----------------|
-| Revenue/Downloads | `st_sales_report()` | ✅ Yes | All countries |
+| Revenue/Downloads (unified) | `st_unified_sales_report()` | ✅ Yes | All countries |
+| Revenue/Downloads (platform) | `st_sales_report()` | ✅ Yes | All countries |
 | MAU/DAU/WAU | `st_batch_metrics()` | ✅ Yes | All countries |
 | Retention (D1-D60) | `st_app_enriched()` | ❌ Snapshot | US, WW |
 | Demographics | `st_app_enriched()` | ❌ Snapshot | US only |
+
+### Multi-Regional SKU Aggregation (IMPORTANT)
+
+Some games are published under multiple publisher accounts in different regions. For example,
+"Watcher of Realms" has 7 different app IDs across 4 publishers:
+- Moonton (original)
+- Shanghai Moonton (China)
+- Vizta Games (Asia Pacific)
+- Skystone Games (other regions)
+
+**Problem**: Using `st_sales_report()` with ID resolution only fetches 1 iOS + 1 Android app,
+missing revenue from other regional SKUs.
+
+**Solution**: Use `st_unified_sales_report()` which calls the unified API endpoint that
+automatically aggregates ALL app IDs within a unified entity:
+
+```r
+# Get TRUE unified revenue (all regional SKUs aggregated)
+sales <- st_unified_sales_report(
+  unified_app_id = "67ec0bf3e540b65904256cc4",  # Watcher of Realms
+  countries = "WW",
+  start_date = "2024-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+)
+```
 
 ### Retention & Demographics Limitations
 
@@ -609,22 +647,23 @@ web_url <- st_build_web_url(
 
 - **`st_app_info()`**: Search for apps and get basic information
 - **`st_app_lookup()`**: Resolve platform-specific IDs from unified IDs
-- **`st_app_enriched()`**: **NEW!** Fetch retention, MAU, demographics for specific apps by ID
-- **`st_api_diagnostics()`**: **NEW!** Diagnose why app IDs aren't working and get recommendations
-- **`st_batch_metrics()`**: **NEW!** Efficiently fetch metrics for multiple apps with mixed ID types
-- **`st_publisher_apps()`**: Get all apps from a specific publisher  
+- **`st_app_enriched()`**: Fetch retention, MAU, demographics for specific apps by ID
+- **`st_api_diagnostics()`**: Diagnose why app IDs aren't working and get recommendations
+- **`st_batch_metrics()`**: Efficiently fetch metrics for multiple apps with mixed ID types
+- **`st_publisher_apps()`**: Get all apps from a specific publisher
 - **`st_metrics()`**: Detailed daily metrics for specific apps (see note below)
 - **`st_top_charts()`**: Unified function for all top charts (revenue, downloads, DAU, WAU, MAU)
 - **`st_game_summary()`**: Game market summary (aggregated downloads/revenue by categories and countries)
-- **`st_category_rankings()`**: **NEW!** Get official app store rankings by category
-- **`st_app_details()`**: **NEW!** Fetch comprehensive app metadata and store listings
-- **`st_top_publishers()`**: **NEW!** Get top publishers by revenue or downloads
+- **`st_category_rankings()`**: Get official app store rankings by category
+- **`st_app_details()`**: Fetch comprehensive app metadata and store listings
+- **`st_top_publishers()`**: Get top publishers by revenue or downloads
 - **`st_gt_dashboard()`**: Generate professional FiveThirtyEight-styled dashboards with one line of code
-- **`st_yoy_metrics()`**: **NEW!** Flexible year-over-year comparisons for any date range
+- **`st_yoy_metrics()`**: Flexible year-over-year comparisons for any date range
 - **`st_sales_report()`**: Platform-specific daily revenue and download data
-- **`st_smart_metrics()`**: **NEW!** Fetch metrics with ID type detection and caching
-- **`st_cache_info()`**: **NEW!** View app ID cache statistics
-- **`st_clear_id_cache()`**: **NEW!** Clear the app ID cache
+- **`st_unified_sales_report()`**: **NEW!** Unified revenue/downloads with proper multi-regional SKU aggregation
+- **`st_smart_metrics()`**: Fetch metrics with ID type detection and caching
+- **`st_cache_info()`**: View app ID cache statistics
+- **`st_clear_id_cache()`**: Clear the app ID cache
 
 ## ID Optimization & Caching
 
