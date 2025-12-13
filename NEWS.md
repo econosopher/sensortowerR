@@ -1,3 +1,34 @@
+# sensortowerR 0.9.0
+
+## New Features
+
+* **`st_publisher_portfolio()` - One-Line Portfolio Analysis**
+  - Comprehensive publisher portfolio analysis in a single function call
+  - Fetches all publisher apps, sales data, MAU metrics, and subgenre rankings automatically
+  - Returns a tidy data frame with yearly metrics and YoY growth calculations
+  - Includes portfolio total row for aggregate analysis
+  - Built-in caching to minimize API calls on subsequent runs
+  - Fully pipe-friendly for tidyverse workflows
+
+```r
+# Simple usage
+lilith <- st_publisher_portfolio("Lilith Games")
+
+# Piped workflow
+"Supercell" %>%
+  st_publisher_portfolio(metrics = c("revenue", "mau")) %>%
+  filter(revenue_2024 > 10000000)
+```
+
+## Bug Fixes
+
+* Fixed id-cache field naming consistency (ios_app_id instead of ios_id)
+* Fixed lookup_app_names_by_id to use correct cache field names
+* Escaped curly braces in Rd documentation for CRAN compliance
+* Added skip conditions for tests requiring API authentication
+
+---
+
 # sensortowerR 0.8.8
 
 ## New Features
