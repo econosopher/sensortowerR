@@ -136,11 +136,11 @@ st_top_charts <- function(measure = "revenue",
   
   # Validate required parameters
   if (missing(os) || is.null(os)) {
-    stop("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
+    rlang::abort("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
   }
   
   if (missing(regions) || is.null(regions) || length(regions) == 0) {
-    stop("'regions' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+    rlang::abort("'regions' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
   }
   
   # --- Input Validation ---

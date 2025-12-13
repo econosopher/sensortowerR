@@ -112,13 +112,13 @@ st_gt_dashboard <- function(
   
   # Check for required packages
   if (!requireNamespace("gt", quietly = TRUE)) {
-    stop("Package 'gt' is required for this function. Please install it with: install.packages('gt')")
+    rlang::abort("Package 'gt' is required for this function. Please install it with: install.packages('gt')")
   }
   if (!requireNamespace("gtExtras", quietly = TRUE)) {
-    stop("Package 'gtExtras' is required for this function. Please install it with: install.packages('gtExtras')")
+    rlang::abort("Package 'gtExtras' is required for this function. Please install it with: install.packages('gtExtras')")
   }
   if (!requireNamespace("stringr", quietly = TRUE)) {
-    stop("Package 'stringr' is required for this function. Please install it with: install.packages('stringr')")
+    rlang::abort("Package 'stringr' is required for this function. Please install it with: install.packages('stringr')")
   }
   
   # Override styling options if raw mode

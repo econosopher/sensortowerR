@@ -45,16 +45,16 @@ test_that("cache operations work correctly", {
   cache <- get_id_cache()
   expect_gt(length(cache), 0)
   
-  # Lookup by different IDs
+  # Lookup by different IDs (cache uses _app_id suffix)
   result1 <- lookup_cached_id("test123")
-  expect_equal(result1$ios_id, "123456789")
+  expect_equal(result1$ios_app_id, "123456789")
   expect_equal(result1$app_name, "Test App")
-  
+
   result2 <- lookup_cached_id("123456789")
-  expect_equal(result2$android_id, "com.test.app")
-  
+  expect_equal(result2$android_app_id, "com.test.app")
+
   result3 <- lookup_cached_id("com.test.app")
-  expect_equal(result3$unified_id, "abcdef123456789012345678")
+  expect_equal(result3$unified_app_id, "abcdef123456789012345678")
   
   # Test cache persistence
   save_id_cache()

@@ -101,25 +101,25 @@ st_sales_report <- function(os,
   
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
-    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+    rlang::abort("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
   
   
   # Validate required parameters
   if (missing(countries) || is.null(countries) || length(countries) == 0) {
-    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+    rlang::abort("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
   }
   
   if (missing(start_date) || is.null(start_date)) {
-    stop("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
+    rlang::abort("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
   }
   
   if (missing(end_date) || is.null(end_date)) {
-    stop("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
+    rlang::abort("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
   }
   
   if (missing(date_granularity) || is.null(date_granularity)) {
-    stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+    rlang::abort("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
   }
   
   # Load custom filter utilities if available
@@ -134,7 +134,7 @@ st_sales_report <- function(os,
   
   # Input validation
   if (is.null(ios_app_id) && is.null(android_app_id) && is.null(unified_app_id) && is.null(publisher_ids) && is.null(custom_fields_filter_id)) {
-    stop("At least one of ios_app_id, android_app_id, unified_app_id, publisher_ids, or custom_fields_filter_id is required")
+    rlang::abort("At least one of ios_app_id, android_app_id, unified_app_id, publisher_ids, or custom_fields_filter_id is required")
   }
   date_granularity <- match.arg(date_granularity, c("daily", "weekly", "monthly", "quarterly"))
   
@@ -145,12 +145,12 @@ st_sales_report <- function(os,
   # Authentication
   auth_token_val <- trimws(auth_token)
   if (!nzchar(auth_token_val)) {
-    stop("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
+    rlang::abort("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
   # For unified OS, we don't support st_sales_report
   if (os == "unified") {
-    stop(paste0(
+    rlang::abort(paste0(
       "st_sales_report does not support os='unified'.\n",
       "Please use platform-specific calls with os='ios' or os='android'.\n",
       "For unified data, consider using st_metrics() instead."

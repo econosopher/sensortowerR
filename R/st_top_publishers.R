@@ -156,15 +156,15 @@ st_top_publishers <- function(measure = "revenue",
 
   # Validate required parameters
   if (missing(os) || is.null(os)) {
-    stop("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
+    rlang::abort("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
   }
   
   if (missing(date) || is.null(date)) {
-    stop("'date' parameter is required. Specify in YYYY-MM-DD format.")
+    rlang::abort("'date' parameter is required. Specify in YYYY-MM-DD format.")
   }
   
   if (missing(country) || is.null(country)) {
-    stop("'country' parameter is required. Specify country code (e.g., 'US', 'GB', or 'WW' for worldwide).")
+    rlang::abort("'country' parameter is required. Specify country code (e.g., 'US', 'GB', or 'WW' for worldwide).")
   }
   
   # Input validation

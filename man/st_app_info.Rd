@@ -2,7 +2,7 @@
 % Please edit documentation in R/st_app_info.R
 \name{st_app_info}
 \alias{st_app_info}
-\title{Fetch Unified App Information from Sensor Tower}
+\title{Fetch Unified App or Publisher Information from Sensor Tower}
 \usage{
 st_app_info(
   term,
@@ -20,7 +20,7 @@ st_app_info(
 Defaults to "unified".}
 
 \item{entity_type}{Character string. The type of entity to search for.
-Defaults to "app".}
+Either "app" (default) or "publisher".}
 
 \item{limit}{Numeric. The maximum number of results to return.
 Defaults to 20.}
@@ -28,34 +28,59 @@ Defaults to 20.}
 \item{auth_token}{Character string. Your Sensor Tower API authentication token.}
 
 \item{return_all_fields}{Boolean. If TRUE, returns all available fields
-from the API response. Defaults to FALSE, which returns only
-`unified_app_id` and `unified_app_name`.}
+from the API response. Defaults to FALSE.}
 }
 \value{
-A [tibble][tibble::tibble] with app information. If
-  `return_all_fields` is FALSE (default), it contains `unified_app_id`,
-  `unified_app_name`, and `category_details` (when available). If TRUE, it
-  contains the full, unfiltered data. When category information is present
-  in the API response, it's automatically enriched into a `category_details`
-  list-column containing nested tibbles with platform, category_id, and 
-  category_name for each app's categories.
+A [tibble][tibble::tibble] with entity information:
+
+  **For apps** (`entity_type = "app"`):
+  - `unified_app_id`: The unified app ID (24-char hex)
+  - `unified_app_name`: The app name
+  - `category_details`: (when available) Nested tibble with category info
+
+  **For publishers** (`entity_type = "publisher"`):
+  - `unified_publisher_id`: The unified publisher ID (24-char hex)
+  - `unified_publisher_name`: The publisher name
+
+  Use the returned publisher ID with `st_publisher_apps()` to get the
+  publisher's apps.
 }
 \description{
-This function retrieves information about apps from the Sensor Tower API
+This function retrieves information about apps or publishers from the Sensor Tower API
 based on a search term. It targets the `/v1/\{app_store\}/search_entities`
-endpoint and fetches app IDs and names for unified app entities.
+endpoint and fetches IDs and names for unified app or publisher entities.
 }
 \examples{
 \dontrun{
-# Fetch unified app info for "Clash of Clans"
+# Search for an app by name
 app_info <- st_app_info(term = "Clash of Clans")
 print(app_info)
 
-# Access nested category details
-if ("category_details" \%in\% names(app_info)) {
-  print("Categories for first app:")
-  print(app_info$category_details[[1]])
-}
+# Search for a publisher by name
+publisher_info <- st_app_info(term = "Lilith", entity_type = "publisher")
+print(publisher_info)
+
+# Get publisher's apps
+lilith_apps <- st_publisher_apps(
+  unified_id = publisher_info$unified_publisher_id[1],
+  aggregate_related = TRUE
+)
+
+# ---- Piping Workflow Examples ----
+library(dplyr)
+
+# Pipe-friendly workflow: Find publisher -> Get apps -> Fetch sales
+lilith_sales <- st_app_info("Lilith", entity_type = "publisher") \%>\%
+  slice(1) \%>\%
+  pull(unified_publisher_id) \%>\%
+  st_publisher_apps(aggregate_related = TRUE) \%>\%
+  pull(unified_app_id) \%>\%
+  st_unified_sales_report(
+    countries = "WW",
+    start_date = "2024-01-01",
+    end_date = "2024-12-31",
+    date_granularity = "monthly"
+  )
 }
 
 }

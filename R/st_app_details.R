@@ -78,7 +78,7 @@ st_app_details <- function(app_ids,
   
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
-    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+    rlang::abort("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
   
   # Input validation

@@ -52,13 +52,13 @@ st_get_unified_mapping <- function(app_ids,
   
   # Validate inputs
   if (missing(app_ids) || length(app_ids) == 0) {
-    stop("At least one app_id is required")
+    rlang::abort("At least one app_id is required")
   }
   
   # Get auth token
   auth_token_val <- auth_token
   if (!nzchar(auth_token_val)) {
-    stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
+    rlang::abort("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
   # Initialize result data frame

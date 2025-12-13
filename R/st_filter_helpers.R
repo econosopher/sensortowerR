@@ -303,7 +303,7 @@ st_compare_filter_results <- function(filter_id,
                                      limit = 20) {
   
   if (!st_is_valid_filter_id(filter_id)) {
-    stop("Invalid filter ID format")
+    rlang::abort("Invalid filter ID format")
   }
   
   message("Fetching results with custom filter...")
@@ -315,7 +315,7 @@ st_compare_filter_results <- function(filter_id,
       limit = limit
     ),
     error = function(e) {
-      stop("Failed to fetch filtered results: ", e$message)
+      rlang::abort("Failed to fetch filtered results: ", e$message)
     }
   )
   
@@ -328,7 +328,7 @@ st_compare_filter_results <- function(filter_id,
       limit = limit
     ),
     error = function(e) {
-      stop("Failed to fetch category results: ", e$message)
+      rlang::abort("Failed to fetch category results: ", e$message)
     }
   )
   

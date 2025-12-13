@@ -56,6 +56,11 @@ If a full date is provided, only the month and day are used.}
 \item{auth_token}{Character string. Sensor Tower API token.}
 
 \item{verbose}{Logical. Print progress messages.}
+
+\item{granularity}{Character. Date granularity for the data (e.g., "daily", "monthly").}
+
+\item{use_single_fetch}{Logical. If TRUE, uses a single API call to fetch all data.
+Defaults to TRUE for efficiency.}
 }
 \value{
 A tibble in tidy/long format with columns:

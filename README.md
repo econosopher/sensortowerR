@@ -6,6 +6,26 @@ An R package for interfacing with the Sensor Tower API to fetch mobile app analy
 
 ## What's New
 
+### v0.9.0 - New st_publisher_portfolio() for One-Line Portfolio Analysis
+- **New Function**: `st_publisher_portfolio()` - Comprehensive publisher portfolio analysis in a single call
+  - Fetches all publisher apps, sales data, MAU metrics, and subgenre rankings automatically
+  - Returns a tidy data frame with yearly metrics and YoY growth calculations
+  - Includes portfolio total row for aggregate analysis
+  - Built-in caching to minimize API calls on subsequent runs
+  - Fully pipe-friendly for tidyverse workflows
+- **Example**:
+  ```r
+  library(dplyr)
+
+  # One line to get complete portfolio analysis
+  lilith <- st_publisher_portfolio("Lilith Games")
+
+  # Pipe-friendly for further analysis
+  "Supercell" %>%
+    st_publisher_portfolio(metrics = c("revenue", "mau")) %>%
+    filter(revenue_2024 > 10000000)
+  ```
+
 ### v0.8.7 - New st_unified_sales_report() for Multi-Regional SKU Aggregation
 - **New Function**: `st_unified_sales_report()` - Fetch revenue/downloads with proper aggregation of ALL regional SKUs
   - Uses the `/v1/unified/sales_report_estimates` endpoint which automatically combines all app variants
@@ -384,6 +404,315 @@ sales <- st_unified_sales_report(
   end_date = "2024-12-31",
   date_granularity = "monthly"
 )
+```
+
+### Publisher Portfolio Analysis (v0.9.0+) - NEW!
+
+The new `st_publisher_portfolio()` function provides a **one-line solution** for comprehensive publisher analysis. It handles all the complexity of fetching apps, sales, MAU, and rankings data with proper caching.
+
+```r
+library(dplyr)
+
+# Simple: Just provide publisher name
+lilith_portfolio <- st_publisher_portfolio("Lilith Games")
+
+# The result is a tidy data frame ready for visualization:
+# - app_name, subgenre, subgenre_rank
+# - revenue_2023, revenue_2024, revenue_2025, revenue_yoy
+# - downloads_2023, downloads_2024, downloads_2025, downloads_yoy
+# - mau_2023, mau_2024, mau_2025, mau_yoy
+# - Includes PORTFOLIO TOTAL row at the top
+```
+
+#### Piped Workflow Examples
+
+```r
+library(dplyr)
+library(tidyr)
+
+# Filter and analyze portfolio
+"Supercell" %>%
+  st_publisher_portfolio(
+    start_date = "2023-01-01",
+    metrics = c("revenue", "downloads", "mau")
+  ) %>%
+  filter(revenue_2024 > 10000000) %>%
+  arrange(desc(revenue_yoy))
+
+# Compare multiple publishers
+publishers <- c("Lilith Games", "Supercell", "King")
+
+all_portfolios <- publishers %>%
+  purrr::map_dfr(~ st_publisher_portfolio(
+    publisher = .x,
+    metrics = c("revenue"),
+    include_portfolio_total = FALSE
+  ) %>% mutate(publisher = .x))
+
+# Pivot for competitive analysis
+all_portfolios %>%
+  group_by(publisher) %>%
+  summarise(
+    total_revenue_2024 = sum(revenue_2024, na.rm = TRUE),
+    avg_yoy_growth = mean(revenue_yoy, na.rm = TRUE)
+  )
+```
+
+#### Full Customization
+
+```r
+portfolio <- st_publisher_portfolio(
+ publisher = "King",
+  start_date = "2022-01-01",
+  end_date = "2024-12-31",
+  countries = c("US", "GB", "DE"),
+  metrics = c("revenue", "downloads", "mau"),
+  include_rankings = TRUE,
+  include_portfolio_total = TRUE,
+  min_revenue = 1000000,  # Only apps with $1M+ revenue
+  use_cache = TRUE,       # Cache data for faster re-runs
+  cache_dir = "data/"
+)
+```
+
+#### Key Features
+
+- **Single function call** - No more chaining 4-5 API calls manually
+- **Built-in caching** - Avoids redundant API calls on subsequent runs
+- **Portfolio total row** - Automatic aggregation across all games
+- **YoY calculations** - Revenue, downloads, and MAU growth percentages
+- **Subgenre rankings** - See how each game ranks in its category
+- **Tidyverse-ready** - Returns tibbles, works with pipes, integrates with dplyr/tidyr
+
+### Manual Publisher Workflow
+
+For more control, you can still use the individual functions:
+
+```r
+library(dplyr)
+
+# Step 1: Find publisher
+publisher <- st_app_info("Moonton", entity_type = "publisher")
+
+# Step 2: Get all apps with regional SKU aggregation
+moonton_apps <- st_publisher_apps(
+  unified_id = publisher$unified_publisher_id[1],
+  aggregate_related = TRUE  # Ensures canonical unified_app_ids
+)
+
+# Step 3: Fetch unified sales (aggregates ALL regional SKUs)
+sales <- st_unified_sales_report(
+  unified_app_id = moonton_apps$unified_app_id,
+  countries = "WW",
+  start_date = "2024-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+)
+
+# Step 4: Fetch MAU time-series
+mau <- st_batch_metrics(
+  os = "unified",
+  app_list = moonton_apps$unified_app_id,
+  metrics = "mau",
+  date_range = list(start_date = "2024-01-01", end_date = "2024-12-31"),
+  countries = "WW",
+  granularity = "monthly"
+)
+```
+
+**Why use `aggregate_related = TRUE`?**
+
+Many publishers have regional subsidiaries that publish the same game under different accounts:
+- Moonton publishes "Watcher of Realms" under Moonton, Vizta Games, and Skystone Games
+- Without `aggregate_related = TRUE`, you might get the wrong unified_app_id that doesn't aggregate all regional versions
+
+The `aggregate_related` flag looks up each app by name to ensure you get the canonical unified_app_id that properly aggregates ALL regional SKUs when used with `st_unified_sales_report()`.
+
+### Tidyverse Workflow Examples
+
+The package is designed to work seamlessly with tidyverse workflows. All functions return tibbles and can be chained with pipes.
+
+#### Example 1: Compare Revenue Across Competitors
+
+```r
+library(dplyr)
+library(purrr)
+library(tidyr)
+
+# Compare multiple publishers' top games
+publishers <- c("Supercell", "King", "Playrix")
+
+competitor_analysis <- map_dfr(publishers, function(pub) {
+  st_app_info(pub, entity_type = "publisher") %>%
+    slice(1) %>%
+    pull(unified_publisher_id) %>%
+    st_publisher_apps(aggregate_related = TRUE) %>%
+    head(5) %>%  # Top 5 games per publisher
+    mutate(publisher = pub)
+}) %>%
+  pull(unified_app_id) %>%
+  st_unified_sales_report(
+    countries = "WW",
+    start_date = "2024-01-01",
+    end_date = "2024-12-31",
+    date_granularity = "monthly"
+  ) %>%
+  group_by(unified_app_id) %>%
+  summarise(total_revenue = sum(revenue, na.rm = TRUE))
+```
+
+#### Example 2: Market Analysis with Rankings
+
+```r
+library(dplyr)
+
+# Get top RPGs and analyze their performance
+top_rpgs <- st_top_charts(
+  measure = "revenue",
+  os = "unified",
+  category = "7014",  # Role Playing
+  regions = "US",
+  time_range = "month",
+  date = "2024-11-01",
+  limit = 50
+) %>%
+  mutate(rank = row_number()) %>%
+  select(rank, unified_app_id, unified_app_name,
+         revenue = current_units_revenue,
+         subgenre = `aggregate_tags.Game Sub-genre`)
+
+# Fetch detailed metrics for top 10
+top_10_ids <- top_rpgs %>% head(10) %>% pull(unified_app_id)
+
+detailed_metrics <- st_unified_sales_report(
+  unified_app_id = top_10_ids,
+  countries = c("US", "JP", "KR"),
+  start_date = "2024-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+) %>%
+  group_by(unified_app_id, country) %>%
+  summarise(
+    total_revenue = sum(revenue, na.rm = TRUE),
+    total_downloads = sum(downloads, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = country,
+    values_from = c(total_revenue, total_downloads)
+  )
+```
+
+#### Example 3: Time-Series Analysis with MAU
+
+```r
+library(dplyr)
+library(lubridate)
+
+# Track a game's performance over time
+game_performance <- st_app_info("Genshin Impact") %>%
+
+  slice(1) %>%
+  pull(unified_app_id) -> game_id
+
+# Get revenue and downloads
+revenue_data <- st_unified_sales_report(
+  unified_app_id = game_id,
+  countries = "WW",
+  start_date = "2023-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+)
+
+# Get MAU data
+mau_data <- st_batch_metrics(
+  os = "unified",
+  app_list = game_id,
+  metrics = "mau",
+  date_range = list(start_date = "2023-01-01", end_date = "2024-12-31"),
+  countries = "WW",
+  granularity = "monthly"
+)
+
+# Combine and analyze
+combined <- revenue_data %>%
+  left_join(mau_data, by = c("date", "unified_app_id" = "app_id")) %>%
+  mutate(
+    revenue_per_user = revenue / value,
+    yoy_revenue = (revenue - lag(revenue, 12)) / lag(revenue, 12) * 100
+  )
+```
+#### Example 4: Genre Deep-Dive
+
+```r
+library(dplyr)
+
+# Analyze all Match-3 games performance
+match3_analysis <- st_top_charts(
+  measure = "revenue",
+  os = "unified",
+  category = "6014",  # Games
+  regions = "WW",
+  time_range = "month",
+  date = "2024-11-01",
+  limit = 500
+) %>%
+  filter(`aggregate_tags.Game Sub-genre` == "Match 3") %>%
+  mutate(
+    market_share = current_units_revenue / sum(current_units_revenue) * 100,
+    cumulative_share = cumsum(market_share)
+  ) %>%
+  select(
+    rank = row_number(),
+    unified_app_name,
+    revenue = current_units_revenue,
+    market_share,
+    cumulative_share,
+    publisher = unified_publisher_name
+  )
+
+# Top 10 control what % of the market?
+match3_analysis %>%
+  slice(10) %>%
+  pull(cumulative_share)  # Shows concentration
+```
+
+#### Example 5: YoY Growth Analysis
+
+```r
+library(dplyr)
+library(lubridate)
+
+# Compare publisher performance year-over-year
+yoy_analysis <- st_app_info("Lilith", entity_type = "publisher") %>%
+  slice(1) %>%
+  pull(unified_publisher_id) %>%
+  st_publisher_apps(aggregate_related = TRUE) %>%
+  pull(unified_app_id) %>%
+  st_unified_sales_report(
+    countries = "WW",
+    start_date = "2023-01-01",
+    end_date = "2024-12-31",
+    date_granularity = "monthly"
+  ) %>%
+  mutate(year = year(date)) %>%
+  group_by(unified_app_id, year) %>%
+  summarise(
+    annual_revenue = sum(revenue, na.rm = TRUE),
+    annual_downloads = sum(downloads, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = year,
+    values_from = c(annual_revenue, annual_downloads)
+  ) %>%
+  mutate(
+    revenue_growth = (annual_revenue_2024 - annual_revenue_2023) /
+                     annual_revenue_2023 * 100,
+    downloads_growth = (annual_downloads_2024 - annual_downloads_2023) /
+                       annual_downloads_2023 * 100
+  ) %>%
+  arrange(desc(annual_revenue_2024))
 ```
 
 ### Retention & Demographics Limitations

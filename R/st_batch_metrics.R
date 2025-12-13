@@ -51,27 +51,27 @@ st_batch_metrics <- function(os,
                              publisher_ids = NULL) {
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
-    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+    rlang::abort("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
 
   # Validate auth token
   if (is.null(auth_token) || auth_token == "") {
-    stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
+    rlang::abort("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
 
   # Validate countries parameter
   if (missing(countries) || is.null(countries)) {
-    stop("'countries' parameter is required")
+    rlang::abort("'countries' parameter is required")
   }
 
   # Validate granularity explicitly
   if (missing(granularity) || is.null(granularity)) {
-    stop("'granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+    rlang::abort("'granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
   }
 
   # Validate date range
   if (identical(date_range, "ytd")) {
-    stop("YTD mode is no longer supported in st_batch_metrics. Please specify explicit start_date and end_date.")
+    rlang::abort("YTD mode is no longer supported in st_batch_metrics. Please specify explicit start_date and end_date.")
   }
 
   # Publisher mode
@@ -144,12 +144,12 @@ normalize_app_list <- function(app_list, os, auth_token, verbose) {
     # Handle list of lists or list of named vectors
     apps_df <- dplyr::bind_rows(app_list)
   } else {
-    stop("Invalid app_list format. Must be character vector, data frame, or list.")
+    rlang::abort("Invalid app_list format. Must be character vector, data frame, or list.")
   }
 
   # Ensure app_id column exists
   if (!"app_id" %in% names(apps_df)) {
-    stop("app_list must contain an 'app_id' column or be a vector of IDs")
+    rlang::abort("app_list must contain an 'app_id' column or be a vector of IDs")
   }
 
   # Add metadata columns if missing

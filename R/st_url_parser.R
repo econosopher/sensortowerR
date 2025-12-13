@@ -25,14 +25,14 @@
 #' }
 st_parse_web_url <- function(url, verbose = TRUE) {
   if (is.null(url) || !is.character(url)) {
-    stop("URL must be a character string")
+    rlang::abort("URL must be a character string")
   }
   
   # Parse the URL
   parsed <- httr::parse_url(url)
   
   if (is.null(parsed$query)) {
-    stop("No query parameters found in URL")
+    rlang::abort("No query parameters found in URL")
   }
   
   query <- parsed$query
@@ -229,7 +229,7 @@ st_extract_url_params <- function(url) {
   parsed <- httr::parse_url(url)
   
   if (is.null(parsed$query)) {
-    stop("No query parameters found in URL")
+    rlang::abort("No query parameters found in URL")
   }
   
   # Convert to data frame

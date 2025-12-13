@@ -46,7 +46,7 @@
 #' automatically converted to `revenue` (dollars) and `downloads`.
 #'
 #' @examples
-#' \dontrun
+#' \dontrun{
 #' # Get unified sales data for Watcher of Realms
 #' sales <- st_unified_sales_report(
 #'   unified_app_id = "67ec0bf3e540b65904256cc4",
@@ -77,13 +77,13 @@ st_unified_sales_report <- function(unified_app_id,
 
   # Validate required parameters
   if (missing(unified_app_id) || is.null(unified_app_id) || length(unified_app_id) == 0) {
-    stop("'unified_app_id' parameter is required. Provide one or more 24-character hex IDs.")
+    rlang::abort("'unified_app_id' parameter is required. Provide one or more 24-character hex IDs.")
   }
 
   # Validate unified_app_id format
   invalid_ids <- unified_app_id[!grepl("^[a-f0-9]{24}$", unified_app_id)]
   if (length(invalid_ids) > 0) {
-    stop(paste0(
+    rlang::abort(paste0(
       "Invalid unified_app_id format. Expected 24-character hex IDs.\n",
       "Invalid IDs: ", paste(invalid_ids, collapse = ", "), "\n",
       "Use st_app_info() to search for apps and get their unified_app_id."
@@ -91,19 +91,19 @@ st_unified_sales_report <- function(unified_app_id,
   }
 
   if (missing(countries) || is.null(countries) || length(countries) == 0) {
-    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+    rlang::abort("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
   }
 
   if (missing(start_date) || is.null(start_date)) {
-    stop("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
+    rlang::abort("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
   }
 
   if (missing(end_date) || is.null(end_date)) {
-    stop("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
+    rlang::abort("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
   }
 
   if (missing(date_granularity) || is.null(date_granularity)) {
-    stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+    rlang::abort("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
   }
 
   date_granularity <- match.arg(date_granularity, c("daily", "weekly", "monthly", "quarterly"))
@@ -115,7 +115,7 @@ st_unified_sales_report <- function(unified_app_id,
   # Authentication
   auth_token_val <- trimws(auth_token)
   if (!nzchar(auth_token_val)) {
-    stop("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
+    rlang::abort("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
 
   if (verbose) {

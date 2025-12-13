@@ -88,22 +88,22 @@ st_metrics <- function(
 ) {
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
-    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+    rlang::abort("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
 
   # Validate required parameters
   if (missing(countries) || is.null(countries) || length(countries) == 0) {
-    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+    rlang::abort("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
   }
 
   if (missing(date_granularity) || is.null(date_granularity)) {
-    stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+    rlang::abort("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
   }
 
   # Validate date_granularity value
   valid_granularities <- c("daily", "weekly", "monthly", "quarterly")
   if (!date_granularity %in% valid_granularities) {
-    stop(paste0("Invalid date_granularity: '", date_granularity, "'. Must be one of: ", paste(valid_granularities, collapse = ", ")))
+    rlang::abort(paste0("Invalid date_granularity: '", date_granularity, "'. Must be one of: ", paste(valid_granularities, collapse = ", ")))
   }
 
   # Handle app_id parameter - try to determine what type it is
@@ -146,12 +146,12 @@ st_metrics <- function(
   end_date <- as.Date(end_date)
 
   if (start_date > end_date) {
-    stop("'start_date' must be earlier than or equal to 'end_date'")
+    rlang::abort("'start_date' must be earlier than or equal to 'end_date'")
   }
 
   # Check authentication
   if (is.null(auth_token) || auth_token == "") {
-    stop("Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
+    rlang::abort("Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
 
   # Prepare IDs for unified fetcher

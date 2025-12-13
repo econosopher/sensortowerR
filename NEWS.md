@@ -1,3 +1,40 @@
+# sensortowerR 0.8.8
+
+## New Features
+
+* **`st_publisher_apps()` - Regional SKU Aggregation**
+  - Added `aggregate_related` parameter to ensure canonical unified_app_ids
+  - Solves the problem where games are published under multiple regional publishers (e.g., Moonton, Vizta Games, Skystone Games)
+  - When `aggregate_related = TRUE`, looks up each app to get the true unified_app_id that combines all regional versions
+  - Use with `st_unified_sales_report()` for accurate revenue/download aggregation
+
+* **`st_app_info()` - Publisher Search Support**
+  - Now properly supports `entity_type = "publisher"` for searching publishers by name
+  - Returns `unified_publisher_id` and `unified_publisher_name` for publisher searches
+  - Use with `st_publisher_apps()` to get a publisher's full portfolio
+
+## Example Workflow
+
+```r
+# 1. Find publisher ID by name
+publisher <- st_app_info(term = "Lilith", entity_type = "publisher")
+
+# 2. Get all apps with proper regional aggregation
+apps <- st_publisher_apps(
+  unified_id = publisher$unified_publisher_id[1],
+  aggregate_related = TRUE
+)
+
+# 3. Fetch accurate revenue data
+sales <- st_unified_sales_report(
+  unified_app_id = apps$unified_app_id,
+  countries = "WW",
+  start_date = "2024-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+)
+```
+
 # sensortowerR 0.8.3
 
 ## Internal Refactoring & Robustness

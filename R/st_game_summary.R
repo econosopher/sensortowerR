@@ -81,32 +81,32 @@ st_game_summary <- function(categories = 7001,
   
   # Validate required parameters
   if (missing(countries) || is.null(countries) || length(countries) == 0) {
-    stop("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+    rlang::abort("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
   }
   
   if (missing(os) || is.null(os)) {
-    stop("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
+    rlang::abort("'os' parameter is required. Specify one of: 'ios', 'android', 'unified'.")
   }
   
   if (missing(date_granularity) || is.null(date_granularity)) {
-    stop("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+    rlang::abort("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
   }
   
   if (missing(start_date) || is.null(start_date)) {
-    stop("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
+    rlang::abort("'start_date' parameter is required. Specify in YYYY-MM-DD format.")
   }
   
   if (missing(end_date) || is.null(end_date)) {
-    stop("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
+    rlang::abort("'end_date' parameter is required. Specify in YYYY-MM-DD format.")
   }
   
   # Validate inputs
   if (!date_granularity %in% c("daily", "weekly", "monthly", "quarterly")) {
-    stop("date_granularity must be one of: daily, weekly, monthly, quarterly")
+    rlang::abort("date_granularity must be one of: daily, weekly, monthly, quarterly")
   }
   
   if (!os %in% c("ios", "android", "unified")) {
-    stop("os must be one of: ios, android, unified")
+    rlang::abort("os must be one of: ios, android, unified")
   }
   
   # --- Authentication ---

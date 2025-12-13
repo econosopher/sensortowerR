@@ -7,7 +7,9 @@
 st_publisher_apps(
   unified_id = NULL,
   publisher_id = NULL,
-  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
+  aggregate_related = FALSE,
+  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
+  verbose = TRUE
 )
 }
 \arguments{
@@ -18,9 +20,20 @@ The API returns the unified publisher and all associated apps in both cases.}
 
 \item{publisher_id}{Deprecated alias for `unified_id`.}
 
+\item{aggregate_related}{Logical. If TRUE, ensures each app's unified_app_id
+is the canonical ID that aggregates ALL regional SKUs. This solves the problem
+where games like "Watcher of Realms" are published under multiple regional
+publishers (Moonton, Vizta Games, Skystone Games, etc.) and may return
+different unified_app_ids. When TRUE, the function looks up each app by name
+to find the true unified_app_id that combines all regional versions.
+Defaults to FALSE for backwards compatibility.}
+
 \item{auth_token}{Character. Your Sensor Tower API authentication token.
 Defaults to the value stored in the `SENSORTOWER_AUTH_TOKEN` environment
 variable.}
+
+\item{verbose}{Logical. If TRUE, prints progress messages during aggregation.
+Defaults to TRUE.}
 }
 \value{
 A [tibble][tibble::tibble] containing details of the apps associated
@@ -33,6 +46,18 @@ Retrieves a list of apps associated with a specified unified publisher ID
 from the Sensor Tower API. Targets the `/v1/unified/publishers/apps`
 endpoint.
 }
+\section{Solving Regional Publisher Issues}{
+
+Many publishers have regional subsidiaries or partners that publish the same
+game under different app IDs in different regions. For example, Moonton's
+"Watcher of Realms" is published by Moonton in some regions, Vizta Games in
+others, and Skystone Games in others.
+
+When `aggregate_related = TRUE`, this function ensures you get the unified_app_id
+that represents the FULL game across all regional publishers, which is required
+for accurate revenue/download aggregation via `st_unified_sales_report()`.
+}
+
 \section{API Endpoint Used}{
 
   - `GET /v1/unified/publishers/apps`
@@ -43,14 +68,23 @@ endpoint.
 # Ensure SENSORTOWER_AUTH_TOKEN is set in your environment
 # Sys.setenv(SENSORTOWER_AUTH_TOKEN = "your_secure_auth_token_here")
 
-# Define the publisher ID (use a real ID)
-publisher_id <- "YOUR_PUBLISHER_ID_HERE"
+# Basic usage - get publisher's apps
+apps_list <- st_publisher_apps(unified_id = "647eb849d9d91f31a54f1792")
 
-# Fetch the publisher's apps
-apps_list <- st_publisher_apps(publisher_id = publisher_id)
+# With regional SKU aggregation - ensures canonical unified_app_ids
+apps_list <- st_publisher_apps(
+  unified_id = "647eb849d9d91f31a54f1792",
+  aggregate_related = TRUE
+)
 
-# View the results
-print(apps_list)
+# Then use with st_unified_sales_report() for accurate data
+sales <- st_unified_sales_report(
+  unified_app_id = apps_list$unified_app_id,
+  countries = "WW",
+  start_date = "2024-01-01",
+  end_date = "2024-12-31",
+  date_granularity = "monthly"
+)
 }
 
 }

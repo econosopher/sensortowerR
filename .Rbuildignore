@@ -58,3 +58,7 @@ inst/images/logo_creation.R
 ^\.RData_backup$
 ^test_edit\.txt$
 ^\.claude_backup$
+^\.agent$
+^exploration_script\.R$
+^test_name_search\.R$
+^verification_script\.R$

@@ -104,7 +104,7 @@ map_region_columns <- function(data, requested_region = "US") {
   # If requested region not available, use what we have
   actual_region <- tolower(requested_region)
   if (!actual_region %in% available_regions) {
-    stop(sprintf("Requested region '%s' not found in data. Available regions: %s",
+    rlang::abort(sprintf("Requested region '%s' not found in data. Available regions: %s",
                  toupper(requested_region),
                  ifelse(length(available_regions) > 0, paste(toupper(available_regions), collapse = ", "), "none")),
          call. = FALSE)
@@ -141,7 +141,7 @@ validate_columns <- function(data, required, context = "data") {
       }
     }
     
-    stop(sprintf("Missing required columns in %s:\n%s\n\nAvailable columns: %s",
+    rlang::abort(sprintf("Missing required columns in %s:\n%s\n\nAvailable columns: %s",
                  context,
                  paste(suggestions, collapse = "\n"),
                  paste(available[1:min(10, length(available))], collapse = ", ")),

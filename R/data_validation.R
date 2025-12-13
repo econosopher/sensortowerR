@@ -49,7 +49,7 @@ validate_top_charts_data <- function(data, measure, regions) {
       if (requested_region != "ww" && pattern %in% c("mau", "retention") &&
         toupper(measure) %in% c("DAU", "WAU", "MAU")) {
         if (!(requested_region %in% available_regions)) {
-          stop(sprintf(
+          rlang::abort(sprintf(
             "Region-specific '%s' metrics for '%s' are not available in the response. Available regions for '%s': %s",
             toupper(pattern), toupper(requested_region), toupper(pattern),
             ifelse(length(available_regions) > 0, paste(toupper(available_regions), collapse = ", "), "none")
@@ -175,7 +175,7 @@ require_column <- function(data, primary, fallbacks = NULL, operation = "operati
       )
     )
 
-    stop(error_msg, call. = FALSE)
+    rlang::abort(error_msg)
   }
 
   return(found[1])

@@ -25,6 +25,9 @@
 #' @param cache_dir Character. Directory for caching API responses (optional).
 #' @param auth_token Character string. Sensor Tower API token.
 #' @param verbose Logical. Print progress messages.
+#' @param granularity Character. Date granularity for the data (e.g., "daily", "monthly").
+#' @param use_single_fetch Logical. If TRUE, uses a single API call to fetch all data.
+#'   Defaults to TRUE for efficiency.
 #'
 #' @return A tibble in tidy/long format with columns:
 #'   - `app_id`: The app ID used for fetching data
@@ -114,20 +117,20 @@ st_yoy_metrics <- function(
   
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
-    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+    rlang::abort("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
   
   # Validate required parameters
   if (missing(period_start) || is.null(period_start)) {
-    stop("'period_start' is required")
+    rlang::abort("'period_start' is required")
   }
   
   if (missing(period_end) || is.null(period_end)) {
-    stop("'period_end' is required")
+    rlang::abort("'period_end' is required")
   }
   
   if (missing(countries) || is.null(countries) || length(countries) == 0) {
-    stop("'countries' parameter is required")
+    rlang::abort("'countries' parameter is required")
   }
   
   # Convert dates to MM-DD format if full dates provided
@@ -143,10 +146,10 @@ st_yoy_metrics <- function(
   
   # Validate date formats
   if (!grepl("^\\d{2}-\\d{2}$", period_start)) {
-    stop("period_start must be in MM-DD format (e.g., '02-01') or a Date object")
+    rlang::abort("period_start must be in MM-DD format (e.g., '02-01') or a Date object")
   }
   if (!grepl("^\\d{2}-\\d{2}$", period_end)) {
-    stop("period_end must be in MM-DD format (e.g., '02-28') or a Date object")
+    rlang::abort("period_end must be in MM-DD format (e.g., '02-28') or a Date object")
   }
   
   # Default years to current and previous if not specified
@@ -200,7 +203,7 @@ st_yoy_metrics <- function(
   
   # Validate granularity explicitly
   if (missing(granularity) || is.null(granularity)) {
-    stop("'granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
+    rlang::abort("'granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
   }
 
   # Build unified app_list once (or set publisher mode)

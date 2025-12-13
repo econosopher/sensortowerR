@@ -69,7 +69,7 @@ validate_and_transform_app_ids <- function(app_ids, os,
     # Check if all IDs are unified format
     invalid_ids <- app_ids[!sapply(app_ids, is_valid_app_id, os = "unified")]
     if (length(invalid_ids) > 0) {
-      stop(paste0(
+      rlang::abort(paste0(
         "Invalid unified app ID format. Unified IDs must be 24-character hexadecimal strings.\n",
         "Invalid IDs: ", paste(invalid_ids, collapse = ", "), "\n",
         "Example unified ID: '5ba4585f539ce75b97db6bcb'"
@@ -94,7 +94,7 @@ validate_and_transform_app_ids <- function(app_ids, os,
     # If it's a unified ID, we need to look it up
     if (id_type == "unified") {
       if (!lookup_mismatched) {
-        stop(paste0(
+        rlang::abort(paste0(
           "Unified app ID provided but ", os, " ID required: ", app_id, "\n",
           "Use st_app_lookup() to get platform-specific IDs."
         ))
@@ -121,13 +121,13 @@ validate_and_transform_app_ids <- function(app_ids, os,
                    lookup_result$app_name %||% app_id)
           }
         } else {
-          stop(paste0(
+          rlang::abort(paste0(
             "App does not have an ", os, " version: ", 
             lookup_result$app_name %||% app_id
           ))
         }
       } else {
-        stop(paste0("Could not look up unified app ID: ", app_id))
+        rlang::abort(paste0("Could not look up unified app ID: ", app_id))
       }
       
     } else if (id_type == "ios" && os == "android") {
@@ -145,7 +145,7 @@ validate_and_transform_app_ids <- function(app_ids, os,
         )
       }
       
-      stop(error_msg)
+      rlang::abort(error_msg)
       
     } else if (id_type == "android" && os == "ios") {
       # Android ID provided but iOS requested
@@ -162,11 +162,11 @@ validate_and_transform_app_ids <- function(app_ids, os,
         )
       }
       
-      stop(error_msg)
+      rlang::abort(error_msg)
       
     } else {
       # Unknown format
-      stop(paste0(
+      rlang::abort(paste0(
         "Invalid app ID format for ", os, ": ", app_id, "\n",
         "iOS IDs are numeric (e.g., '1234567890').\n",
         "Android IDs are package names (e.g., 'com.example.app').\n",

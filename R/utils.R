@@ -32,22 +32,30 @@ validate_inputs <- function(os,
                             custom_tags_mode = NULL,
                             data_model = NULL) {
   # Validation checks for common parameters
-  stopifnot(
-    "`os` must be one of 'ios', 'android', or 'unified'" =
-      os %in% c("ios", "android", "unified"),
-    "`comparison_attribute` must be one of 'absolute', 'delta', 'transformed_delta'" =
-      comparison_attribute %in% c("absolute", "delta", "transformed_delta"),
-    "`time_range` must be a non-empty string" =
-      is.character(time_range) && nzchar(time_range),
-    "`measure` must be a non-empty string" =
-      is.character(measure) && nzchar(measure),
-    "`date` must be provided" = !is.null(date),
-    "Either `category` or `custom_fields_filter_id` must be provided" =
-      !is.null(category) || !is.null(custom_fields_filter_id),
-    "`regions` must be provided" = !is.null(regions),
-    "`limit` must be a positive integer" =
-      is.numeric(limit) && limit > 0 && limit == round(limit)
-  )
+  if (!os %in% c("ios", "android", "unified")) {
+    rlang::abort("`os` must be one of 'ios', 'android', or 'unified'")
+  }
+  if (!comparison_attribute %in% c("absolute", "delta", "transformed_delta")) {
+    rlang::abort("`comparison_attribute` must be one of 'absolute', 'delta', 'transformed_delta'")
+  }
+  if (!is.character(time_range) || !nzchar(time_range)) {
+    rlang::abort("`time_range` must be a non-empty string")
+  }
+  if (!is.character(measure) || !nzchar(measure)) {
+    rlang::abort("`measure` must be a non-empty string")
+  }
+  if (is.null(date)) {
+    rlang::abort("`date` must be provided")
+  }
+  if (is.null(category) && is.null(custom_fields_filter_id)) {
+    rlang::abort("Either `category` or `custom_fields_filter_id` must be provided")
+  }
+  if (is.null(regions)) {
+    rlang::abort("`regions` must be provided")
+  }
+  if (!is.numeric(limit) || limit <= 0 || limit != round(limit)) {
+    rlang::abort("`limit` must be a positive integer")
+  }
 
   # Specific validations
   if (os %in% c("ios", "unified") && is.null(device_type)) {
@@ -612,7 +620,7 @@ lookup_app_names_by_id <- function(data) {
           assign(candidate_ids[i], name_val, envir = .app_name_cache)
         }
       }
-      unified_val <- entry$unified_id
+      unified_val <- entry$unified_app_id
       if (!is.null(unified_val)) {
         unified_val <- as.character(unified_val)[1]
         if (!is.na(unified_val) && nzchar(unified_val)) {
@@ -726,7 +734,7 @@ deduplicate_apps_by_name <- function(data, fuzzy_match = TRUE) {
       dplyr::mutate(
         .name_normalized = .data$unified_app_name %>%
           # Remove special characters and symbols
-          gsub("™|®|©|:|\\*|¤", "", .) %>%
+          gsub("\u2122|\u00AE|\u00A9|:|\\*|\u00A4", "", .) %>%
           # Handle specific known patterns
           gsub("NYT Games.*|NYTimes.*", "nyt crossword", ., ignore.case = TRUE) %>%
           gsub("Scrabble.*GO.*", "scrabble go", ., ignore.case = TRUE) %>%

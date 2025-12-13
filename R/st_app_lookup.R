@@ -48,7 +48,7 @@ st_app_lookup <- function(app_id,
   
   # Validate auth token
   if (is.null(auth_token) || auth_token == "") {
-    stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
+    rlang::abort("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
   # Detect the type of ID
@@ -60,7 +60,7 @@ st_app_lookup <- function(app_id,
   } else if (grepl("^(com|net|org|io)\\.", app_id)) {
     id_type <- "android"
   } else {
-    stop(paste0(
+    rlang::abort(paste0(
       "Invalid app ID format. Expected one of:\n",
       "- 24-character hex ID (unified): '5ba4585f539ce75b97db6bcb'\n",
       "- iOS numeric ID: '1234567890'\n",

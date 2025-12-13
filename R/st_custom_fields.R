@@ -198,7 +198,7 @@ st_custom_fields_filter <- function(
           return(structure(list(.retry = TRUE), class = "retry_marker"))
         }
       }
-      stop(e)
+      rlang::abort(e)
     })
     
     if (inherits(result, "retry_marker")) next

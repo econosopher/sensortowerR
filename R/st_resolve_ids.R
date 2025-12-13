@@ -27,12 +27,12 @@ resolve_ids_for_os <- function(
 ) {
   # Validate OS parameter
   if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
-    stop("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+    rlang::abort("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
   }
 
   # Check that at least one ID is provided
   if (is.null(unified_app_id) && is.null(ios_app_id) && is.null(android_app_id)) {
-    stop("At least one app ID must be provided (unified_app_id, ios_app_id, or android_app_id)")
+    rlang::abort("At least one app ID must be provided (unified_app_id, ios_app_id, or android_app_id)")
   }
 
   # Centralized mapping using cache
@@ -80,7 +80,7 @@ resolve_ids_for_os <- function(
     }
   }
 
-  stop("Failed to resolve appropriate IDs for OS: ", os)
+  rlang::abort("Failed to resolve appropriate IDs for OS: ", os)
 }
 
 #' Add App ID Metadata to Data Frame

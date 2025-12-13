@@ -29,7 +29,7 @@ st_api_diagnostics <- function(app_id,
   
   # Validate auth token
   if (is.null(auth_token) || auth_token == "") {
-    stop("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
+    rlang::abort("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
   }
   
   results <- list(
@@ -104,28 +104,41 @@ st_api_diagnostics <- function(app_id,
              else if (results$id_type == "android_package") "android" 
              else "ios"  # default
   
+  # Determine the appropriate parameter based on os_type
   results$endpoint_results$sales_report <- test_endpoint(
     paste0(toupper(os_type), " Sales Report"),
     function() {
-      st_sales_report(
-        app_ids = app_id,
-        os = os_type,
-        date_granularity = "monthly",
-        start_date = format(Sys.Date() - 90, "%Y-%m-%d"),
-        end_date = format(Sys.Date() - 1, "%Y-%m-%d"),
-        countries = "US",
-        auth_token = auth_token
-      )
+      if (os_type == "ios") {
+        st_sales_report(
+          ios_app_id = app_id,
+          os = os_type,
+          date_granularity = "monthly",
+          start_date = format(Sys.Date() - 90, "%Y-%m-%d"),
+          end_date = format(Sys.Date() - 1, "%Y-%m-%d"),
+          countries = "US",
+          auth_token = auth_token
+        )
+      } else {
+        st_sales_report(
+          android_app_id = app_id,
+          os = os_type,
+          date_granularity = "monthly",
+          start_date = format(Sys.Date() - 90, "%Y-%m-%d"),
+          end_date = format(Sys.Date() - 1, "%Y-%m-%d"),
+          countries = "US",
+          auth_token = auth_token
+        )
+      }
     }
   )
-  
+
   # Test platform-specific if we have IDs
   if (!is.null(results$platform_ids$ios)) {
     results$endpoint_results$ios_sales <- test_endpoint(
       "iOS Sales Report",
       function() {
         st_sales_report(
-          app_ids = results$platform_ids$ios,
+          ios_app_id = results$platform_ids$ios,
           os = "ios",
           date_granularity = "monthly",
           start_date = format(Sys.Date() - 90, "%Y-%m-%d"),
@@ -136,13 +149,13 @@ st_api_diagnostics <- function(app_id,
       }
     )
   }
-  
+
   if (!is.null(results$platform_ids$android)) {
     results$endpoint_results$android_sales <- test_endpoint(
       "Android Sales Report",
       function() {
         st_sales_report(
-          app_ids = results$platform_ids$android,
+          android_app_id = results$platform_ids$android,
           os = "android",
           date_granularity = "monthly",
           start_date = format(Sys.Date() - 90, "%Y-%m-%d"),
@@ -153,7 +166,7 @@ st_api_diagnostics <- function(app_id,
       }
     )
   }
-  
+
   # Test app details
   if (results$id_type %in% c("ios_numeric", "android_package")) {
     os <- ifelse(results$id_type == "ios_numeric", "ios", "android")

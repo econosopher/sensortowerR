@@ -9,14 +9,33 @@
 #'   - Unified App ID (24-char hex) belonging to a publisher
 #'   The API returns the unified publisher and all associated apps in both cases.
 #' @param publisher_id Deprecated alias for `unified_id`.
+#' @param aggregate_related Logical. If TRUE, ensures each app's unified_app_id
+#'   is the canonical ID that aggregates ALL regional SKUs. This solves the problem
+#'   where games like "Watcher of Realms" are published under multiple regional
+#'   publishers (Moonton, Vizta Games, Skystone Games, etc.) and may return
+#'   different unified_app_ids. When TRUE, the function looks up each app by name
+#'   to find the true unified_app_id that combines all regional versions.
+#'   Defaults to FALSE for backwards compatibility.
 #' @param auth_token Character. Your Sensor Tower API authentication token.
 #'   Defaults to the value stored in the `SENSORTOWER_AUTH_TOKEN` environment
 #'   variable.
+#' @param verbose Logical. If TRUE, prints progress messages during aggregation.
+#'   Defaults to TRUE.
 #'
 #' @return A [tibble][tibble::tibble] containing details of the apps associated
 #'   with the publisher. The exact columns depend on the API response but often
 #'   include app IDs, names, platform, etc. Returns an empty tibble if the
 #'   publisher ID is invalid, has no apps, or an error occurs.
+#'
+#' @section Solving Regional Publisher Issues:
+#' Many publishers have regional subsidiaries or partners that publish the same
+#' game under different app IDs in different regions. For example, Moonton's
+#' "Watcher of Realms" is published by Moonton in some regions, Vizta Games in
+#' others, and Skystone Games in others.
+#'
+#' When `aggregate_related = TRUE`, this function ensures you get the unified_app_id
+#' that represents the FULL game across all regional publishers, which is required
+#' for accurate revenue/download aggregation via `st_unified_sales_report()`.
 #'
 #' @section API Endpoint Used:
 #'   - `GET /v1/unified/publishers/apps`
@@ -26,14 +45,23 @@
 #' # Ensure SENSORTOWER_AUTH_TOKEN is set in your environment
 #' # Sys.setenv(SENSORTOWER_AUTH_TOKEN = "your_secure_auth_token_here")
 #'
-#' # Define the publisher ID (use a real ID)
-#' publisher_id <- "YOUR_PUBLISHER_ID_HERE"
+#' # Basic usage - get publisher's apps
+#' apps_list <- st_publisher_apps(unified_id = "647eb849d9d91f31a54f1792")
 #'
-#' # Fetch the publisher's apps
-#' apps_list <- st_publisher_apps(publisher_id = publisher_id)
+#' # With regional SKU aggregation - ensures canonical unified_app_ids
+#' apps_list <- st_publisher_apps(
+#'   unified_id = "647eb849d9d91f31a54f1792",
+#'   aggregate_related = TRUE
+#' )
 #'
-#' # View the results
-#' print(apps_list)
+#' # Then use with st_unified_sales_report() for accurate data
+#' sales <- st_unified_sales_report(
+#'   unified_app_id = apps_list$unified_app_id,
+#'   countries = "WW",
+#'   start_date = "2024-01-01",
+#'   end_date = "2024-12-31",
+#'   date_granularity = "monthly"
+#' )
 #' }
 #'
 #' @import dplyr
@@ -45,14 +73,24 @@
 #' @export
 st_publisher_apps <- function(unified_id = NULL,
                               publisher_id = NULL,
-                              auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
+                              aggregate_related = FALSE,
+                              auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
+                              verbose = TRUE) {
   # --- Input Validation & Setup ---
   # Backward compatibility: support old signature
   if (is.null(unified_id) && !is.null(publisher_id)) unified_id <- publisher_id
   if (is.null(unified_id)) {
     rlang::abort("unified_id is required (24-char hex unified publisher or app id)")
   }
-  stopifnot(is.character(unified_id), length(unified_id) == 1, nzchar(unified_id))
+  if (!is.character(unified_id)) {
+    rlang::abort("unified_id must be a character string")
+  }
+  if (length(unified_id) != 1) {
+    rlang::abort("unified_id must be a single value, not a vector")
+  }
+  if (!nzchar(unified_id)) {
+    rlang::abort("unified_id cannot be an empty string")
+  }
   # Basic format check: 24-char hex
   if (!grepl("^[a-f0-9]{24}$", unified_id)) {
     rlang::abort(paste0(
@@ -128,5 +166,91 @@ st_publisher_apps <- function(unified_id = NULL,
     return(tibble::tibble())
   }
 
-  tibble::as_tibble(apps_data)
+  result <- tibble::as_tibble(apps_data)
+
+
+  # --- Aggregate Related SKUs ---
+  if (aggregate_related && nrow(result) > 0) {
+    if (verbose) {
+      message("Resolving canonical unified_app_ids for ", nrow(result), " apps...")
+    }
+
+    # Get app names - handle different possible column names
+    name_col <- intersect(c("unified_app_name", "name", "app_name"), names(result))[1]
+    id_col <- intersect(c("unified_app_id", "app_id"), names(result))[1]
+
+    if (is.na(name_col) || is.na(id_col)) {
+      rlang::warn("Could not find name/id columns for aggregation. Returning raw results.")
+      return(result)
+    }
+
+    # Look up each app by name to get canonical unified_app_id
+    canonical_ids <- list()
+    for (i in seq_len(nrow(result))) {
+      app_name <- result[[name_col]][i]
+      original_id <- result[[id_col]][i]
+
+      # Search for the app by name
+      search_result <- tryCatch({
+        st_app_info(
+          term = app_name,
+          app_store = "unified",
+          entity_type = "app",
+          limit = 5,
+          auth_token = auth_token,
+          return_all_fields = FALSE
+        )
+      }, error = function(e) {
+        if (verbose) message("  Warning: Could not search for '", app_name, "': ", e$message)
+        NULL
+      })
+
+      # Find best match - prefer exact name match
+      canonical_id <- original_id
+      if (!is.null(search_result) && nrow(search_result) > 0) {
+        # Try exact match first
+        exact_match <- search_result %>%
+          dplyr::filter(tolower(.data$unified_app_name) == tolower(app_name))
+
+        if (nrow(exact_match) > 0) {
+          canonical_id <- exact_match$unified_app_id[1]
+        } else {
+          # Use first result as best match
+          canonical_id <- search_result$unified_app_id[1]
+        }
+
+        if (canonical_id != original_id && verbose) {
+          message("  '", app_name, "': ", original_id, " -> ", canonical_id)
+        }
+      }
+
+      canonical_ids[[i]] <- list(
+        original_id = original_id,
+        canonical_id = canonical_id,
+        app_name = app_name
+      )
+
+      Sys.sleep(0.2)  # Rate limiting
+    }
+
+    # Update result with canonical IDs
+    canonical_df <- dplyr::bind_rows(canonical_ids)
+    result[[id_col]] <- canonical_df$canonical_id
+
+    # Deduplicate by canonical unified_app_id
+    n_before <- nrow(result)
+    result <- result %>%
+      dplyr::distinct(dplyr::across(dplyr::all_of(id_col)), .keep_all = TRUE)
+    n_after <- nrow(result)
+
+    if (verbose && n_before != n_after) {
+      message("Deduplicated: ", n_before, " -> ", n_after, " unique apps")
+    }
+
+    if (verbose) {
+      message("Aggregation complete. ", nrow(result), " apps with canonical IDs.")
+    }
+  }
+
+  return(result)
 }

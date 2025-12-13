@@ -25,7 +25,7 @@ add_custom_filter_params <- function(query_params,
   if (!is.null(custom_fields_filter_id)) {
     # Validate filter ID format
     if (!st_is_valid_filter_id(custom_fields_filter_id)) {
-      stop("Invalid custom_fields_filter_id format. Expected 24-character hexadecimal string.",
+      rlang::abort("Invalid custom_fields_filter_id format. Expected 24-character hexadecimal string.",
            call. = FALSE)
     }
     
@@ -35,7 +35,7 @@ add_custom_filter_params <- function(query_params,
     # Check if custom_tags_mode is required
     if (!is.null(os) && os == "unified") {
       if (is.null(custom_tags_mode)) {
-        stop("custom_tags_mode is required when using custom_fields_filter_id with os='unified'. ",
+        rlang::abort("custom_tags_mode is required when using custom_fields_filter_id with os='unified'. ",
              "Options: 'include', 'exclude', 'include_unified_apps'",
              call. = FALSE)
       }
@@ -72,20 +72,20 @@ validate_custom_filter_params <- function(custom_fields_filter_id = NULL,
   
   # Check if either category or custom filter is provided
   if (require_category && is.null(category) && is.null(custom_fields_filter_id)) {
-    stop("Either 'category' or 'custom_fields_filter_id' parameter is required.",
+    rlang::abort("Either 'category' or 'custom_fields_filter_id' parameter is required.",
          call. = FALSE)
   }
   
   # Validate filter ID if provided
   if (!is.null(custom_fields_filter_id)) {
     if (!st_is_valid_filter_id(custom_fields_filter_id)) {
-      stop("Invalid custom_fields_filter_id format. Expected 24-character hexadecimal string.",
+      rlang::abort("Invalid custom_fields_filter_id format. Expected 24-character hexadecimal string.",
            call. = FALSE)
     }
     
     # Check custom_tags_mode requirement
     if (!is.null(os) && os == "unified" && is.null(custom_tags_mode)) {
-      stop("custom_tags_mode is required when using custom_fields_filter_id with os='unified'. ",
+      rlang::abort("custom_tags_mode is required when using custom_fields_filter_id with os='unified'. ",
            "Options: 'include', 'exclude', 'include_unified_apps'",
            call. = FALSE)
     }
@@ -95,7 +95,7 @@ validate_custom_filter_params <- function(custom_fields_filter_id = NULL,
   if (!is.null(custom_tags_mode)) {
     valid_modes <- c("include", "exclude", "include_unified_apps")
     if (!custom_tags_mode %in% valid_modes) {
-      stop("Invalid custom_tags_mode. Must be one of: ",
+      rlang::abort("Invalid custom_tags_mode. Must be one of: ",
            paste(valid_modes, collapse = ", "),
            call. = FALSE)
     }

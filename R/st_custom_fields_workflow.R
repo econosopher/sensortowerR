@@ -100,7 +100,7 @@ st_create_simple_filter <- function(
       message("Warning: filter creation failed with server error; returning placeholder id ", hex)
       return(hex)
     }
-    stop(e)
+    rlang::abort(e)
   })
   
   return(filter_id)
@@ -238,7 +238,7 @@ st_get_filtered_apps <- function(
   # Determine filter ID
   if (is.null(filter_id)) {
     if (is.null(field_name) || is.null(field_values)) {
-      stop("Either provide filter_id or both field_name and field_values")
+      rlang::abort("Either provide filter_id or both field_name and field_values")
     }
     
     # Create filter
