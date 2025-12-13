@@ -65,9 +65,9 @@ A tibble with portfolio data including:
   - app_name: Game name
   - subgenre: Game sub-genre
   - subgenre_rank: Rank within sub-genre
-  - revenue_{year}: Revenue by year
-  - downloads_{year}: Downloads by year
-  - mau_{year}: Average MAU by year (if requested)
+  - revenue_\{year\}: Revenue by year
+  - downloads_\{year\}: Downloads by year
+  - mau_\{year\}: Average MAU by year (if requested)
   - revenue_yoy, downloads_yoy, mau_yoy: Year-over-year growth percentages
 }
 \description{

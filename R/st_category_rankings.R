@@ -43,7 +43,7 @@
 #'   metadata, use the app IDs with `st_app_details()`.
 #'
 #' @section API Endpoint Used:
-#'   - `GET /v1/{os}/ranking`
+#'   - `GET /v1/\{os\}/ranking`
 #'
 #' @examples
 #' \dontrun{

@@ -42,7 +42,7 @@
 #'   - Additional platform-specific fields
 #'
 #' @section API Endpoint Used:
-#'   - `GET /v1/{os}/apps`
+#'   - `GET /v1/\{os\}/apps`
 #'
 #' @examples
 #' \dontrun{

@@ -2,7 +2,7 @@
 #'
 #' Retrieves top app publishers ranked by revenue or downloads for a specified
 #' category, time period, and country. This function uses the
-#' `/v1/{os}/top_and_trending/publishers` endpoint.
+#' `/v1/\{os\}/top_and_trending/publishers` endpoint.
 #'
 #' @param measure Character. Metric to rank by: "revenue" or "units" (downloads).
 #'   Defaults to "revenue".

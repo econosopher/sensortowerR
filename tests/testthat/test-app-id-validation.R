@@ -1,6 +1,10 @@
 # Test app ID validation functionality
 
 test_that("app ID validation is integrated into st_sales_report", {
+  skip_if(
+    !nzchar(Sys.getenv("SENSORTOWER_AUTH_TOKEN")),
+    "Sensor Tower authentication token not found"
+  )
   # Test that mismatched IDs are caught
   res1 <- tryCatch({
     st_sales_report(
@@ -55,6 +59,10 @@ test_that("app ID validation is integrated into st_sales_report", {
 
 
 test_that("new parameter style works correctly", {
+  skip_if(
+    !nzchar(Sys.getenv("SENSORTOWER_AUTH_TOKEN")),
+    "Sensor Tower authentication token not found"
+  )
   # Should pass validation and fail on auth
   res5 <- tryCatch({
     st_sales_report(

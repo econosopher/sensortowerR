@@ -60,7 +60,7 @@ rich app store listing data for apps when you already know their IDs.
 }
 \section{API Endpoint Used}{
 
-  - `GET /v1/{os}/apps`
+  - `GET /v1/\{os\}/apps`
 }
 
 \examples{
