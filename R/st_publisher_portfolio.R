@@ -243,6 +243,8 @@ st_publisher_portfolio <- function(publisher = NULL,
       mau_data <- readRDS(cache_file_mau)
     } else {
       mau_data <- tryCatch({
+        # Use parallel=FALSE to avoid race conditions when apps are in
+        # different platform groups (both, ios, android)
         st_batch_metrics(
           os = "unified",
           app_list = app_ids,
@@ -250,7 +252,8 @@ st_publisher_portfolio <- function(publisher = NULL,
           date_range = list(start_date = start_date, end_date = end_date),
           countries = countries,
           granularity = "monthly",
-          auth_token = auth_token
+          auth_token = auth_token,
+          parallel = FALSE
         )
       }, error = function(e) {
         if (verbose) message("  Warning: Could not fetch MAU: ", e$message)

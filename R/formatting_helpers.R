@@ -19,8 +19,8 @@ NULL
 #' format_large_number(1234567890)   # "1.2B"
 #' format_large_number(1234567, prefix = "$") # "$1.2M"
 format_large_number <- function(val, digits = 1, prefix = "") {
-  if (is.na(val)) return("-")
-  
+  if (is.na(val) || abs(val) < 0.5) return("\u2014")  # em-dash for NA or ~0
+
   if (abs(val) >= 1e9) {
     paste0(prefix, formatC(val/1e9, format = "f", digits = digits), "B")
   } else if (abs(val) >= 1e6) {
