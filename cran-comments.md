@@ -1,6 +1,12 @@
-## New submission
+## Resubmission
 
-This is the first submission of `sensortowerR` to CRAN.
+This is a resubmission. In this version I have:
+
+* **FIXED** the CRAN policy violation where the package created `~/.sensortowerR` directory automatically
+  * Cache location now uses CRAN-compliant `tools::R_user_dir("sensortowerR", "cache")`
+  * Removed automatic cache loading/saving in `.onAttach`/`.onDetach` hooks
+  * Cache directory is now only created when user explicitly calls `save_id_cache()`
+  * The package no longer writes to user's home directory without explicit consent
 
 ## Test environments
 

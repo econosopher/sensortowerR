@@ -1,3 +1,28 @@
+# sensortowerR 0.9.1
+
+## CRAN Compliance Fix
+
+* **FIXED** Package no longer creates `~/.sensortowerR` directory automatically
+  - This was a CRAN policy violation ("archived now" from CRAN team)
+  - Cache location now uses CRAN-compliant `tools::R_user_dir("sensortowerR", "cache")`
+  - Removed automatic cache loading/saving in `.onAttach`/`.onDetach` hooks
+  - Cache is now only created when user explicitly calls `save_id_cache()`
+
+## Documentation
+
+* **Simplified README.md** - Reduced from 1800+ lines to ~200 lines
+  - Moved changelog to NEWS.md
+  - Focused on quick start and essential workflows
+  - Cleaner structure for new users
+
+## Internal Changes
+
+* Cache functions now use `get_cache_dir()` helper that returns `tools::R_user_dir()` path
+* Updated example files to reflect new cache behavior
+* No breaking changes to public API
+
+---
+
 # sensortowerR 0.9.0
 
 ## New Features

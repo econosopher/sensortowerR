@@ -52,15 +52,29 @@ lookup_cached_id <- function(id) {
   cache[[as.character(id)]]
 }
 
+#' Get Default Cache Directory
+#'
+#' Returns the CRAN-compliant cache directory using tools::R_user_dir()
+#' @noRd
+get_cache_dir <- function() {
+  tools::R_user_dir("sensortowerR", "cache")
+}
+
 #' Save Cache to Disk
+#'
+#' Saves the ID cache to disk. Only creates the cache directory when
+#' this function is explicitly called.
 #' @noRd
 save_id_cache <- function(path = NULL) {
   if (is.null(path)) {
-    cache_dir <- file.path(Sys.getenv("HOME"), ".sensortowerR")
-    if (!dir.exists(cache_dir)) dir.create(cache_dir, recursive = TRUE)
+    cache_dir <- get_cache_dir()
+    # Only create directory when user explicitly saves cache
+    if (!dir.exists(cache_dir)) {
+      dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+    }
     path <- file.path(cache_dir, "id_cache.rds")
   }
-  
+
   cache <- get_id_cache()
   if (length(cache) > 0) {
     saveRDS(cache, path)
@@ -71,12 +85,14 @@ save_id_cache <- function(path = NULL) {
 }
 
 #' Load Cache from Disk
+#'
+#' Loads the ID cache from disk if it exists. Does NOT create any directories.
 #' @noRd
 load_id_cache <- function(path = NULL) {
   if (is.null(path)) {
-    path <- file.path(Sys.getenv("HOME"), ".sensortowerR", "id_cache.rds")
+    path <- file.path(get_cache_dir(), "id_cache.rds")
   }
-  
+
   if (file.exists(path)) {
     cache <- readRDS(path)
     .sensortowerR_env$id_cache <- cache
@@ -292,17 +308,7 @@ preload_common_apps <- function(auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"
   }
 }
 
-# Load cache on package attach
-.onAttach <- function(libname, pkgname) {
-  load_id_cache()
-  
-  # Optionally preload common apps on first use
-  if (getOption("sensortowerR.preload_common", FALSE)) {
-    preload_common_apps()
-  }
-}
-
-# Save cache on package detach
-.onDetach <- function(libpath) {
-  save_id_cache()
-}
+# NOTE: Removed .onAttach and .onDetach hooks that automatically created
+# ~/.sensortowerR directory to comply with CRAN policy.
+# Cache is now only loaded/saved when explicitly requested by user functions.
+# Users can call save_id_cache() explicitly to persist the cache.

@@ -290,7 +290,7 @@ st_clear_id_cache <- function(disk = TRUE) {
 
   # Clear disk cache
   if (disk) {
-    cache_file <- file.path(Sys.getenv("HOME"), ".sensortowerR", "id_cache.rds")
+    cache_file <- file.path(get_cache_dir(), "id_cache.rds")
     if (file.exists(cache_file)) {
       unlink(cache_file)
       message("Cleared app ID cache")
@@ -334,7 +334,7 @@ st_cache_info <- function() {
   cat("  Apps with both platforms: ", has_both, "\n")
   cat("  Average cache age: ", round(mean(cache_ages, na.rm = TRUE), 1), " days\n")
   cat("  Oldest entry: ", round(max(cache_ages, na.rm = TRUE), 1), " days\n")
-  cat("  Cache location: ", file.path(Sys.getenv("HOME"), ".sensortowerR", "id_cache.rds"), "\n")
+  cat("  Cache location: ", file.path(get_cache_dir(), "id_cache.rds"), "\n")
 
   invisible(cache)
 }

@@ -107,10 +107,10 @@ cat("==================\n")
 # Save current cache stats
 cache_stats_before <- st_cache_info()
 
-# The cache is automatically saved and will be available in the next R session
-cat("\nCache is automatically saved to:", 
-    file.path(Sys.getenv("HOME"), ".sensortowerR", "id_cache.rds"), "\n")
-cat("It will be automatically loaded on next package load.\n")
+# To persist cache between sessions, explicitly call save_id_cache()
+cat("\nTo save cache for future sessions, call save_id_cache()\n")
+cat("Cache location (CRAN-compliant): ", tools::R_user_dir("sensortowerR", "cache"), "\n")
+cat("To load cached data in a new session, call load_id_cache()\n")
 
 # 10. ID Type Detection Demo
 cat("\n\nID TYPE DETECTION:\n")
