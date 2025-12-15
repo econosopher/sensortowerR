@@ -189,7 +189,7 @@ Cache is stored in the CRAN-compliant location: `tools::R_user_dir("sensortowerR
 
 ## Changelog
 
-See [NEWS.md](NEWS.md) for version history and changes.
+See [NEWS.md](https://github.com/econosopher/sensortowerR/blob/main/NEWS.md) for version history and changes.
 
 ## Contributing
 

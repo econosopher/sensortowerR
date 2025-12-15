@@ -1,3 +1,13 @@
+# sensortowerR 0.9.2
+
+## CRAN Submission Fix
+
+* **FIXED** Invalid file URI in README.md
+  - Changed `[NEWS.md](NEWS.md)` to full GitHub URL
+  - CRAN check was flagging relative file path as invalid URI
+
+---
+
 # sensortowerR 0.9.1
 
 ## CRAN Compliance Fix
