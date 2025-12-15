@@ -11,7 +11,7 @@ st_batch_metrics(
   date_range = list(start_date = Sys.Date() - 90, end_date = Sys.Date() - 1),
   countries,
   granularity,
-  parallel = TRUE,
+  parallel = FALSE,
   cache_dir = NULL,
   verbose = TRUE,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
@@ -44,7 +44,7 @@ This determines which platform's data is returned for all apps.}
 
 \item{granularity}{Character. Date granularity (default "monthly")}
 
-\item{parallel}{Logical. Use parallel processing (default TRUE)}
+\item{parallel}{Logical. Use parallel processing (default FALSE)}
 
 \item{cache_dir}{Character. Directory for caching results (optional)}
 

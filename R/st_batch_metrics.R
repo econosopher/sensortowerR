@@ -19,7 +19,7 @@
 #' @param date_range List with start_date and end_date, or "ytd" for year-to-date
 #' @param countries Character vector. Country codes. Required.
 #' @param granularity Character. Date granularity (default "monthly")
-#' @param parallel Logical. Use parallel processing (default TRUE)
+#' @param parallel Logical. Use parallel processing (default FALSE)
 #' @param cache_dir Character. Directory for caching results (optional)
 #' @param verbose Logical. Show progress messages (default TRUE)
 #' @param auth_token Character string. Your Sensor Tower API authentication token.
