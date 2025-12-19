@@ -1,3 +1,33 @@
+# sensortowerR 0.9.3
+
+## New Features
+
+* **`st_session_metrics()` - Session Metrics Time Series**
+  - New function to retrieve session metrics data from Sensor Tower Usage Intelligence API
+  - Supports metrics: `session_count`, `session_duration`, `time_spent`, `total_session_count`, `total_time_spent`
+  - Data available from 2021-01-01 onward
+  - Supports both unified app IDs and platform-specific IDs
+  - Configurable date granularity: daily, weekly, or monthly
+  - Configurable time period: day or week
+  - Uses the `/v1/apps/timeseries/unified_apps` endpoint for unified apps
+  - Uses the `/v1/apps/timeseries` endpoint for platform-specific apps
+
+## Example Usage
+
+```r
+# Get session metrics for an app
+sessions <- st_session_metrics(
+  unified_app_id = "5fbc3849d0b8414136857afc",
+  start_date = "2024-01-01",
+  end_date = "2024-12-01",
+  metrics = c("session_count", "session_duration", "time_spent"),
+  regions = "US",
+  date_granularity = "monthly"
+)
+```
+
+---
+
 # sensortowerR 0.9.2
 
 ## CRAN Submission Fix

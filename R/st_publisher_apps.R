@@ -233,11 +233,21 @@ st_publisher_apps <- function(unified_id = NULL,
       Sys.sleep(0.2)  # Rate limiting
     }
 
-    # Update result with canonical IDs
+    # Update result with canonical IDs and preserve mapping
     canonical_df <- dplyr::bind_rows(canonical_ids)
+
+    # Store original ID before replacing
+    result$original_unified_app_id <- result[[id_col]]
     result[[id_col]] <- canonical_df$canonical_id
 
-    # Deduplicate by canonical unified_app_id
+    # Add canonical_id column for apps that were remapped
+    result$canonical_id <- ifelse(
+      result$original_unified_app_id != result[[id_col]],
+      result[[id_col]],
+      NA_character_
+    )
+
+    # Deduplicate by canonical unified_app_id (keep first occurrence with name)
     n_before <- nrow(result)
     result <- result %>%
       dplyr::distinct(dplyr::across(dplyr::all_of(id_col)), .keep_all = TRUE)
@@ -247,10 +257,81 @@ st_publisher_apps <- function(unified_id = NULL,
       message("Deduplicated: ", n_before, " -> ", n_after, " unique apps")
     }
 
+    # Create a canonical ID -> name lookup for use by other functions
+    # This includes ALL canonical IDs (including those from remapped apps)
+    name_lookup <- canonical_df %>%
+      dplyr::select(unified_app_id = canonical_id, app_name) %>%
+      dplyr::distinct(unified_app_id, .keep_all = TRUE)
+
+    attr(result, "canonical_name_lookup") <- name_lookup
+
     if (verbose) {
       message("Aggregation complete. ", nrow(result), " apps with canonical IDs.")
     }
   }
 
   return(result)
+}
+
+
+#' Get App Names from Publisher Apps Result
+#'
+#' Helper function to create a name lookup table from the result of
+#' `st_publisher_apps()`. This handles canonical ID mapping automatically,
+#' so you can join sales data (which uses canonical IDs) back to app names.
+#'
+#' @param apps_df A tibble returned by `st_publisher_apps()`.
+#' @param include_canonical Logical. If TRUE, includes mappings for canonical IDs
+#'   that were resolved during aggregation. Defaults to TRUE.
+#'
+#' @return A tibble with columns `unified_app_id` and `app_name` suitable for
+#'   joining with sales data or other API results.
+#'
+#' @examples
+#' \dontrun{
+#' # Get apps with canonical ID resolution
+#' apps <- st_publisher_apps("647eb849d9d91f31a54f1792", aggregate_related = TRUE)
+#'
+#' # Get name lookup table
+#' name_lookup <- st_get_app_names(apps)
+#'
+#' # Use with sales data
+#' sales <- st_unified_sales_report(apps$unified_app_id, ...)
+#' sales_with_names <- sales %>%
+#'   left_join(name_lookup, by = "unified_app_id")
+#' }
+#'
+#' @export
+st_get_app_names <- function(apps_df, include_canonical = TRUE) {
+  if (!is.data.frame(apps_df)) {
+    rlang::abort("apps_df must be a data frame from st_publisher_apps()")
+  }
+
+  # Determine column names
+  id_col <- intersect(c("unified_app_id", "app_id"), names(apps_df))[1]
+  name_col <- intersect(c("unified_app_name", "name", "app_name"), names(apps_df))[1]
+
+
+  if (is.na(id_col) || is.na(name_col)) {
+    rlang::abort("Could not find unified_app_id and app_name columns in apps_df")
+  }
+
+  # Start with the main mapping
+  name_lookup <- apps_df %>%
+    dplyr::select(
+      unified_app_id = dplyr::all_of(id_col),
+      app_name = dplyr::all_of(name_col)
+    ) %>%
+    dplyr::distinct()
+
+  # Add canonical ID mappings if available
+  if (include_canonical) {
+    canonical_lookup <- attr(apps_df, "canonical_name_lookup")
+    if (!is.null(canonical_lookup) && nrow(canonical_lookup) > 0) {
+      name_lookup <- dplyr::bind_rows(name_lookup, canonical_lookup) %>%
+        dplyr::distinct(unified_app_id, .keep_all = TRUE)
+    }
+  }
+
+  return(name_lookup)
 }
