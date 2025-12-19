@@ -228,10 +228,8 @@ batch_resolve_ids <- function(ids, auth_token = Sys.getenv("SENSORTOWER_AUTH_TOK
     }
   }
   
-  # Auto-save cache periodically
-  if (use_cache && length(get_id_cache()) %% 50 == 0) {
-    save_id_cache()
-  }
+  # NOTE: Auto-save removed to comply with CRAN policy.
+  # Users must explicitly call save_id_cache() to persist the cache.
   
   results
 }

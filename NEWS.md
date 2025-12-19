@@ -1,3 +1,17 @@
+# sensortowerR 0.9.4
+
+## CRAN Policy Compliance
+
+* **FIXED** File writing to user's home filespace
+  - `st_publisher_portfolio()`: Changed `cache_dir` default from `"data/"` to `NULL`
+  - Caching is now disabled by default; users must explicitly set `cache_dir` to enable
+  - Added validation requiring `cache_dir` when `use_cache = TRUE`
+  - Removed automatic cache saving in ID resolution functions
+  - Updated tests to use `tempdir()` instead of default cache paths
+  - Added `tests/manual` to `.Rbuildignore`
+
+---
+
 # sensortowerR 0.9.3
 
 ## New Features

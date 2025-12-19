@@ -54,6 +54,7 @@ inst/images/logo_creation.R
 ^endpoint_test_results\.rds$
 ^unified_daily_fix_summary\.md$
 ^inst/test_scripts$
+^tests/manual$
 ^sensortowerR\.code-workspace$
 ^\.RData_backup$
 ^test_edit\.txt$

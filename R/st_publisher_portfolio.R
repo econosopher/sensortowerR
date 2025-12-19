@@ -26,8 +26,10 @@
 #' @param auth_token Character. Sensor Tower API token. Defaults to
 #'   SENSORTOWER_AUTH_TOKEN environment variable
 #' @param verbose Logical. Print progress messages. Default: TRUE.
-#' @param use_cache Logical. Use cached data if available. Default: TRUE.
-#' @param cache_dir Character. Directory for cached data. Default: "data/".
+#' @param use_cache Logical. Use cached data if available. Default: FALSE.
+#'   When TRUE, requires cache_dir to be specified.
+#' @param cache_dir Character. Directory for cached data. Default: NULL (no caching).
+#'   Must be explicitly set to enable caching. Use tempdir() for temporary caching.
 #'
 #' @return A tibble with portfolio data including:
 #'   - app_name: Game name
@@ -83,13 +85,23 @@ st_publisher_portfolio <- function(publisher = NULL,
                                     min_revenue = 100000,
                                     auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                                     verbose = TRUE,
-                                    use_cache = TRUE,
-                                    cache_dir = "data/") {
+                                    use_cache = FALSE,
+                                    cache_dir = NULL) {
 
 
   # --- Input Validation ---
   if (is.null(publisher) && is.null(publisher_id)) {
     rlang::abort("Either 'publisher' (name) or 'publisher_id' must be provided")
+  }
+
+  # Validate cache settings - cache_dir must be provided if caching is enabled
+
+  if (use_cache && is.null(cache_dir)) {
+    rlang::abort(c(
+      "cache_dir must be specified when use_cache = TRUE",
+      "i" = "Use cache_dir = tempdir() for temporary caching",
+      "i" = "Or set use_cache = FALSE to disable caching"
+    ))
   }
 
   metrics <- tolower(metrics)
@@ -99,7 +111,7 @@ st_publisher_portfolio <- function(publisher = NULL,
       "Invalid metrics: {paste(setdiff(metrics, valid_metrics), collapse = ', ')}. ",
       "Valid options: {paste(valid_metrics, collapse = ', ')}"
     ))
-}
+  }
 
   granularity <- match.arg(granularity, c("yearly", "quarterly", "monthly"))
 
@@ -110,8 +122,8 @@ st_publisher_portfolio <- function(publisher = NULL,
   start_date <- as.Date(start_date)
   end_date <- as.Date(end_date)
 
-  # Create cache directory if needed
-  if (use_cache && !dir.exists(cache_dir)) {
+  # Create cache directory if needed (only when user explicitly provides cache_dir)
+  if (use_cache && !is.null(cache_dir) && !dir.exists(cache_dir)) {
     dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
   }
 

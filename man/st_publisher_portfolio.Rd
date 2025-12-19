@@ -17,8 +17,8 @@ st_publisher_portfolio(
   min_revenue = 1e+05,
   auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
   verbose = TRUE,
-  use_cache = TRUE,
-  cache_dir = "data/"
+  use_cache = FALSE,
+  cache_dir = NULL
 )
 }
 \arguments{
@@ -56,9 +56,11 @@ SENSORTOWER_AUTH_TOKEN environment variable}
 
 \item{verbose}{Logical. Print progress messages. Default: TRUE.}
 
-\item{use_cache}{Logical. Use cached data if available. Default: TRUE.}
+\item{use_cache}{Logical. Use cached data if available. Default: FALSE.
+When TRUE, requires cache_dir to be specified.}
 
-\item{cache_dir}{Character. Directory for cached data. Default: "data/".}
+\item{cache_dir}{Character. Directory for cached data. Default: NULL (no caching).
+Must be explicitly set to enable caching. Use tempdir() for temporary caching.}
 }
 \value{
 A tibble with portfolio data including:

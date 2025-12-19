@@ -24,14 +24,17 @@ test_that("cache operations work correctly", {
   lookup_cached_id <- sensortowerR:::lookup_cached_id
   save_id_cache <- sensortowerR:::save_id_cache
   load_id_cache <- sensortowerR:::load_id_cache
-  
-  # Clear cache first
-  st_clear_id_cache(disk = TRUE)
-  
+
+  # Use tempdir for CRAN compliance
+  test_cache_path <- file.path(tempdir(), "sensortowerR_test_cache.rds")
+
+  # Clear cache first (memory only for this test)
+  st_clear_id_cache(disk = FALSE)
+
   # Verify cache is empty
   cache <- get_id_cache()
   expect_equal(length(cache), 0)
-  
+
   # Add an entry to cache
   cache_id_mapping(
     input_id = "test123",
@@ -40,11 +43,11 @@ test_that("cache operations work correctly", {
     unified_id = "abcdef123456789012345678",
     app_name = "Test App"
   )
-  
+
   # Verify entry was added
   cache <- get_id_cache()
   expect_gt(length(cache), 0)
-  
+
   # Lookup by different IDs (cache uses _app_id suffix)
   result1 <- lookup_cached_id("test123")
   expect_equal(result1$ios_app_id, "123456789")
@@ -55,45 +58,50 @@ test_that("cache operations work correctly", {
 
   result3 <- lookup_cached_id("com.test.app")
   expect_equal(result3$unified_app_id, "abcdef123456789012345678")
-  
-  # Test cache persistence
-  save_id_cache()
-  
-  # Clear and reload cache to test persistence
-  st_clear_id_cache(disk = FALSE)  # Only clear memory, not disk
-  
-  # Load from disk
-  load_id_cache()
-  
+
+  # Test cache persistence using tempdir
+  save_id_cache(path = test_cache_path)
+
+  # Clear memory cache
+  st_clear_id_cache(disk = FALSE)
+
+  # Load from tempdir
+  load_id_cache(path = test_cache_path)
+
   # Verify data persisted
   result4 <- lookup_cached_id("test123")
   expect_equal(result4$app_name, "Test App")
-  
-  # Clean up
-  st_clear_id_cache(disk = TRUE)
+
+  # Clean up - remove temp file and clear memory
+  if (file.exists(test_cache_path)) {
+    file.remove(test_cache_path)
+  }
+  st_clear_id_cache(disk = FALSE)
 })
 
 test_that("st_cache_info displays correct information", {
-  # Clear cache first
-  st_clear_id_cache(disk = TRUE)
-  
+  # Get internal function
+  cache_id_mapping <- sensortowerR:::cache_id_mapping
+
+  # Clear cache first (memory only for CRAN compliance)
+  st_clear_id_cache(disk = FALSE)
+
   # Add some test entries
   cache_id_mapping("app1", ios_id = "111", app_name = "App 1")
   cache_id_mapping("app2", android_id = "com.app2", app_name = "App 2")
   cache_id_mapping("app3", ios_id = "333", android_id = "com.app3", app_name = "App 3")
-  
+
   # Capture output
-  # Capture cache info
   cache_output <- capture.output(st_cache_info())
-  
+
   # Verify the cache contains expected entries (don't check exact counts due to test isolation)
   expect_true(any(grepl("Total entries:", cache_output)))
   expect_true(any(grepl("Apps with iOS ID:", cache_output)))
   expect_true(any(grepl("Apps with Android ID:", cache_output)))
   expect_true(any(grepl("Apps with both platforms:", cache_output)))
-  
-  # Clean up
-  st_clear_id_cache(disk = TRUE)
+
+  # Clean up (memory only)
+  st_clear_id_cache(disk = FALSE)
 })
 
 test_that("st_smart_metrics wrapper exports exist", {
