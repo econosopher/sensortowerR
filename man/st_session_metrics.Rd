@@ -50,7 +50,9 @@ Options: "day", "week". Default is "week".
 Returns averaged session metrics for each period within a month.}
 
 \item{date_granularity}{Character string. Aggregate data by granularity.
-Options: "daily", "weekly", "monthly". Default is "monthly".}
+Options: "daily", "weekly", "monthly". Default is "monthly".
+Note: "daily" granularity may not be supported by the API for all apps;
+use "weekly" or "monthly" if you receive empty results with "daily".}
 
 \item{os}{Character string. Filter by platform for unified apps.
 Options: "ios", "android", or NULL for both. Default is NULL.}
@@ -93,13 +95,13 @@ sessions <- st_session_metrics(
   end_date = "2024-12-01"
 )
 
-# Get specific metrics with daily granularity
+# Get specific metrics with weekly granularity
 sessions <- st_session_metrics(
   unified_app_id = "5fbc3849d0b8414136857afc",
   start_date = "2024-01-01",
   end_date = "2024-03-01",
   metrics = c("session_count", "session_duration"),
-  date_granularity = "daily"
+  date_granularity = "weekly"
 )
 
 # Get session data for Android app directly

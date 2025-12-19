@@ -7,7 +7,7 @@
   - Supports metrics: `session_count`, `session_duration`, `time_spent`, `total_session_count`, `total_time_spent`
   - Data available from 2021-01-01 onward
   - Supports both unified app IDs and platform-specific IDs
-  - Configurable date granularity: daily, weekly, or monthly
+  - Configurable date granularity: weekly or monthly (daily may not be supported for all apps)
   - Configurable time period: day or week
   - Uses the `/v1/apps/timeseries/unified_apps` endpoint for unified apps
   - Uses the `/v1/apps/timeseries` endpoint for platform-specific apps
