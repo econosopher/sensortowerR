@@ -7,7 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include = FALSE, purl=FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r}
+```{r, purl=FALSE}
 library(sensortowerR)
 library(dplyr)
 ```
@@ -41,7 +41,7 @@ Sensor Tower tracks over 400 custom fields for apps, including:
 
 First, explore what custom fields are available:
 
-```{r discover}
+```{r discover, purl=FALSE}
 # See all available fields
 all_fields <- st_discover_fields()
 head(all_fields)
@@ -58,7 +58,7 @@ genre_fields <- st_discover_fields("genre", show_values = TRUE)
 
 Create filters for common scenarios:
 
-```{r simple-filters}
+```{r simple-filters, purl=FALSE}
 # Filter for Word games
 word_filter <- st_create_simple_filter(
   field_name = "Game Sub-genre",
@@ -77,7 +77,7 @@ free_with_ads <- st_create_simple_filter(
 
 Use filters to get app data:
 
-```{r get-apps}
+```{r get-apps, purl=FALSE}
 # Get top Word games by DAU
 word_games <- st_get_filtered_apps(
   field_name = "Game Sub-genre",
@@ -101,7 +101,7 @@ apps <- st_get_filtered_apps(
 
 ### Genre and Sub-Genre Filtering
 
-```{r genre-filtering}
+```{r genre-filtering, purl=FALSE}
 # Get Puzzle games
 puzzle_filter <- st_filter_by_genre(genres = "Puzzle")
 
@@ -120,7 +120,7 @@ no_action_filter <- st_filter_by_genre(
 
 ### Monetization Model Filtering
 
-```{r monetization}
+```{r monetization, purl=FALSE}
 # Free-to-play with ads
 f2p_ads <- st_filter_by_monetization(
   free_only = TRUE,
@@ -147,7 +147,7 @@ hybrid <- st_filter_by_monetization(
 
 ### SDK and Technology Filtering
 
-```{r sdk-filtering}
+```{r sdk-filtering, purl=FALSE}
 # Unity-based games
 unity_games <- st_filter_by_sdk(sdk_names = "Unity")
 
@@ -165,7 +165,7 @@ no_facebook <- st_filter_by_sdk(
 
 ### Date-Based Filtering
 
-```{r date-filtering}
+```{r date-filtering, purl=FALSE}
 # New releases (last 30 days)
 new_releases <- st_filter_by_date(
   released_after = Sys.Date() - 30,
@@ -188,7 +188,7 @@ established <- st_filter_by_date(
 
 ### Publisher Filtering
 
-```{r publisher}
+```{r publisher, purl=FALSE}
 # Apps from specific publishers
 ea_games <- st_filter_by_publisher(
   publisher_names = c("Electronic Arts", "EA Swiss Sarl")
@@ -205,7 +205,7 @@ indie_games <- st_filter_by_publisher(
 
 Use pre-built filter collections for common analyses:
 
-```{r collections}
+```{r collections, purl=FALSE}
 # Get genre filter collection
 genres <- st_get_filter_collection("top_genres")
 
@@ -240,7 +240,7 @@ f2p_iap_apps <- st_get_filtered_apps(
 
 Create sophisticated filters by combining multiple criteria:
 
-```{r complex}
+```{r complex, purl=FALSE}
 # Create a complex filter manually
 complex_filter <- st_custom_fields_filter(
   custom_fields = list(
@@ -281,7 +281,7 @@ high_retention_puzzle <- st_get_filtered_apps(
 
 Once you have filtered apps, analyze them:
 
-```{r analysis}
+```{r analysis, purl=FALSE}
 # Get comprehensive analysis
 analysis <- st_analyze_filter(
   filter_id = word_filter,
@@ -313,7 +313,7 @@ word_games %>%
 
 Custom fields filters integrate seamlessly with other package functions:
 
-```{r integration}
+```{r integration, purl=FALSE}
 # Use with st_top_charts
 top_word_games <- st_top_charts(
   os = "unified",
@@ -348,7 +348,7 @@ if (nrow(matching_apps$data) > 0) {
 
 Filter IDs are permanent and reusable. Save them for repeated use:
 
-```{r caching}
+```{r caching, purl=FALSE}
 # Save commonly used filters
 my_filters <- list(
   word_games = "603697f4241bc16eb8570d37",
@@ -368,7 +368,7 @@ my_filters <- readRDS("my_sensor_tower_filters.rds")
 
 Always verify what a filter contains:
 
-```{r validation}
+```{r validation, purl=FALSE}
 # Check filter details
 filter_details <- st_custom_fields_filter_by_id(
   id = "603697f4241bc16eb8570d37"
@@ -381,7 +381,7 @@ print(filter_details$custom_fields)
 
 When working with broad filters:
 
-```{r large-results}
+```{r large-results, purl=FALSE}
 # Use pagination for large result sets
 all_puzzle_games <- st_app_tag(
   app_id_type = "unified",
@@ -409,7 +409,7 @@ if (!is.null(all_puzzle_games$last_known_id)) {
 
 ### Debugging Filters
 
-```{r debug}
+```{r debug, purl=FALSE}
 # Test filter creation
 tryCatch({
   filter_id <- st_create_simple_filter(
@@ -440,7 +440,7 @@ Key takeaways:
 - Cache filter IDs for improved performance
 
 For more information, see the function documentation:
-```{r help, eval=FALSE}
+```{r help, eval=FALSE, purl=FALSE}
 ?st_custom_fields_filter
 ?st_get_filtered_apps
 ?st_filter_by_genre
