@@ -2,12 +2,11 @@
 
 This is a resubmission. In this version I have:
 
-* **FIXED** the CRAN policy violation regarding writing to user's home filespace:
-  - `st_publisher_portfolio()`: Changed `cache_dir` default from `"data/"` to `NULL`
-  - Caching is now disabled by default; users must explicitly set `cache_dir` to enable
-  - Removed automatic cache saving in ID resolution functions
-  - Updated tests to use `tempdir()` instead of default cache paths
-  - Added `tests/manual` to `.Rbuildignore`
+* **FIXED** `st_game_summary(os = "unified")` returning empty results
+  - The `games_breakdown` API only supports `ios` and `android`
+  - Unified mode now fetches both platforms and combines results
+  - Adds `Total Downloads` and `Total Revenue` columns in unified mode
+  - Documentation updated to clarify unified behavior
 
 ## Test environments
 

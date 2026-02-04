@@ -1,3 +1,15 @@
+# sensortowerR 0.9.5
+
+## Bug Fixes
+
+* **FIXED** `st_game_summary(os = "unified")` returning empty results
+  - The underlying `games_breakdown` API only supports `ios` and `android`
+  - `os = "unified"` now automatically fetches both platforms and combines results
+  - Adds `Total Downloads` and `Total Revenue` columns in unified mode
+  - Documentation updated to clarify unified behavior
+
+---
+
 # sensortowerR 0.9.4
 
 ## CRAN Policy Compliance

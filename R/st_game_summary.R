@@ -10,7 +10,9 @@
 #' @param countries Character vector or comma-separated string. Country codes 
 #'   (e.g., `"US"`, `c("US", "GB")`, `"WW"` for worldwide) to analyze. Required.
 #' @param os Character string. Operating System. Must be one of "ios", "android", 
-#'   or "unified". Required.
+#'   or "unified". Required. Note: The underlying API only supports "ios" and "android";
+#'   when `os = "unified"` this function automatically fetches both platforms and
+#'   combines them into a single table with total columns.
 #' @param date_granularity Character string. Time granularity for aggregation. 
 #'   Must be one of "daily", "weekly", "monthly", or "quarterly". Required.
 #' @param start_date Character string or Date object. Start date for the query 
@@ -25,8 +27,9 @@
 #' @return A [tibble][tibble::tibble] with game market summary data including:
 #'   - **Category information**: Game category details
 #'   - **Geographic data**: Country-level breakdowns
-#'   - **Downloads**: Unified iOS (iPhone + iPad combined) and Android download estimates
-#'   - **Revenue**: Unified iOS (iPhone + iPad combined) and Android revenue estimates
+#'   - **Downloads**: iOS (iPhone + iPad combined) and Android download estimates
+#'   - **Revenue**: iOS (iPhone + iPad combined) and Android revenue estimates
+#'   - **Totals (unified only)**: `Total Downloads`, `Total Revenue`
 #'   - **Time series**: Data broken down by specified granularity
 #'   
 #'   **Automatic Data Combination**: For iOS and unified platforms, iPhone and iPad
@@ -35,6 +38,7 @@
 #'
 #' @section API Endpoint Used:
 #'   - **Game Summary**: `GET /v1/\{os\}/games_breakdown`
+#'     (API only supports `os = "ios"` or `os = "android"`; unified is synthesized)
 #'
 #' @section Field Mappings and Processing:
 #'   The API returns abbreviated field names which are automatically mapped to 
@@ -131,7 +135,64 @@ st_game_summary <- function(categories = 7001,
     countries <- paste(countries, collapse = ",")
   }
   
-  # Build API request
+  # If unified requested, fetch iOS + Android and combine
+  if (os == "unified") {
+    message("Note: games_breakdown does not support os='unified'; combining iOS + Android results.")
+    ios_res <- tryCatch(
+      st_game_summary(
+        categories = categories,
+        countries = countries,
+        os = "ios",
+        date_granularity = date_granularity,
+        start_date = start_date,
+        end_date = end_date,
+        auth_token = auth_token_val,
+        base_url = base_url,
+        enrich_response = enrich_response
+      ),
+      error = function(e) tibble::tibble()
+    )
+    android_res <- tryCatch(
+      st_game_summary(
+        categories = categories,
+        countries = countries,
+        os = "android",
+        date_granularity = date_granularity,
+        start_date = start_date,
+        end_date = end_date,
+        auth_token = auth_token_val,
+        base_url = base_url,
+        enrich_response = enrich_response
+      ),
+      error = function(e) tibble::tibble()
+    )
+
+    if (nrow(ios_res) == 0 && nrow(android_res) == 0) {
+      return(tibble::tibble())
+    }
+
+    # Join on shared keys to keep a single row per date/country/category
+    shared_keys <- intersect(names(ios_res), names(android_res))
+    joined <- dplyr::full_join(ios_res, android_res, by = shared_keys)
+
+    # Add total columns when platform-specific metrics exist
+    if ("iOS Downloads" %in% names(joined) || "Android Downloads" %in% names(joined)) {
+      joined$`Total Downloads` <- rowSums(
+        joined[, intersect(c("iOS Downloads", "Android Downloads"), names(joined)), drop = FALSE],
+        na.rm = TRUE
+      )
+    }
+    if ("iOS Revenue" %in% names(joined) || "Android Revenue" %in% names(joined)) {
+      joined$`Total Revenue` <- rowSums(
+        joined[, intersect(c("iOS Revenue", "Android Revenue"), names(joined)), drop = FALSE],
+        na.rm = TRUE
+      )
+    }
+
+    return(joined)
+  }
+
+  # Build API request (platform-specific)
   path_segments <- c("v1", os, "games_breakdown")
   
   query_params <- list(

@@ -25,7 +25,9 @@ to find valid category IDs.}
 (e.g., `"US"`, `c("US", "GB")`, `"WW"` for worldwide) to analyze. Required.}
 
 \item{os}{Character string. Operating System. Must be one of "ios", "android", 
-or "unified". Required.}
+or "unified". Required. Note: The underlying API only supports "ios" and "android";
+when `os = "unified"` this function automatically fetches both platforms and
+combines them into a single table with total columns.}
 
 \item{date_granularity}{Character string. Time granularity for aggregation. 
 Must be one of "daily", "weekly", "monthly", or "quarterly". Required.}
@@ -47,8 +49,9 @@ the response with readable column names and processes the data.}
 A [tibble][tibble::tibble] with game market summary data including:
   - **Category information**: Game category details
   - **Geographic data**: Country-level breakdowns
-  - **Downloads**: Unified iOS (iPhone + iPad combined) and Android download estimates
-  - **Revenue**: Unified iOS (iPhone + iPad combined) and Android revenue estimates
+  - **Downloads**: iOS (iPhone + iPad combined) and Android download estimates
+  - **Revenue**: iOS (iPhone + iPad combined) and Android revenue estimates
+  - **Totals (unified only)**: `Total Downloads`, `Total Revenue`
   - **Time series**: Data broken down by specified granularity
   
   **Automatic Data Combination**: For iOS and unified platforms, iPhone and iPad
@@ -63,6 +66,7 @@ performance across different segments.
 \section{API Endpoint Used}{
 
   - **Game Summary**: `GET /v1/\{os\}/games_breakdown`
+    (API only supports `os = "ios"` or `os = "android"`; unified is synthesized)
 }
 
 \section{Field Mappings and Processing}{
