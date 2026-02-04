@@ -11,7 +11,8 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = FALSE,
+  purl = FALSE
 )
 ```
 
@@ -297,8 +298,8 @@ print(analysis$top_apps)
 # Custom analysis on filtered data
 word_games %>%
   mutate(
-    dau = `aggregate_tags.Last 30 Days Average DAU (US)`,
-    retention_d7 = `aggregate_tags.Day 7 Retention (Last Quarter, US)`
+    dau = dplyr::coalesce(dau_30d_us, users_absolute),
+    retention_d7 = dplyr::coalesce(retention_7d_us, `aggregate_tags.Day 7 Retention (Last Quarter, US)`)
   ) %>%
   filter(!is.na(dau)) %>%
   summarise(
