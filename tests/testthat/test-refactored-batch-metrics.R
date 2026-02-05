@@ -66,3 +66,39 @@ test_that("finalize_batch_results_internal handles empty and valid results", {
     expect_equal(final$app_id_type[final$original_id == "1"], "unified_pair")
     expect_equal(final$app_id_type[final$original_id == "2"], "ios")
 })
+
+test_that("active user time period helpers map values correctly", {
+    expect_equal(sensortowerR:::active_users_default_time_period("daily"), "day")
+    expect_equal(sensortowerR:::active_users_default_time_period("weekly"), "week")
+    expect_equal(sensortowerR:::active_users_default_time_period("monthly"), "month")
+    expect_equal(sensortowerR:::active_users_default_time_period("quarterly"), "quarter")
+    expect_equal(sensortowerR:::active_users_default_time_period("unknown"), "month")
+
+    expect_equal(sensortowerR:::active_users_time_period_for_metric("dau", "month"), "day")
+    expect_equal(sensortowerR:::active_users_time_period_for_metric("wau", "month"), "week")
+    expect_equal(sensortowerR:::active_users_time_period_for_metric("mau", "week"), "month")
+    expect_equal(sensortowerR:::active_users_time_period_for_metric("custom", "quarter"), "quarter")
+})
+
+test_that("build_active_users_request_plan creates batched platform-metric requests", {
+    apps_df <- tibble::tibble(
+        app_id = c("1", "2"),
+        ios_id = c("101", "102"),
+        android_id = c("com.a", "com.b")
+    )
+
+    plan_both <- sensortowerR:::build_active_users_request_plan(
+        group = apps_df,
+        group_name = "both",
+        active_user_metrics = c("dau", "mau")
+    )
+
+    expect_equal(nrow(plan_both), 4)
+    expect_equal(sort(unique(plan_both$platform)), c("android", "ios"))
+    expect_true(all(sort(unique(plan_both$metric)) == c("dau", "mau")))
+
+    ios_ids <- plan_both$app_ids[plan_both$platform == "ios"][[1]]
+    android_ids <- plan_both$app_ids[plan_both$platform == "android"][[1]]
+    expect_equal(sort(ios_ids), c("101", "102"))
+    expect_equal(sort(android_ids), c("com.a", "com.b"))
+})

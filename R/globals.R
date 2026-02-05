@@ -34,6 +34,7 @@ utils::globalVariables(c(
   "android_id",
   "android_only",
   "app_id",
+  "app_id_type",
   "both_id",
   "custom_fields",
   "ios_id",

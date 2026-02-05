@@ -56,10 +56,10 @@ st_get_unified_mapping <- function(app_ids,
   }
   
   # Get auth token
-  auth_token_val <- auth_token
-  if (!nzchar(auth_token_val)) {
-    rlang::abort("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
   
   # Initialize result data frame
   result_df <- data.frame(

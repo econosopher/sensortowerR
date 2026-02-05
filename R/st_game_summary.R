@@ -114,12 +114,10 @@ st_game_summary <- function(categories = 7001,
   }
   
   # --- Authentication ---
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Please set it as an environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set it as an environment variable."
+  )
   
   # Convert dates to proper format
   start_date <- as.character(as.Date(start_date))
@@ -193,7 +191,7 @@ st_game_summary <- function(categories = 7001,
   }
 
   # Build API request (platform-specific)
-  path_segments <- c("v1", os, "games_breakdown")
+  path_segments <- st_endpoint_segments("games_breakdown", os = os)
   
   query_params <- list(
     auth_token = auth_token_val,

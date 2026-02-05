@@ -108,12 +108,10 @@ st_demographics <- function(unified_app_id = NULL,
   }
 
   # Authentication
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
 
   # Resolve IDs - the demographics endpoint requires platform-specific IDs
   platforms_to_query <- list()
@@ -240,14 +238,13 @@ fetch_demographics_for_platform <- function(app_id,
   }
 
   # Build request
-  base_url <- "https://api.sensortower.com"
-
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", os, "usage", "demographics") %>%
-    httr2::req_url_query(!!!query_params) %>%
+  req <- build_request(
+    base_url = st_api_base_url(),
+    path_segments = st_endpoint_segments("usage_demographics", os = os),
+    query_params = query_params
+  ) %>%
     httr2::req_headers(
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR (https://github.com/ge-data-solutions/sensortowerR)"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_timeout(30)
 

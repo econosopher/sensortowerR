@@ -39,6 +39,8 @@
 #'   - `publisher_email`: Developer email (if include_developer_contacts = TRUE)
 #'   - `publisher_address`: Developer address (if include_developer_contacts = TRUE)
 #'   - `publisher_country`: Developer country
+#'   - `ios_app_id`: Primary iOS app ID (for `os = "unified"`, when available)
+#'   - `android_app_id`: Primary Android app ID (for `os = "unified"`, when available)
 #'   - Additional platform-specific fields
 #'
 #' @section API Endpoint Used:
@@ -91,27 +93,29 @@ st_app_details <- function(app_ids,
   }
   
   # Authentication
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      c("Authentication token not found.",
-        "Set SENSORTOWER_AUTH_TOKEN environment variable or pass via auth_token argument.")
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable or pass via auth_token argument."
+  )
   
   # Build query parameters
   query_params <- list(
     auth_token = auth_token_val,
     app_ids = paste(app_ids, collapse = ",")
   )
+
+  # Unified app details endpoint requires app_id_type.
+  if (os == "unified") {
+    query_params$app_id_type <- "unified"
+  }
   
   if (include_developer_contacts) {
     query_params$attributes = "contact_info"
   }
   
   # Build and perform request
-  path <- c("v1", os, "apps")
-  req <- build_request("https://api.sensortower.com", path, query_params)
+  path <- st_endpoint_segments("apps", os = os)
+  req <- build_request(st_api_base_url(), path, query_params)
   resp <- perform_request(req)
   
   # Process response
@@ -206,6 +210,28 @@ process_app_details_response <- function(resp, os) {
     if ("developer_address" %in% names(result_tbl) && !"publisher_address" %in% names(result_tbl)) {
       result_tbl <- dplyr::rename(result_tbl, publisher_address = developer_address)
     }
+  } else if (os == "unified") {
+    if ("name" %in% names(result_tbl) && !"app_name" %in% names(result_tbl)) {
+      result_tbl <- dplyr::rename(result_tbl, app_name = name)
+    }
+
+    if ("unified_app_id" %in% names(result_tbl) && !"app_id" %in% names(result_tbl)) {
+      result_tbl <- dplyr::rename(result_tbl, app_id = unified_app_id)
+    }
+
+    extract_first_app_id <- function(x) {
+      if (is.null(x)) return(NA_character_)
+      if (!is.data.frame(x) || nrow(x) == 0 || !"app_id" %in% names(x)) return(NA_character_)
+      as.character(x$app_id[1])
+    }
+
+    if ("itunes_apps" %in% names(result_tbl) && !"ios_app_id" %in% names(result_tbl)) {
+      result_tbl$ios_app_id <- vapply(result_tbl$itunes_apps, extract_first_app_id, character(1))
+    }
+
+    if ("android_apps" %in% names(result_tbl) && !"android_app_id" %in% names(result_tbl)) {
+      result_tbl$android_app_id <- vapply(result_tbl$android_apps, extract_first_app_id, character(1))
+    }
   }
   
   # Ensure app_id is character type for consistent joining
@@ -251,4 +277,3 @@ process_app_details_response <- function(resp, os) {
   
   return(result_tbl)
 }
-

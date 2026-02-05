@@ -109,7 +109,7 @@ test_that("unified_app_id is preserved during enrichment", {
   
   # Check that there are no duplicate unified_app_ids
   expect_equal(anyDuplicated(result$unified_app_id), 0,
-               "No duplicate unified_app_id values should exist after deduplication")
+               info = "No duplicate unified_app_id values should exist after deduplication")
 })
 
 test_that("enrichment process doesn't create duplicates", {
@@ -168,12 +168,12 @@ test_that("deduplication handles CJK characters correctly", {
       filter(n() > 1)
     
     expect_equal(nrow(duplicates), 0,
-                 "Games with CJK characters should not have duplicates")
+                 info = "Games with CJK characters should not have duplicates")
   }
   
   # Check overall for duplicates
   expect_equal(anyDuplicated(jp_games$unified_app_id), 0,
-               "No duplicates should exist in Japan market data")
+               info = "No duplicates should exist in Japan market data")
   
   # Test specific known games that might have CJK variants
   known_games <- c("Genshin", "Honkai", "原神", "崩坏")

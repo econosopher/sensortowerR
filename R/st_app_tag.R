@@ -45,12 +45,10 @@ st_app_tag <- function(
   }
   
   # --- Authentication ---
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Please set it as an environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set it as an environment variable."
+  )
   
   # --- Build Query Parameters ---
   query_params <- list(
@@ -73,16 +71,15 @@ st_app_tag <- function(
   }
   
   # --- Build Request ---
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", "app_tag", "apps") %>%
-    httr2::req_url_query(
-      app_id_type = app_id_type,
-      !!!query_params
-    ) %>%
+  request_query <- c(list(app_id_type = app_id_type), query_params)
+  req <- build_request(
+    base_url = base_url,
+    path_segments = st_endpoint_segments("app_tag_apps"),
+    query_params = request_query
+  ) %>%
     httr2::req_headers(
       "Authorization" = paste("Bearer", auth_token_val),
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_timeout(60)
   

@@ -114,12 +114,10 @@ st_app_enriched <- function(unified_app_ids,
   os <- match.arg(os, c("unified", "ios", "android"))
 
   # Authentication
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
 
   # Build filter for specific app IDs
   # The API requires a custom_fields_filter to get aggregate tags
@@ -153,15 +151,14 @@ st_app_enriched <- function(unified_app_ids,
  query_params <- query_params[!sapply(query_params, is.null)]
 
   # Build request
-  base_url <- "https://api.sensortower.com"
-
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", os, "sales_report_estimates_comparison_attributes") %>%
-    httr2::req_url_query(!!!query_params) %>%
+  req <- build_request(
+    base_url = st_api_base_url(),
+    path_segments = st_endpoint_segments("sales_report_estimates_comparison_attributes", os = os),
+    query_params = query_params
+  ) %>%
     httr2::req_headers(
       "Authorization" = paste("Bearer", auth_token_val),
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR (https://github.com/ge-data-solutions/sensortowerR)"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_timeout(60)
 

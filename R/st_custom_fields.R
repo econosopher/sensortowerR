@@ -63,12 +63,10 @@ st_custom_fields_filter <- function(
   }
   
   # --- Authentication ---
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Please set it as an environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set it as an environment variable."
+  )
   
   # --- Validate custom fields structure ---
   for (i in seq_along(custom_fields)) {
@@ -145,14 +143,16 @@ st_custom_fields_filter <- function(
   request_body <- list(custom_fields = custom_fields)
   
   # --- Build Request ---
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", "custom_fields_filter") %>%
+  req <- build_request(
+    base_url = base_url,
+    path_segments = st_endpoint_segments("custom_fields_filter"),
+    query_params = list()
+  ) %>%
     httr2::req_method("POST") %>%
     httr2::req_headers(
       "Authorization" = paste("Bearer", auth_token_val),
       "Content-Type" = "application/json",
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_body_json(request_body) %>%
     httr2::req_timeout(30)
@@ -279,20 +279,20 @@ st_custom_fields_filter_by_id <- function(
   }
   
   # --- Authentication ---
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Please set it as an environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set it as an environment variable."
+  )
   
   # --- Build Request ---
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", "custom_fields_filter", id) %>%
+  req <- build_request(
+    base_url = base_url,
+    path_segments = st_endpoint_segments("custom_fields_filter_id", id = id),
+    query_params = list()
+  ) %>%
     httr2::req_headers(
       "Authorization" = paste("Bearer", auth_token_val),
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_timeout(30)
   
@@ -364,12 +364,10 @@ st_custom_fields_values <- function(
 ) {
   
   # --- Authentication ---
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Please set it as an environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set it as an environment variable."
+  )
   
   # --- Build Query Parameters ---
   query_params <- list()
@@ -378,13 +376,14 @@ st_custom_fields_values <- function(
   }
   
   # --- Build Request ---
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", "custom_fields_filter", "fields_values") %>%
-    httr2::req_url_query(!!!query_params) %>%
+  req <- build_request(
+    base_url = base_url,
+    path_segments = st_endpoint_segments("custom_fields_filter_fields_values"),
+    query_params = query_params
+  ) %>%
     httr2::req_headers(
       "Authorization" = paste("Bearer", auth_token_val),
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_timeout(30)
   

@@ -162,12 +162,10 @@ st_top_charts <- function(measure = "revenue",
   }
   
   # --- Authentication ---
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Please set it as an environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set it as an environment variable."
+  )
   
   # Handle default device_type
   if (is.null(device_type) && os %in% c("ios", "unified")) {
@@ -227,7 +225,7 @@ st_top_charts <- function(measure = "revenue",
     )
 
     # --- Build and Perform Request for Active Users ---
-    path <- c("v1", os, "top_and_trending", "active_users")
+    path <- st_endpoint_segments("top_and_trending_active_users", os = os)
     
   } else {
     # --- Input Validation for Sales ---
@@ -266,7 +264,7 @@ st_top_charts <- function(measure = "revenue",
     )
 
     # --- Build and Perform Request for Sales ---
-    path <- c("v1", os, "sales_report_estimates_comparison_attributes")
+    path <- st_endpoint_segments("sales_report_estimates_comparison_attributes", os = os)
   }
   
   # --- Common Request Building and Processing ---

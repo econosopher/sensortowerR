@@ -149,10 +149,10 @@ st_metrics <- function(
     rlang::abort("'start_date' must be earlier than or equal to 'end_date'")
   }
 
-  # Check authentication
-  if (is.null(auth_token) || auth_token == "") {
-    rlang::abort("Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
-  }
+  auth_token <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
 
   # Prepare IDs for unified fetcher
   final_ios_id <- NULL

@@ -1,3 +1,23 @@
+# sensortowerR 0.9.6
+
+## New Features
+
+* Added `st_active_users()` for DAU/WAU/MAU retrieval with tidy long output optimized for tidyverse pipelines.
+* Added new vignette: **Tidy Active User Workflows** with pipe-first examples for summaries, reshaping, and sales joins.
+
+## Improvements
+
+* Centralized endpoint construction via a shared endpoint registry helper layer.
+* Centralized authentication-token resolution with consistent validation behavior across API-facing functions.
+* Refactored active-user batch endpoint handling to reduce request fan-out and improve readability.
+
+## Testing and Quality
+
+* Eliminated test warning noise by updating deprecated tidyselect usage and modernizing test expectation message usage.
+* Added helper-level tests for endpoint path resolution and authentication token handling.
+
+---
+
 # sensortowerR 0.9.5
 
 ## Bug Fixes

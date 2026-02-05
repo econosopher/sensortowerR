@@ -130,12 +130,10 @@ valid_metrics <- c("time_spent", "total_time_spent", "session_duration",
   date_granularity <- match.arg(date_granularity, c("daily", "weekly", "monthly"))
 
   # Authentication
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable."
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
 
   # Determine which endpoint to use based on app ID type
   if (!is.null(unified_app_id)) {
@@ -216,18 +214,19 @@ fetch_session_metrics_unified <- function(app_ids,
   }
 
   # Build request
-  base_url <- "https://api.sensortower.com"
+  base_url <- st_api_base_url()
 
   if (verbose) {
     message("Fetching session metrics for ", length(app_ids), " unified app(s)...")
   }
 
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", "apps", "timeseries", "unified_apps") %>%
-    httr2::req_url_query(!!!query_params) %>%
+  req <- build_request(
+    base_url = base_url,
+    path_segments = st_endpoint_segments("apps_timeseries_unified"),
+    query_params = query_params
+  ) %>%
     httr2::req_headers(
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR (https://github.com/ge-data-solutions/sensortowerR)"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_timeout(60) %>%
     httr2::req_retry(max_tries = 3, backoff = function(i) 2^i)
@@ -310,18 +309,19 @@ fetch_session_metrics_platform <- function(app_ids,
   }
 
   # Build request
-  base_url <- "https://api.sensortower.com"
+  base_url <- st_api_base_url()
 
   if (verbose) {
     message("Fetching session metrics for ", length(app_ids), " platform-specific app(s)...")
   }
 
-  req <- httr2::request(base_url) %>%
-    httr2::req_url_path_append("v1", "apps", "timeseries") %>%
-    httr2::req_url_query(!!!query_params) %>%
+  req <- build_request(
+    base_url = base_url,
+    path_segments = st_endpoint_segments("apps_timeseries"),
+    query_params = query_params
+  ) %>%
     httr2::req_headers(
-      "Accept" = "application/json",
-      "User-Agent" = "sensortowerR (https://github.com/ge-data-solutions/sensortowerR)"
+      "Accept" = "application/json"
     ) %>%
     httr2::req_timeout(60) %>%
     httr2::req_retry(max_tries = 3, backoff = function(i) 2^i)

@@ -27,10 +27,10 @@ st_api_diagnostics <- function(app_id,
                               verbose = TRUE,
                               auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
   
-  # Validate auth token
-  if (is.null(auth_token) || auth_token == "") {
-    rlang::abort("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
-  }
+  auth_token <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
   
   results <- list(
     id_type = "unknown",

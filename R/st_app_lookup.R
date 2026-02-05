@@ -46,10 +46,10 @@ st_app_lookup <- function(app_id,
                          auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                          verbose = FALSE) {
   
-  # Validate auth token
-  if (is.null(auth_token) || auth_token == "") {
-    rlang::abort("Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable.")
-  }
+  auth_token <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
   
   # Detect the type of ID
   id_type <- NULL
@@ -71,8 +71,42 @@ st_app_lookup <- function(app_id,
   
   if (verbose) message("Looking up ", id_type, " ID: ", app_id)
   
-  # For unified IDs, use the original search method
+  # For unified IDs, use direct unified apps lookup first.
   if (id_type == "unified") {
+    direct_details <- tryCatch({
+      st_app_details(
+        app_ids = app_id,
+        os = "unified",
+        include_developer_contacts = FALSE,
+        auth_token = auth_token
+      )
+    }, error = function(e) {
+      if (verbose) message("Direct unified lookup failed: ", e$message)
+      NULL
+    })
+
+    if (!is.null(direct_details) && nrow(direct_details) > 0) {
+      ios_id <- if ("ios_app_id" %in% names(direct_details)) as.character(direct_details$ios_app_id[1]) else NULL
+      android_id <- if ("android_app_id" %in% names(direct_details)) as.character(direct_details$android_app_id[1]) else NULL
+      app_name <- if ("app_name" %in% names(direct_details)) direct_details$app_name[1] else NA_character_
+      publisher_name <- if ("publisher_name" %in% names(direct_details)) direct_details$publisher_name[1] else NA_character_
+
+      if (verbose) {
+        message("Found app via unified apps endpoint: ", app_name)
+        message("iOS ID: ", ios_id %||% "none")
+        message("Android ID: ", android_id %||% "none")
+      }
+
+      return(list(
+        unified_app_id = app_id,
+        ios_app_id = ios_id,
+        android_app_id = android_id,
+        app_name = app_name,
+        publisher_name = publisher_name
+      ))
+    }
+
+    # Fallback to search-based lookup for backward compatibility.
     search_results <- tryCatch({
       st_app_info(
         term = app_id,

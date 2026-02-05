@@ -143,10 +143,10 @@ st_sales_report <- function(os,
   end_date <- as.Date(end_date)
   
   # Authentication
-  auth_token_val <- trimws(auth_token)
-  if (!nzchar(auth_token_val)) {
-    rlang::abort("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
   
   # For unified OS, we don't support st_sales_report
   if (os == "unified") {
@@ -241,7 +241,7 @@ st_sales_report <- function(os,
     }
     
     # Build and perform request
-    path <- paste0(os, "/sales_report_estimates")
+    path <- st_endpoint_relative_path("sales_report_estimates", os = os)
     
     # Create a wrapper for process_sales_response that binds the 'os' argument
     sales_processor <- function(resp, ...) {

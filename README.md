@@ -2,13 +2,13 @@
 
 <p align="center"><img src="inst/images/sensortowerR_sticker.png" width="200"></p>
 
-An R package for interfacing with the Sensor Tower API to fetch mobile app analytics data, including app info, publisher details, revenue/download estimates, active user metrics, and professional dashboard generation.
+`sensortowerR` is an R client for Sensor Tower's API with a tidyverse-first workflow:
+search apps and publishers, resolve IDs, fetch sales and active-user metrics, and chain everything with `dplyr`/`tidyr`.
 
 ## Installation
 
 ```r
-# Install from GitHub
-devtools::install_github("econosopher/sensortowerR")
+remotes::install_github("econosopher/sensortowerR")
 ```
 
 ## Authentication
@@ -16,185 +16,170 @@ devtools::install_github("econosopher/sensortowerR")
 Store your Sensor Tower API token as an environment variable:
 
 ```r
-# Edit your R environment file
 usethis::edit_r_environ()
-
-# Add this line (replace with your actual token):
 # SENSORTOWER_AUTH_TOKEN="YOUR_SECRET_TOKEN_HERE"
-
-# Restart R session for changes to take effect
 ```
 
-## Quick Start
+Restart your R session after updating `.Renviron`.
 
-### Find Apps and Get Data
+## Tidyverse Quick Start
 
 ```r
 library(sensortowerR)
 library(dplyr)
+library(tidyr)
 
-# Step 1: Search for an app by name
-apps <- st_app_info("Royal Match")
-unified_id <- apps$unified_app_id[1]
+# 1) Find the app once, keep a canonical ID
+app <- st_app_info("Royal Match") %>%
+  slice(1)
 
-# Step 2: Get revenue/downloads
-revenue <- st_sales_report(
-  os = "ios",
-  unified_app_id = unified_id,
-  countries = "US",
-  start_date = "2024-01-01",
-  end_date = "2024-12-31",
-  date_granularity = "monthly"
-)
+app_ids <- st_app_lookup(app$unified_app_id)
 
-# Step 3: Get active users (MAU/DAU)
-users <- st_batch_metrics(
+# 2) Pull active users (long format, ready for tidy pipelines)
+active <- st_active_users(
   os = "unified",
-  app_list = unified_id,
-  metrics = c("mau", "dau"),
-  date_range = list(start_date = "2024-01-01", end_date = "2024-12-31"),
+  app_list = app$unified_app_id,
+  metrics = c("dau", "mau"),
+  date_range = list(start_date = "2025-01-01", end_date = "2025-12-31"),
   countries = "US",
   granularity = "monthly"
 )
+
+# 3) Pull sales for the same window
+sales <- st_batch_metrics(
+  os = "unified",
+  app_list = app$unified_app_id,
+  metrics = c("revenue", "downloads"),
+  date_range = list(start_date = "2025-01-01", end_date = "2025-12-31"),
+  countries = "US",
+  granularity = "monthly"
+)
+
+# 4) Join and compute KPIs
+active_wide <- active %>%
+  group_by(original_id, app_name, date, country, metric) %>%
+  summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = metric, values_from = value)
+
+sales_wide <- sales %>%
+  group_by(original_id, app_name, date, country, metric) %>%
+  summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = metric, values_from = value)
+
+kpis <- active_wide %>%
+  left_join(sales_wide, by = c("original_id", "app_name", "date", "country")) %>%
+  mutate(
+    rev_per_dau = if_else(!is.na(dau) & dau > 0, revenue / dau, NA_real_),
+    rev_per_mau = if_else(!is.na(mau) & mau > 0, revenue / mau, NA_real_)
+  )
 ```
 
-### Publisher Portfolio Analysis
+## Endpoint and ID Management
 
-Get comprehensive portfolio data with one function call:
+The package is designed so users can think in terms of analysis, not raw endpoints.
+
+| If you need... | Use... | Behavior |
+|---|---|---|
+| DAU/WAU/MAU for one or many apps | `st_active_users()` or `st_batch_metrics()` | Handles active-user retrieval and returns tidy long metrics for pipelines |
+| Revenue/downloads for platform-specific reporting | `st_sales_report()` | Use `os = "ios"` or `os = "android"` |
+| Revenue/downloads where IDs may vary (unified, iOS, Android) | `st_metrics()` | Resolves IDs and fetches by the requested `os` |
+| Cross-app workflows with mixed metrics | `st_batch_metrics()` | Batches active users + sales and standardizes shape |
+| Market rankings | `st_top_charts()`, `st_top_publishers()` | Top-and-trending style analysis by region/category |
+
+Important behavior:
+
+- `st_sales_report()` is platform-specific and does not accept `os = "unified"`.
+- `st_metrics()` is the easiest way to request unified-style sales/download workflows.
+- Authentication and endpoint path construction are centralized internally, so API-facing functions now behave more consistently.
+
+## App and Publisher Workflows
+
+### App-first (recommended for specific apps)
 
 ```r
-# Simple usage
-portfolio <- st_publisher_portfolio("Lilith Games")
+app <- st_app_info("Candy Crush Saga") %>%
+  slice(1)
 
-# Piped workflow
-"Supercell" %>%
-  st_publisher_portfolio(metrics = c("revenue", "mau")) %>%
-  filter(revenue_2024 > 10000000)
+ids <- st_app_lookup(app$unified_app_id)
+
+ios_sales <- st_sales_report(
+  os = "ios",
+  ios_app_id = ids$ios_app_id,
+  countries = "US",
+  start_date = "2025-01-01",
+  end_date = "2025-01-31",
+  date_granularity = "daily"
+)
 ```
 
-### Top Charts and Market Analysis
+### Publisher portfolio in one call
 
 ```r
-# Top games by revenue
+portfolio <- st_publisher_portfolio(
+  publisher = "Supercell",
+  metrics = c("revenue", "downloads", "mau"),
+  start_date = "2023-01-01",
+  countries = "WW"
+)
+```
+
+### Top charts + dashboard
+
+```r
 top_games <- st_top_charts(
   measure = "revenue",
   os = "unified",
-  category = 6014,  # Games
+  category = 6014,
   regions = "US",
   time_range = "month"
 )
 
-# Generate a professional dashboard
-st_gt_dashboard(top_games, title = "Top Games - US Market")
+st_gt_dashboard(top_games, title = "Top Games - US")
 ```
 
 ## Core Functions
 
 | Function | Purpose |
-|----------|---------|
-| `st_app_info()` | Search for apps by name |
-| `st_app_lookup()` | Resolve platform IDs from unified IDs |
-| `st_sales_report()` | Platform-specific revenue and downloads |
-| `st_unified_sales_report()` | Unified revenue with multi-regional SKU aggregation |
-| `st_batch_metrics()` | Efficient metrics for multiple apps (MAU/DAU/WAU) |
-| `st_publisher_portfolio()` | Complete publisher analysis in one call |
-| `st_top_charts()` | Top apps by revenue, downloads, or active users |
+|---|---|
+| `st_app_info()` | Search unified apps or publishers by term |
+| `st_app_lookup()` | Resolve iOS/Android/unified IDs from any input ID |
+| `st_metrics()` | Flexible single-app metric retrieval with ID resolution |
+| `st_sales_report()` | Platform-specific sales/download estimates |
+| `st_unified_sales_report()` | Unified aggregation across related regional SKUs |
+| `st_active_users()` | Tidy DAU/WAU/MAU wrapper |
+| `st_batch_metrics()` | Batch retrieval across apps and metrics |
+| `st_publisher_portfolio()` | End-to-end publisher analysis |
+| `st_top_charts()` | Top app rankings by metric |
 | `st_top_publishers()` | Publisher rankings |
-| `st_category_rankings()` | Official app store rankings |
-| `st_yoy_metrics()` | Year-over-year comparisons |
-| `st_gt_dashboard()` | Professional FiveThirtyEight-styled dashboards |
+| `st_category_rankings()` | Official app store ranking pulls |
+| `st_gt_dashboard()` | Formatted dashboard-style output |
 
-## Key Workflows
+## Data Notes
 
-### Finding Specific Apps (DO THIS)
+| Data Type | Primary Function | Time Series | Coverage |
+|---|---|---|---|
+| Revenue/downloads (platform) | `st_sales_report()` | Yes | Country-level |
+| Revenue/downloads (unified aggregation) | `st_unified_sales_report()` | Yes | Country-level |
+| Revenue/downloads (ID-flexible) | `st_metrics()` | Yes | Country-level |
+| DAU/WAU/MAU | `st_active_users()`, `st_batch_metrics()` | Yes | Country-level |
+| Retention and demographics snapshots | `st_app_enriched()` | Snapshot | Primarily US/WW depending on metric |
 
-```r
-# 1. Search by name
-apps <- st_app_info("Candy Crush")
-
-# 2. Get platform IDs
-ids <- st_app_lookup(apps$unified_app_id[1])
-
-# 3. Fetch data
-data <- st_sales_report(os = "ios", ios_app_id = ids$ios_app_id, ...)
-```
-
-### DON'T: Use Top Charts to Find Specific Apps
+## ID Cache Utilities
 
 ```r
-# BAD - Apps may not be in top N, wastes API calls
-top <- st_top_charts(limit = 1000)
-my_apps <- filter(top, name %in% c("My App"))  # May return empty!
-```
-
-## Data Availability
-
-| Data Type | Function | Time-Series? | Region Coverage |
-|-----------|----------|--------------|-----------------|
-| Revenue/Downloads (unified) | `st_unified_sales_report()` | Yes | All countries |
-| Revenue/Downloads (platform) | `st_sales_report()` | Yes | All countries |
-| MAU/DAU/WAU | `st_batch_metrics()` | Yes | All countries |
-| Retention (D1-D60) | `st_app_enriched()` | Snapshot only | US, WW |
-| Demographics | `st_app_enriched()` | Snapshot only | US only |
-
-## Multi-Regional SKU Aggregation
-
-Some games have multiple regional publishers. Use `st_unified_sales_report()` to aggregate all SKUs:
-
-```r
-# Gets TRUE unified revenue across all regional versions
-sales <- st_unified_sales_report(
-  unified_app_id = "67ec0bf3e540b65904256cc4",
-  countries = "WW",
-  start_date = "2024-01-01",
-  end_date = "2024-12-31"
-)
-```
-
-## Category Codes
-
-Common categories for use with API functions:
-
-**iOS**: `6014` (Games), `7014` (RPG), `7012` (Casino), `7001` (Action)
-
-**Android**: `GAME`, `game_role_playing`, `game_casino`, `game_action`
-
-Use `st_categories()` for a complete list.
-
-## API Limitations
-
-- **Daily data**: Use platform-specific endpoints (iOS/Android), not unified
-- **Unified sales endpoint**: Returns empty for all granularities - use `st_metrics()` which handles this automatically
-- **Active users endpoint**: Does not support unified OS - `st_batch_metrics()` handles this
-
-## ID Caching
-
-The package caches app ID mappings to reduce API calls:
-
-```r
-# View cache statistics
 st_cache_info()
-
-# Save cache to persist between sessions
 save_id_cache()
-
-# Load previously saved cache
 load_id_cache()
-
-# Clear cache
 st_clear_id_cache()
 ```
 
-Cache is stored in the CRAN-compliant location: `tools::R_user_dir("sensortowerR", "cache")`
+Cache location is CRAN-compliant via `tools::R_user_dir("sensortowerR", "cache")`.
 
-## Changelog
+## Learn More
 
-See [NEWS.md](https://github.com/econosopher/sensortowerR/blob/main/NEWS.md) for version history and changes.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Vignette: `vignette("tidy-active-users", package = "sensortowerR")`
+- Changelog: [NEWS.md](https://github.com/econosopher/sensortowerR/blob/main/NEWS.md)
 
 ## License
 
-This package is licensed under the MIT License.
+MIT (`LICENSE` file).

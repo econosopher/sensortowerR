@@ -51,6 +51,8 @@ A [tibble][tibble::tibble] containing detailed app metadata with columns:
   - `publisher_email`: Developer email (if include_developer_contacts = TRUE)
   - `publisher_address`: Developer address (if include_developer_contacts = TRUE)
   - `publisher_country`: Developer country
+  - `ios_app_id`: Primary iOS app ID (for `os = "unified"`, when available)
+  - `android_app_id`: Primary Android app ID (for `os = "unified"`, when available)
   - Additional platform-specific fields
 }
 \description{

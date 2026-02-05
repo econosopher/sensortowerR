@@ -1,26 +1,26 @@
 ## Resubmission
 
-This is a resubmission. In this version I have:
+This is a resubmission (version 0.9.6). In this version I have:
 
-* **FIXED** `st_game_summary(os = "unified")` returning empty results
-  - The `games_breakdown` API only supports `ios` and `android`
-  - Unified mode now fetches both platforms and combines results
-  - Adds `Total Downloads` and `Total Revenue` columns in unified mode
-  - Documentation updated to clarify unified behavior
+* Added `st_active_users()` as a focused, tidy long-format wrapper for DAU/WAU/MAU workflows
+* Added a new vignette: **Tidy Active User Workflows**
+* Centralized endpoint-path construction through a shared endpoint registry helper
+* Centralized API token resolution/validation through a shared helper
+* Refactored active-user batching logic to reduce request fan-out and improve readability
+* Removed test warning noise by updating deprecated tidyselect usage and test expectation syntax
 
 ## Test environments
 
-* local macOS (ARM64), R 4.2.2
-* GitHub Actions (ubuntu-latest, windows-latest, macOS-latest)
+* local macOS (ARM64), R 4.2.2 (`devtools::check(cran = TRUE, manual = FALSE)`)
 
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
 
-* checking CRAN incoming feasibility ... NOTE
-  Maintainer: 'Phillip Black <pblack@gameeconomistconsulting.com>'
+* checking for future file timestamps ... NOTE
+  unable to verify current time
 
-This is a resubmission following CRAN feedback.
+This NOTE appears to be environment-specific in this check runtime.
 
 ## Notes
 
@@ -28,5 +28,3 @@ This is a resubmission following CRAN feedback.
 * Examples are wrapped in \dontrun{} as they require API authentication
 * The package interfaces with the Sensor Tower API which requires user authentication
 * No functions write to user's home filespace by default
-
-Thanks!

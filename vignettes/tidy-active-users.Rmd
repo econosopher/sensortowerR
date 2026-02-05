@@ -1,0 +1,95 @@
+---
+title: "Tidy Active User Workflows"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Tidy Active User Workflows}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE, purl=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  purl = FALSE
+)
+```
+
+```{r, purl=FALSE}
+library(sensortowerR)
+library(dplyr)
+library(tidyr)
+```
+
+## Overview
+
+`st_active_users()` is a focused, tidy wrapper around `st_batch_metrics()` that returns DAU/WAU/MAU in long format.
+
+This makes downstream analysis intuitive with standard tidyverse verbs.
+
+## Basic Pipeline
+
+```{r basic, purl=FALSE}
+active_users <- st_active_users(
+  os = "unified",
+  app_list = c("5ba4585f539ce75b97db6bcb", "67ec0bf3e540b65904256cc4"),
+  metrics = c("dau", "mau"),
+  date_range = list(start_date = "2025-01-01", end_date = "2025-12-31"),
+  countries = c("US", "GB"),
+  granularity = "monthly"
+)
+
+active_summary <- active_users %>%
+  group_by(original_id, app_name, metric, date, country) %>%
+  summarise(total_active_users = sum(value, na.rm = TRUE), .groups = "drop")
+```
+
+## Wide Reporting Table
+
+```{r wide, purl=FALSE}
+active_wide <- active_users %>%
+  group_by(original_id, app_name, date, country, metric) %>%
+  summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = metric, values_from = value)
+```
+
+## Join With Sales Data
+
+```{r join-sales, purl=FALSE}
+sales <- st_batch_metrics(
+  os = "unified",
+  app_list = c("5ba4585f539ce75b97db6bcb", "67ec0bf3e540b65904256cc4"),
+  metrics = c("revenue", "downloads"),
+  date_range = list(start_date = "2025-01-01", end_date = "2025-12-31"),
+  countries = c("US", "GB"),
+  granularity = "monthly"
+)
+
+sales_wide <- sales %>%
+  group_by(original_id, app_name, date, country, metric) %>%
+  summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = metric, values_from = value)
+
+combined <- active_wide %>%
+  left_join(sales_wide, by = c("original_id", "app_name", "date", "country"))
+```
+
+## App-Level KPI Aggregation
+
+```{r kpi, purl=FALSE}
+app_kpis <- combined %>%
+  mutate(
+    rev_per_dau = if_else(!is.na(dau) & dau > 0, revenue / dau, NA_real_),
+    rev_per_mau = if_else(!is.na(mau) & mau > 0, revenue / mau, NA_real_)
+  ) %>%
+  group_by(original_id, app_name, country) %>%
+  summarise(
+    avg_dau = mean(dau, na.rm = TRUE),
+    avg_mau = mean(mau, na.rm = TRUE),
+    total_revenue = sum(revenue, na.rm = TRUE),
+    avg_rev_per_dau = mean(rev_per_dau, na.rm = TRUE),
+    avg_rev_per_mau = mean(rev_per_mau, na.rm = TRUE),
+    .groups = "drop"
+  )
+```

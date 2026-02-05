@@ -135,7 +135,7 @@ resolve_app_id <- function(id, auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")
       input_id = id,
       ios_id = result$ios_app_id,
       android_id = result$android_app_id,
-      unified_id = result$unified_id,
+      unified_id = result$unified_app_id,
       app_name = result$app_name,
       publisher_id = result$publisher_id
     )

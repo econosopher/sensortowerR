@@ -15,6 +15,96 @@
 #' @importFrom tidyr unnest
 #' @importFrom dplyr rename all_of
 #'
+# --- Shared API Helpers ---
+
+st_api_base_url <- function() {
+  "https://api.sensortower.com"
+}
+
+.st_endpoint_registry <- list(
+  sales_report_estimates = c("{os}", "sales_report_estimates"),
+  sales_report_estimates_comparison_attributes = c("{os}", "sales_report_estimates_comparison_attributes"),
+  usage_active_users = c("{os}", "usage", "active_users"),
+  usage_demographics = c("{os}", "usage", "demographics"),
+  usage_retention = c("{os}", "usage", "retention"),
+  top_and_trending_active_users = c("{os}", "top_and_trending", "active_users"),
+  top_and_trending_publishers = c("{os}", "top_and_trending", "publishers"),
+  ranking = c("{os}", "ranking"),
+  apps = c("{os}", "apps"),
+  app_tag_apps = c("app_tag", "apps"),
+  custom_fields_filter = c("custom_fields_filter"),
+  custom_fields_filter_id = c("custom_fields_filter", "{id}"),
+  custom_fields_filter_fields_values = c("custom_fields_filter", "fields_values"),
+  apps_timeseries = c("apps", "timeseries"),
+  apps_timeseries_unified = c("apps", "timeseries", "unified_apps"),
+  unified_publishers_apps = c("unified", "publishers", "apps"),
+  unified_sales_report_estimates = c("unified", "sales_report_estimates"),
+  search_entities = c("{app_store}", "search_entities"),
+  games_breakdown = c("{os}", "games_breakdown")
+)
+
+resolve_endpoint_segment <- function(segment, placeholders) {
+  if (!grepl("^\\{[A-Za-z0-9_]+\\}$", segment)) {
+    return(segment)
+  }
+
+  key <- gsub("^\\{|\\}$", "", segment)
+  value <- placeholders[[key]]
+  value_chr <- if (is.null(value)) "" else as.character(value[1])
+
+  if (!nzchar(value_chr)) {
+    rlang::abort(sprintf("Missing required endpoint placeholder: '%s'.", key))
+  }
+
+  value_chr
+}
+
+st_endpoint_relative_segments <- function(endpoint_key, ...) {
+  template <- .st_endpoint_registry[[endpoint_key]]
+  if (is.null(template)) {
+    rlang::abort(sprintf("Unknown endpoint key '%s'.", endpoint_key))
+  }
+
+  placeholders <- list(...)
+
+  vapply(
+    template,
+    resolve_endpoint_segment,
+    placeholders = placeholders,
+    FUN.VALUE = character(1)
+  )
+}
+
+st_endpoint_segments <- function(endpoint_key, ...) {
+  c("v1", st_endpoint_relative_segments(endpoint_key, ...))
+}
+
+st_endpoint_relative_path <- function(endpoint_key, ...) {
+  paste(st_endpoint_relative_segments(endpoint_key, ...), collapse = "/")
+}
+
+st_endpoint_path <- function(endpoint_key, ...) {
+  paste(st_endpoint_segments(endpoint_key, ...), collapse = "/")
+}
+
+resolve_auth_token <- function(auth_token = NULL,
+                               env_var = "SENSORTOWER_AUTH_TOKEN",
+                               error_message = NULL) {
+  token <- if (is.null(auth_token)) Sys.getenv(env_var) else auth_token
+  token <- trimws(as.character(token[1]))
+
+  if (!nzchar(token)) {
+    msg <- if (!is.null(error_message) && nzchar(error_message)) {
+      error_message
+    } else {
+      sprintf("Authentication token not found. Set %s environment variable.", env_var)
+    }
+    rlang::abort(msg)
+  }
+
+  token
+}
+
 # --- Input Validation ---
 
 validate_inputs <- function(os,
@@ -198,7 +288,7 @@ perform_request <- function(req) {
 #' @return A tibble with the results.
 #' @keywords internal
 fetch_data_core <- function(endpoint, params, auth_token, verbose = FALSE, enrich_response = TRUE, processor = process_response) {
-  base_url <- "https://api.sensortower.com/v1"
+  base_url <- paste0(st_api_base_url(), "/v1")
 
   # Clean up params
   params <- params[!sapply(params, is.null)]
@@ -582,6 +672,69 @@ lookup_app_names_by_id <- function(data) {
 
   verbose_lookup <- getOption("sensortowerR.verbose", FALSE)
 
+  # For unified hex IDs, prefer direct /v1/unified/apps lookup.
+  # This avoids search-based resolution returning IDs as fallback names.
+  auth_token <- Sys.getenv("SENSORTOWER_AUTH_TOKEN")
+  all_hex_ids <- length(candidate_ids) > 0 && all(grepl("^[a-f0-9]{24}$", candidate_ids))
+  if (all_hex_ids && nzchar(auth_token)) {
+    chunk_size <- 100
+    id_chunks <- split(candidate_ids, ceiling(seq_along(candidate_ids) / chunk_size))
+    direct_details <- lapply(id_chunks, function(ids) {
+      tryCatch(
+        st_app_details(
+          app_ids = ids,
+          os = "unified",
+          include_developer_contacts = FALSE,
+          auth_token = auth_token
+        ),
+        error = function(e) NULL
+      )
+    })
+
+    direct_details <- direct_details[!vapply(direct_details, is.null, logical(1))]
+    if (length(direct_details) > 0) {
+      direct_tbl <- dplyr::bind_rows(direct_details)
+      if (nrow(direct_tbl) > 0 && all(c("app_id", "app_name") %in% names(direct_tbl))) {
+        direct_lookup <- direct_tbl %>%
+          dplyr::transmute(
+            lookup_id = as.character(.data$app_id),
+            resolved_app_name = as.character(.data$app_name),
+            resolved_unified_id = as.character(.data$app_id)
+          ) %>%
+          dplyr::distinct(.data$lookup_id, .keep_all = TRUE)
+
+        data <- dplyr::left_join(data, direct_lookup, by = stats::setNames("lookup_id", id_column))
+
+        if (!"unified_app_name" %in% names(data)) {
+          data$unified_app_name <- NA_character_
+        }
+        fill_names <- is.na(data$unified_app_name) | data$unified_app_name == ""
+        data$unified_app_name[fill_names] <- dplyr::coalesce(
+          data$resolved_app_name[fill_names],
+          as.character(data[[id_column]][fill_names])
+        )
+
+        if (!"unified_app_id" %in% names(data)) {
+          data$unified_app_id <- NA_character_
+        }
+        fill_unified <- is.na(data$unified_app_id) | data$unified_app_id == ""
+        data$unified_app_id[fill_unified] <- dplyr::coalesce(
+          data$resolved_unified_id[fill_unified],
+          data$unified_app_id[fill_unified]
+        )
+
+        data <- data %>%
+          dplyr::select(-dplyr::any_of(c("resolved_app_name", "resolved_unified_id")))
+
+        unresolved <- is.na(data$unified_app_name) | data$unified_app_name == "" |
+          grepl("^[a-f0-9]{24}$", data$unified_app_name)
+        if (!any(unresolved)) {
+          return(data)
+        }
+      }
+    }
+  }
+
   # Attempt to satisfy requests from the ID cache first
   cache_entries <- lapply(candidate_ids, lookup_cached_id)
   names(cache_entries) <- candidate_ids
@@ -589,7 +742,6 @@ lookup_app_names_by_id <- function(data) {
 
   # Resolve any missing IDs using the shared resolution pipeline
   if (length(missing_ids) > 0) {
-    auth_token <- Sys.getenv("SENSORTOWER_AUTH_TOKEN")
     if (nzchar(auth_token)) {
       if (verbose_lookup) {
         message("Resolving ", length(missing_ids), " app IDs for name enrichment...")
@@ -1027,7 +1179,7 @@ fetch_unified_data <- function(
           revenue = if ("total_revenue" %in% names(.)) total_revenue else if ("revenue" %in% names(.)) revenue else 0,
           downloads = if ("total_downloads" %in% names(.)) total_downloads else if ("downloads" %in% names(.)) downloads else 0
         ) %>%
-        dplyr::select(date, country, revenue, downloads, platform, .data$app_id, .data$app_id_type)
+        dplyr::select(date, country, revenue, downloads, platform, app_id, app_id_type)
 
       all_data <- dplyr::bind_rows(all_data, ios_result)
     }
@@ -1065,7 +1217,7 @@ fetch_unified_data <- function(
           app_id_type = "android",
           country = if ("c" %in% names(.)) c else country
         ) %>%
-        dplyr::select(date, country, revenue, downloads, platform, .data$app_id, .data$app_id_type)
+        dplyr::select(date, country, revenue, downloads, platform, app_id, app_id_type)
 
       all_data <- dplyr::bind_rows(all_data, android_result)
     }

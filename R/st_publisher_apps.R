@@ -98,19 +98,16 @@ st_publisher_apps <- function(unified_id = NULL,
     ))
   }
 
-  if (is.null(auth_token) || auth_token == "") {
-    rlang::abort(
-      paste(
-        "Authentication token is required.",
-        "Set SENSORTOWER_AUTH_TOKEN environment variable",
-        "or pass via auth_token argument."
-      )
+  auth_token <- resolve_auth_token(
+    auth_token,
+    error_message = paste(
+      "Authentication token is required.",
+      "Set SENSORTOWER_AUTH_TOKEN environment variable",
+      "or pass via auth_token argument."
     )
-  }
+  )
 
-  base_url <- "https://api.sensortower.com/v1"
-  endpoint_path <- "unified/publishers/apps"
-  url <- file.path(base_url, endpoint_path)
+  url <- paste0(st_api_base_url(), "/", st_endpoint_path("unified_publishers_apps"))
 
   query_params <- list(
     unified_id = unified_id,

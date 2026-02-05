@@ -75,16 +75,13 @@ st_app_info <- function(term,
                         limit = 20,
                         auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                         return_all_fields = FALSE) {
-  # Ensure the auth_token is provided
-  if (is.null(auth_token) || auth_token == "") {
-    rlang::abort(
-      "Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable."
-    )
-  }
+  auth_token <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
 
   # Define the API endpoint
-  base_url <- "https://api.sensortower.com/v1"
-  endpoint <- file.path(base_url, app_store, "search_entities")
+  endpoint <- paste0(st_api_base_url(), "/", st_endpoint_path("search_entities", app_store = app_store))
 
   # Make the GET request to the API
   response <- httr::GET(

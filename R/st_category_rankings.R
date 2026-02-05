@@ -137,13 +137,10 @@ st_category_rankings <- function(os,
   }
   
   # Authentication
-  auth_token_val <- auth_token %||% Sys.getenv("SENSORTOWER_AUTH_TOKEN")
-  if (auth_token_val == "") {
-    rlang::abort(
-      c("Authentication token not found.",
-        "Set SENSORTOWER_AUTH_TOKEN environment variable or pass via auth_token argument.")
-    )
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Set SENSORTOWER_AUTH_TOKEN environment variable or pass via auth_token argument."
+  )
   
   # Build query parameters
   query_params <- list(
@@ -187,8 +184,8 @@ st_category_rankings <- function(os,
   }
   
   # Build and perform request
-  path <- c("v1", os, "ranking")
-  req <- build_request("https://api.sensortower.com", path, query_params)
+  path <- st_endpoint_segments("ranking", os = os)
+  req <- build_request(st_api_base_url(), path, query_params)
   resp <- perform_request(req)
   
   # Process response
@@ -285,4 +282,3 @@ process_ranking_response <- function(resp, os, category, country, chart_type, da
   
   return(result_tbl)
 }
-

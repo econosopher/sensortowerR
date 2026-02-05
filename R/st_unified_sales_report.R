@@ -113,10 +113,10 @@ st_unified_sales_report <- function(unified_app_id,
   end_date <- as.Date(end_date)
 
   # Authentication
-  auth_token_val <- trimws(auth_token)
-  if (!nzchar(auth_token_val)) {
-    rlang::abort("Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable.")
-  }
+  auth_token_val <- resolve_auth_token(
+    auth_token,
+    error_message = "Authentication token not found. Please set SENSORTOWER_AUTH_TOKEN environment variable."
+  )
 
   if (verbose) {
     message("=== Unified Sales Report (All Regional SKUs) ===")
@@ -138,7 +138,7 @@ st_unified_sales_report <- function(unified_app_id,
   )
 
   # Build and perform request using the unified endpoint
-  endpoint <- "unified/sales_report_estimates"
+  endpoint <- st_endpoint_relative_path("unified_sales_report_estimates")
 
   result <- fetch_data_core(
     endpoint = endpoint,

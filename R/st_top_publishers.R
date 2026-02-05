@@ -143,16 +143,14 @@ st_top_publishers <- function(measure = "revenue",
                              include_apps = TRUE,
                              auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")) {
   
-  # Validate auth token first, as it's the most critical dependency
-  if (is.null(auth_token) || auth_token == "") {
-    rlang::abort(
-      paste(
-        "Authentication token is required.",
-        "Set SENSORTOWER_AUTH_TOKEN environment variable",
-        "or pass via auth_token argument."
-      )
+  auth_token <- resolve_auth_token(
+    auth_token,
+    error_message = paste(
+      "Authentication token is required.",
+      "Set SENSORTOWER_AUTH_TOKEN environment variable",
+      "or pass via auth_token argument."
     )
-  }
+  )
 
   # Validate required parameters
   if (missing(os) || is.null(os)) {
@@ -226,9 +224,7 @@ st_top_publishers <- function(measure = "revenue",
   }
   
   # Build API URL early for potential data availability check
-  base_url <- "https://api.sensortower.com/v1"
-  endpoint_path <- paste0(os, "/top_and_trending/publishers")
-  url <- file.path(base_url, endpoint_path)
+  url <- paste0(st_api_base_url(), "/", st_endpoint_path("top_and_trending_publishers", os = os))
   
   # Auto-set end_date for period-based time_ranges if not provided
   if (is.null(end_date) && time_range != "day") {
