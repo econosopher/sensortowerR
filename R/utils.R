@@ -247,7 +247,25 @@ build_request <- function(base_url, path_segments, query_params) {
     req <- req %>% httr2::req_url_path_append(segment)
   }
 
-  req %>% httr2::req_url_query(!!!query_params)
+  req <- req %>% httr2::req_url_query(!!!query_params)
+  
+  # Inject dynamic caching if environment variable is set
+  cache_dir <- Sys.getenv("SENSORTOWER_CACHE_DIR")
+  if (nzchar(cache_dir)) {
+    if (!dir.exists(cache_dir)) dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+    req <- req %>% httr2::req_cache(cache_dir)
+  }
+  
+  # Standardize robust retries for Sensor Tower Rate Limits (429) & Server Errors
+  req <- req %>% httr2::req_retry(
+    max_tries = 5,
+    backoff = function(i) 2^i + stats::runif(1, 0, 1), # exponential backoff + jitter
+    is_transient = function(resp) {
+      httr2::resp_status(resp) %in% c(429, 500, 502, 503, 504)
+    }
+  )
+
+  req
 }
 
 

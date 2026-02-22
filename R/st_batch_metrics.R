@@ -335,13 +335,15 @@ execute_batch_fetch <- function(fetch_groups, fetch_worker, parallel, max_cores,
     results <- parallel::mclapply(
       names(fetch_groups),
       function(group_name) {
+        # Add a random jitter to stagger concurrent API requests and prevent immediate 429s
+        Sys.sleep(stats::runif(1, 0.1, 1.5))
         result <- fetch_worker(fetch_groups[[group_name]], group_name)
         if (!is.null(result) && "app_id" %in% names(result)) {
           result$app_id <- as.character(result$app_id)
         }
         result
       },
-      mc.cores = min(length(fetch_groups), max(1L, as.integer(max_cores)))
+      mc.cores = min(length(fetch_groups), max(1L, as.integer(max_cores), 8L)) # enforce hard cap of 8 cores max
     )
   } else {
     if (parallel && .Platform$OS.type == "windows" && verbose) {
