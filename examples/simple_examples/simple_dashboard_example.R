@@ -1,6 +1,6 @@
 # Simple example: Create a dashboard with one line of code after st_top_charts()
 
-library(sensortowerR)
+library(SensorTowerR)
 
 # Step 1: Get top charts data (using cached data for this example)
 top_rpgs <- readRDS("inst/cache/top_rpgs_cache.rds")

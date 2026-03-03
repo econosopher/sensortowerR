@@ -1,5 +1,5 @@
 # Debug st_metrics issue
-library(sensortowerR)
+library(SensorTowerR)
 
 # Test what st_sales_report returns
 result <- st_sales_report(

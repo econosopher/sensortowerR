@@ -1,7 +1,7 @@
 # Example: Parsing Sensor Tower Web URLs for API Use
 # This example shows how to convert web interface URLs to API parameters
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 
 # Example 1: Parse the complex URL provided

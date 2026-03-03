@@ -1,18 +1,18 @@
 test_that("normalize_app_list handles various inputs correctly", {
     # Test character vector
-    res_vec <- sensortowerR:::normalize_app_list(c("123", "456"), "ios", "token", FALSE)
+    res_vec <- SensorTowerR:::normalize_app_list(c("123", "456"), "ios", "token", FALSE)
     expect_s3_class(res_vec, "data.frame")
     expect_equal(nrow(res_vec), 2)
     expect_equal(res_vec$app_id, c("123", "456"))
 
     # Test data frame
     input_df <- data.frame(app_id = c("123", "456"), stringsAsFactors = FALSE)
-    res_df <- sensortowerR:::normalize_app_list(input_df, "ios", "token", FALSE)
+    res_df <- SensorTowerR:::normalize_app_list(input_df, "ios", "token", FALSE)
     expect_equal(res_df$app_id, c("123", "456"))
 
     # Test list
     input_list <- list(list(app_id = "123"), list(app_id = "456"))
-    res_list <- sensortowerR:::normalize_app_list(input_list, "ios", "token", FALSE)
+    res_list <- SensorTowerR:::normalize_app_list(input_list, "ios", "token", FALSE)
     expect_equal(res_list$app_id, c("123", "456"))
 })
 
@@ -24,7 +24,7 @@ test_that("group_apps_by_platform correctly categorizes apps", {
         unified_id = c(NA, NA, NA, "404")
     )
 
-    groups <- sensortowerR:::group_apps_by_platform(apps_df)
+    groups <- SensorTowerR:::group_apps_by_platform(apps_df)
 
     expect_equal(nrow(groups$both), 1) # App 1
     expect_equal(groups$both$app_id, "1")
@@ -41,7 +41,7 @@ test_that("group_apps_by_platform correctly categorizes apps", {
 
 test_that("finalize_batch_results_internal handles empty and valid results", {
     # Test empty results
-    expect_equal(nrow(sensortowerR:::finalize_batch_results_internal(list(), tibble::tibble())), 0)
+    expect_equal(nrow(SensorTowerR:::finalize_batch_results_internal(list(), tibble::tibble())), 0)
 
     # Test valid results
     results_df <- tibble::tibble(
@@ -59,7 +59,7 @@ test_that("finalize_batch_results_internal handles empty and valid results", {
         unified_id = c(NA, NA)
     )
 
-    final <- sensortowerR:::finalize_batch_results_internal(list(results_df), apps_df)
+    final <- SensorTowerR:::finalize_batch_results_internal(list(results_df), apps_df)
 
     expect_equal(nrow(final), 2)
     expect_true("app_id_type" %in% names(final))
@@ -68,16 +68,16 @@ test_that("finalize_batch_results_internal handles empty and valid results", {
 })
 
 test_that("active user time period helpers map values correctly", {
-    expect_equal(sensortowerR:::active_users_default_time_period("daily"), "day")
-    expect_equal(sensortowerR:::active_users_default_time_period("weekly"), "week")
-    expect_equal(sensortowerR:::active_users_default_time_period("monthly"), "month")
-    expect_equal(sensortowerR:::active_users_default_time_period("quarterly"), "quarter")
-    expect_equal(sensortowerR:::active_users_default_time_period("unknown"), "month")
+    expect_equal(SensorTowerR:::active_users_default_time_period("daily"), "day")
+    expect_equal(SensorTowerR:::active_users_default_time_period("weekly"), "week")
+    expect_equal(SensorTowerR:::active_users_default_time_period("monthly"), "month")
+    expect_equal(SensorTowerR:::active_users_default_time_period("quarterly"), "quarter")
+    expect_equal(SensorTowerR:::active_users_default_time_period("unknown"), "month")
 
-    expect_equal(sensortowerR:::active_users_time_period_for_metric("dau", "month"), "day")
-    expect_equal(sensortowerR:::active_users_time_period_for_metric("wau", "month"), "week")
-    expect_equal(sensortowerR:::active_users_time_period_for_metric("mau", "week"), "month")
-    expect_equal(sensortowerR:::active_users_time_period_for_metric("custom", "quarter"), "quarter")
+    expect_equal(SensorTowerR:::active_users_time_period_for_metric("dau", "month"), "day")
+    expect_equal(SensorTowerR:::active_users_time_period_for_metric("wau", "month"), "week")
+    expect_equal(SensorTowerR:::active_users_time_period_for_metric("mau", "week"), "month")
+    expect_equal(SensorTowerR:::active_users_time_period_for_metric("custom", "quarter"), "quarter")
 })
 
 test_that("build_active_users_request_plan creates batched platform-metric requests", {
@@ -87,7 +87,7 @@ test_that("build_active_users_request_plan creates batched platform-metric reque
         android_id = c("com.a", "com.b")
     )
 
-    plan_both <- sensortowerR:::build_active_users_request_plan(
+    plan_both <- SensorTowerR:::build_active_users_request_plan(
         group = apps_df,
         group_name = "both",
         active_user_metrics = c("dau", "mau")

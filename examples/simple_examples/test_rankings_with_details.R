@@ -1,7 +1,7 @@
 # Test combining st_category_rankings() with st_app_details()
 # This demonstrates the design philosophy of combining endpoints for better UX
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 
 cat("Fetching top free iOS games and enriching with details...\n\n")

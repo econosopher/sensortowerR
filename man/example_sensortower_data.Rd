@@ -2,7 +2,7 @@
 % Please edit documentation in R/example_data.R
 \name{example_sensortower_data}
 \alias{example_sensortower_data}
-\title{Example Data for sensortowerR Package}
+\title{Example Data for SensorTowerR Package}
 \usage{
 example_sensortower_data(type = "app_info", n = 5)
 }

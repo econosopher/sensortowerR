@@ -3,13 +3,13 @@
 \docType{data}
 \name{id_cache}
 \alias{id_cache}
-\alias{.sensortowerR_env}
+\alias{.SensorTowerR_env}
 \title{Intelligent App ID Cache and Resolution System}
 \format{
 An object of class \code{environment} of length 0.
 }
 \usage{
-.sensortowerR_env
+.SensorTowerR_env
 }
 \description{
 Internal functions to manage a persistent cache of app ID mappings,

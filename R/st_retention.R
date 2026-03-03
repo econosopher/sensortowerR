@@ -306,7 +306,7 @@ fetch_retention_for_platform <- function(app_id,
   # Process each app's retention data
   # app_data_list is a data frame when flattened, or a list of lists
   if (is.data.frame(app_data_list)) {
-    # Handle data.frame (typical from fromJSON with flatten=TRUE)
+    # Handle tibble::tibble(typical from fromJSON with flatten=TRUE)
     processed <- lapply(seq_len(nrow(app_data_list)), function(i) {
       app_row <- app_data_list[i, ]
 

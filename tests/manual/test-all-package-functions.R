@@ -1,15 +1,15 @@
-# Comprehensive Test Suite for sensortowerR
+# Comprehensive Test Suite for SensorTowerR
 # Tests active users, various ID types, granularities, countries, and functions
 # Optimized for minimal API calls while ensuring comprehensive coverage
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 library(httr2)
 
 # Initialize
 cat("\n=====================================\n")
-cat("Comprehensive sensortowerR Test Suite\n")
-cat("Version:", as.character(packageVersion("sensortowerR")), "\n")
+cat("Comprehensive SensorTowerR Test Suite\n")
+cat("Version:", as.character(packageVersion("SensorTowerR")), "\n")
 cat("Date:", Sys.Date(), "\n")
 cat("=====================================\n\n")
 

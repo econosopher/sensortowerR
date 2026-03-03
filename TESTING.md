@@ -1,4 +1,4 @@
-# Cross-Platform Testing Guide for sensortowerR
+# Cross-Platform Testing Guide for SensorTowerR
 
 This package includes comprehensive cross-platform testing capabilities to ensure compatibility across Windows, Linux, and macOS before CRAN submission.
 
@@ -9,7 +9,7 @@ The package now includes automated multi-platform testing using R-hub (rhub) tha
 ## Test Structure
 
 ### Standard Tests (Always Run)
-- `tests/testthat/test-sensortowerR.R` - Basic package functionality tests
+- `tests/testthat/test-SensorTowerR.R` - Basic package functionality tests
 - `tests/testthat/test-rhub-cran-checks.R` - CRAN compliance and multi-platform tests
 
 ### Helper Scripts

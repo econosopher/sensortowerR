@@ -17,13 +17,13 @@ knitr::opts_chunk$set(
 ```
 
 ```{r, purl=FALSE}
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 ```
 
 ## Introduction
 
-Custom Fields Filters are a powerful feature in Sensor Tower that allow you to create complex, reusable queries to segment apps based on hundreds of different attributes. This vignette demonstrates how to use the sensortowerR package to work with custom fields filters.
+Custom Fields Filters are a powerful feature in Sensor Tower that allow you to create complex, reusable queries to segment apps based on hundreds of different attributes. This vignette demonstrates how to use the SensorTowerR package to work with custom fields filters.
 
 ## Understanding Custom Fields
 
@@ -309,7 +309,7 @@ word_games %>%
   )
 ```
 
-## Integration with Other sensortowerR Functions
+## Integration with Other SensorTowerR Functions
 
 Custom fields filters integrate seamlessly with other package functions:
 
@@ -436,7 +436,7 @@ Key takeaways:
 - Use `st_discover_fields()` to explore available filtering options
 - Create reusable filters with utility functions like `st_filter_by_genre()`
 - Combine filters for complex queries
-- Integrate filters with other sensortowerR functions for comprehensive analysis
+- Integrate filters with other SensorTowerR functions for comprehensive analysis
 - Cache filter IDs for improved performance
 
 For more information, see the function documentation:

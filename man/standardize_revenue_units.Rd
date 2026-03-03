@@ -2,7 +2,7 @@
 % Please edit documentation in R/revenue_standardization.R
 \name{standardize_revenue_units}
 \alias{standardize_revenue_units}
-\title{Standardize Revenue Units Across sensortowerR}
+\title{Standardize Revenue Units Across SensorTowerR}
 \usage{
 standardize_revenue_units(data, source = "unknown", target_unit = "base")
 }
@@ -17,7 +17,7 @@ standardize_revenue_units(data, source = "unknown", target_unit = "base")
 Data frame with standardized revenue values
 }
 \description{
-Ensures revenue values have consistent units across all sensortowerR functions.
+Ensures revenue values have consistent units across all SensorTowerR functions.
 The Sensor Tower API returns revenue in cents, but for consistency with other
 functions like st_sales_report, this converts to base currency units.
 }

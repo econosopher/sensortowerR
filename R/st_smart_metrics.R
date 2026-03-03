@@ -48,17 +48,17 @@ st_smart_metrics <- function(
   verbose = TRUE
 ) {
   # Load cache if needed
-  if (use_cache && !exists("id_cache", envir = .sensortowerR_env)) {
+  if (use_cache && !exists("id_cache", envir = .SensorTowerR_env)) {
     load_id_cache()
   }
 
   # Step 1: Analyze and categorize IDs
   if (verbose) message("Analyzing ", length(app_ids), " app IDs...")
 
-  id_analysis <- data.frame(
+  id_analysis <- tibble::tibble(
     input_id = app_ids,
     id_type = sapply(app_ids, detect_id_type),
-    stringsAsFactors = FALSE
+
   )
 
   if (verbose) {
@@ -128,13 +128,13 @@ st_smart_metrics <- function(
     val
   }
   resolved_apps <- dplyr::bind_rows(lapply(app_list, function(app) {
-    data.frame(
+    tibble::tibble(
       input_id = to_safe_char(app$input_id),
       ios_id = to_safe_char(app$ios_id),
       android_id = to_safe_char(app$android_id),
       unified_id = to_safe_char(app$unified_id),
       app_name = to_safe_char(app$app_name),
-      stringsAsFactors = FALSE
+
     )
   }))
 
@@ -174,13 +174,13 @@ st_smart_metrics <- function(
     if (nrow(group_apps) == 0) next
     if (verbose) message("\nFetching ", group_name, " group...")
 
-    app_list_df <- data.frame(
+    app_list_df <- tibble::tibble(
       app_id = group_apps$input_id,
       ios_id = group_apps$ios_id,
       android_id = group_apps$android_id,
       unified_id = group_apps$unified_id,
       app_name = group_apps$app_name,
-      stringsAsFactors = FALSE
+
     )
 
     result <- switch(group_name,
@@ -286,7 +286,7 @@ st_smart_metrics <- function(
 #' @export
 st_clear_id_cache <- function(disk = TRUE) {
   # Clear in-memory cache
-  .sensortowerR_env$id_cache <- list()
+  .SensorTowerR_env$id_cache <- list()
 
   # Clear disk cache
   if (disk) {

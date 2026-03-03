@@ -1,12 +1,12 @@
-# Demonstration of ID Optimization Features in sensortowerR
+# Demonstration of ID Optimization Features in SensorTowerR
 # This shows how the package minimizes API calls through intelligent caching
 
-library(sensortowerR)
+library(SensorTowerR)
 
 # Enable verbose mode to see the optimization in action
-options(sensortowerR.verbose = TRUE)
+options(SensorTowerR.verbose = TRUE)
 
-cat("=== sensortowerR ID Optimization Demo ===\n\n")
+cat("=== SensorTowerR ID Optimization Demo ===\n\n")
 
 # 1. First, let's clear any existing cache to start fresh
 st_clear_id_cache()
@@ -109,7 +109,7 @@ cache_stats_before <- st_cache_info()
 
 # To persist cache between sessions, explicitly call save_id_cache()
 cat("\nTo save cache for future sessions, call save_id_cache()\n")
-cat("Cache location (CRAN-compliant): ", tools::R_user_dir("sensortowerR", "cache"), "\n")
+cat("Cache location (CRAN-compliant): ", tools::R_user_dir("SensorTowerR", "cache"), "\n")
 cat("To load cached data in a new session, call load_id_cache()\n")
 
 # 10. ID Type Detection Demo
@@ -133,10 +133,10 @@ cat("\n\nCONFIGURATION OPTIONS:\n")
 cat("=====================\n")
 
 cat("Current settings:\n")
-cat("  Cache enabled:", getOption("sensortowerR.use_cache"), "\n")
-cat("  Cache max age:", getOption("sensortowerR.cache_max_age_days"), "days\n")
-cat("  Auto resolve:", getOption("sensortowerR.auto_resolve"), "\n")
-cat("  Verbose mode:", getOption("sensortowerR.verbose"), "\n")
+cat("  Cache enabled:", getOption("SensorTowerR.use_cache"), "\n")
+cat("  Cache max age:", getOption("SensorTowerR.cache_max_age_days"), "days\n")
+cat("  Auto resolve:", getOption("SensorTowerR.auto_resolve"), "\n")
+cat("  Verbose mode:", getOption("SensorTowerR.verbose"), "\n")
 
 # Summary
 cat("\n\n=== SUMMARY ===\n")

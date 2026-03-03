@@ -1,7 +1,7 @@
 # Custom Field Filter Investigation Summary
 
 ## Overview
-This document summarizes the comprehensive investigation into Sensor Tower's custom field filter functionality and its integration into the sensortowerR package.
+This document summarizes the comprehensive investigation into Sensor Tower's custom field filter functionality and its integration into the SensorTowerR package.
 
 ## Key Findings
 
@@ -168,7 +168,7 @@ if (st_is_valid_filter_id(filter_id)) {
 3. Copy the filter ID from the URL
 4. Use in R:
 ```r
-library(sensortowerR)
+library(SensorTowerR)
 
 # Test your filter
 st_test_filter("your_filter_id_here")
@@ -188,4 +188,4 @@ data <- st_top_charts(
 
 ## Conclusion
 
-Custom field filters provide a powerful way to leverage Sensor Tower's web interface filtering capabilities in programmatic workflows. The implementation in sensortowerR now provides basic support with room for significant enhancements based on user needs and API capabilities.
+Custom field filters provide a powerful way to leverage Sensor Tower's web interface filtering capabilities in programmatic workflows. The implementation in SensorTowerR now provides basic support with room for significant enhancements based on user needs and API capabilities.

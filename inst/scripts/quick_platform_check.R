@@ -3,7 +3,7 @@
 # Quick platform check script - runs basic checks without interaction
 # Usage: Rscript inst/scripts/quick_platform_check.R
 
-message("Starting quick cross-platform checks for sensortowerR...")
+message("Starting quick cross-platform checks for SensorTowerR...")
 
 # Ensure we're in the package root
 if (!file.exists("DESCRIPTION")) {

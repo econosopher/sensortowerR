@@ -2,7 +2,7 @@
 # This example demonstrates the rich data structure returned by the Sensor Tower API
 # when using st_top_charts with custom filters
 
-library(sensortowerR)
+library(SensorTowerR)
 suppressPackageStartupMessages(library(dplyr))
 
 # Example URL from Sensor Tower web interface

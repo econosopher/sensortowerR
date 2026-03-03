@@ -4,6 +4,6 @@
 \alias{custom_filter_utils}
 \title{Custom Filter Utilities}
 \description{
-Internal functions for handling custom field filters across sensortowerR functions
+Internal functions for handling custom field filters across SensorTowerR functions
 }
 \keyword{internal}

@@ -84,7 +84,7 @@ test_that("clean_numeric_values removes special characters correctly", {
   )
   
   # Apply the cleaning function
-  cleaned_data <- sensortowerR:::clean_numeric_values(test_data)
+  cleaned_data <- SensorTowerR:::clean_numeric_values(test_data)
   
   # Check that numeric columns were converted to numeric type
   expect_true(is.numeric(cleaned_data$downloads_180d_ww))

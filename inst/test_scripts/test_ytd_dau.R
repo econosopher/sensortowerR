@@ -1,5 +1,5 @@
 # Test YTD DAU functionality
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 
 cat("=== TESTING YTD DAU FUNCTIONALITY ===\n")

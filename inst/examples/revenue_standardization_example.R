@@ -1,20 +1,20 @@
-# sensortowerR v0.2.3+ Revenue Standardization Example
+# SensorTowerR v0.2.3+ Revenue Standardization Example
 # This script demonstrates the automatic revenue standardization feature
 
 library(tidyverse)
-library(sensortowerR)
+library(SensorTowerR)
 library(scales)
 
-cat("sensortowerR Revenue Standardization Example\n")
+cat("SensorTowerR Revenue Standardization Example\n")
 cat("============================================\n\n")
 
 # Check package version
-pkg_version <- packageVersion("sensortowerR")
-cat(sprintf("Current sensortowerR version: %s\n", pkg_version))
+pkg_version <- packageVersion("SensorTowerR")
+cat(sprintf("Current SensorTowerR version: %s\n", pkg_version))
 
 if (pkg_version < "0.2.3") {
-  cat("\nWARNING: Please update to sensortowerR v0.2.3+ for automatic revenue standardization\n")
-  cat("Install the latest version with: devtools::install_github('econosopher/sensortowerR')\n\n")
+  cat("\nWARNING: Please update to SensorTowerR v0.2.3+ for automatic revenue standardization\n")
+  cat("Install the latest version with: devtools::install_github('econosopher/SensorTowerR')\n\n")
 }
 
 # Example 1: st_top_charts() with standardized revenue
@@ -47,7 +47,7 @@ if ("revenue" %in% names(top_games)) {
   cat(sprintf("- revenue unit: %s\n", attr(top_games$revenue, "unit") %||% "base_currency"))
   cat(sprintf("- revenue_absolute unit: %s\n", attr(top_games$revenue_absolute, "unit") %||% "cents"))
 } else {
-  cat("Note: 'revenue' column not found. Please update to sensortowerR v0.2.3+\n")
+  cat("Note: 'revenue' column not found. Please update to SensorTowerR v0.2.3+\n")
 }
 
 # Example 2: Demonstrating unit consistency across functions
@@ -138,7 +138,7 @@ cat("
 1. Always use the standardized 'revenue' column for analysis
 2. The original 'revenue_absolute' (cents) is preserved for reference
 3. Check for the 'revenue' column to ensure you're using v0.2.3+
-4. Revenue units are consistent across all sensortowerR functions:
+4. Revenue units are consistent across all SensorTowerR functions:
    - st_top_charts(): 'revenue' column
    - st_sales_report(): 'total_revenue', 'iphone_revenue', etc.
    - st_top_publishers(): 'revenue_usd' column

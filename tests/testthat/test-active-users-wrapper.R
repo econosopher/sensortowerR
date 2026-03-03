@@ -28,7 +28,7 @@ test_that("st_active_users delegates to st_batch_metrics and returns active metr
         value = c(20, 999, 10)
       )
     },
-    .package = "sensortowerR"
+    .package = "SensorTowerR"
   )
 
   result <- st_active_users(

@@ -1,14 +1,14 @@
 #' Parse Sensor Tower Web URL to API Parameters
 #' 
 #' Converts a Sensor Tower web interface URL into API-compatible parameters
-#' that can be used with sensortowerR functions. This is helpful when you want
+#' that can be used with SensorTowerR functions. This is helpful when you want
 #' to replicate a web query in R.
 #' 
 #' @param url Character string. A Sensor Tower web interface URL
 #' @param verbose Logical. Whether to print parameter mapping details. 
 #'   Defaults to TRUE.
 #' @return List of API-compatible parameters suitable for use with st_top_charts()
-#'   and other sensortowerR functions
+#'   and other SensorTowerR functions
 #' @export
 #' @examples
 #' \dontrun{
@@ -204,7 +204,7 @@ st_parse_web_url <- function(url, verbose = TRUE) {
       cat("!  custom_fields_filter_id with unified OS requires custom_tags_mode\n")
     }
     
-    cat("\nReady to use with sensortowerR functions!\n")
+    cat("\nReady to use with SensorTowerR functions!\n")
   }
   
   # Return the API parameters
@@ -238,24 +238,24 @@ st_extract_url_params <- function(url) {
   for (name in unique(names(parsed$query))) {
     values <- parsed$query[names(parsed$query) == name]
     if (length(values) == 1) {
-      params_list[[length(params_list) + 1]] <- data.frame(
+      params_list[[length(params_list) + 1]] <- tibble::tibble(
         parameter = name,
         value = values[[1]],
         count = 1,
-        stringsAsFactors = FALSE
+
       )
     } else {
       # Multiple values (like country)
-      params_list[[length(params_list) + 1]] <- data.frame(
+      params_list[[length(params_list) + 1]] <- tibble::tibble(
         parameter = name,
         value = paste(unlist(values), collapse = ", "),
         count = length(values),
-        stringsAsFactors = FALSE
+
       )
     }
   }
   
-  params_df <- do.call(rbind, params_list)
+  params_df <- dplyr::bind_rows(params_list)
   
   # Add interpretation
   params_df$interpretation <- ""

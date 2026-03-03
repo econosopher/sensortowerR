@@ -1,7 +1,7 @@
-ns <- getNamespace("sensortowerR")
+ns <- getNamespace("SensorTowerR")
 
 local_clean_cache <- function() {
-  env <- ns$.sensortowerR_env
+  env <- ns$.SensorTowerR_env
   env$id_cache <- list()
   rm(list = ls(envir = ns$.app_name_cache), envir = ns$.app_name_cache)
 }
@@ -45,7 +45,7 @@ test_that("extract_custom_metrics maps custom tags when aggregate tags missing",
 test_that("lookup_app_names_by_id prefers cache metadata", {
   on.exit(local_clean_cache(), add = TRUE)
 
-  ns <- getNamespace("sensortowerR")
+  ns <- getNamespace("SensorTowerR")
   ns$cache_id_mapping(
     input_id = "123",
     ios_id = "123",

@@ -1,9 +1,9 @@
 # Validate README Examples
 # This script checks that all functions mentioned in README exist and have correct signatures
 
-library(sensortowerR)
+library(SensorTowerR)
 
-cat("=== Validating sensortowerR README ===\n\n")
+cat("=== Validating SensorTowerR README ===\n\n")
 
 # Test 1: Check all core functions exist
 cat("Test 1: Core Functions Availability\n")
@@ -23,7 +23,7 @@ core_functions <- c(
 )
 
 for (func in core_functions) {
-  if (exists(func, where = "package:sensortowerR")) {
+  if (exists(func, where = "package:SensorTowerR")) {
     cat(sprintf("  ✓ %s exists\n", func))
   } else {
     cat(sprintf("  ✗ %s NOT FOUND\n", func))
@@ -72,7 +72,7 @@ deprecated_functions <- c(
 )
 
 for (func in deprecated_functions) {
-  if (exists(func, where = "package:sensortowerR")) {
+  if (exists(func, where = "package:SensorTowerR")) {
     cat(sprintf("  ✗ %s still exists (should be removed)\n", func))
   } else {
     cat(sprintf("  ✓ %s correctly removed/deprecated\n", func))
@@ -139,7 +139,7 @@ batch_functions <- list(
 
 for (func_name in names(batch_functions)) {
   param_name <- batch_functions[[func_name]]
-  if (exists(func_name, where = "package:sensortowerR")) {
+  if (exists(func_name, where = "package:SensorTowerR")) {
     func_args <- formals(get(func_name))
     if (param_name %in% names(func_args)) {
       cat(sprintf("    ✓ %s has '%s' parameter\n", func_name, param_name))

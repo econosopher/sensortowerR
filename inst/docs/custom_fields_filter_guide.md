@@ -1,4 +1,4 @@
-# Custom Fields Filter Guide for sensortowerR
+# Custom Fields Filter Guide for SensorTowerR
 
 ## Overview
 

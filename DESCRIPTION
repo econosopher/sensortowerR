@@ -1,4 +1,4 @@
-Package: sensortowerR
+Package: SensorTowerR
 Title: Interface to 'Sensor Tower' Mobile App Intelligence API
 Version: 0.9.6
 Description: Interface to the 'Sensor Tower' API <https://app.sensortower.com/api/docs/app_analysis> 

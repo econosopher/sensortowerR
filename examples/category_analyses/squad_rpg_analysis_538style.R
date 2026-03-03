@@ -14,7 +14,7 @@ pacman::p_load(
   )
 )
 
-# Load the development version of sensortowerR
+# Load the development version of SensorTowerR
 devtools::load_all()
 
 # FiveThirtyEight-inspired color palette

@@ -7,15 +7,15 @@
 #' @name id_cache
 
 # Package environment for storing cache
-.sensortowerR_env <- new.env(parent = emptyenv())
+.SensorTowerR_env <- new.env(parent = emptyenv())
 
 #' Initialize or Get ID Cache
 #' @noRd
 get_id_cache <- function() {
-  if (!exists("id_cache", envir = .sensortowerR_env)) {
-    .sensortowerR_env$id_cache <- list()
+  if (!exists("id_cache", envir = .SensorTowerR_env)) {
+    .SensorTowerR_env$id_cache <- list()
   }
-  .sensortowerR_env$id_cache
+  .SensorTowerR_env$id_cache
 }
 
 #' Save ID Mapping to Cache
@@ -40,7 +40,7 @@ cache_id_mapping <- function(input_id, ios_id = NULL, android_id = NULL,
   if (!is.null(android_id)) cache[[as.character(android_id)]] <- entry
   if (!is.null(unified_id)) cache[[as.character(unified_id)]] <- entry
 
-  .sensortowerR_env$id_cache <- cache
+  .SensorTowerR_env$id_cache <- cache
   invisible(entry)
 }
 
@@ -57,7 +57,7 @@ lookup_cached_id <- function(id) {
 #' Returns the CRAN-compliant cache directory using tools::R_user_dir()
 #' @noRd
 get_cache_dir <- function() {
-  tools::R_user_dir("sensortowerR", "cache")
+  tools::R_user_dir("SensorTowerR", "cache")
 }
 
 #' Save Cache to Disk
@@ -78,7 +78,7 @@ save_id_cache <- function(path = NULL) {
   cache <- get_id_cache()
   if (length(cache) > 0) {
     saveRDS(cache, path)
-    if (getOption("sensortowerR.verbose", FALSE)) {
+    if (getOption("SensorTowerR.verbose", FALSE)) {
       message("Saved ", length(cache), " ID mappings to cache")
     }
   }
@@ -95,8 +95,8 @@ load_id_cache <- function(path = NULL) {
 
   if (file.exists(path)) {
     cache <- readRDS(path)
-    .sensortowerR_env$id_cache <- cache
-    if (getOption("sensortowerR.verbose", FALSE)) {
+    .SensorTowerR_env$id_cache <- cache
+    if (getOption("SensorTowerR.verbose", FALSE)) {
       message("Loaded ", length(cache), " ID mappings from cache")
     }
   }
@@ -307,6 +307,6 @@ preload_common_apps <- function(auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"
 }
 
 # NOTE: Removed .onAttach and .onDetach hooks that automatically created
-# ~/.sensortowerR directory to comply with CRAN policy.
+# ~/.SensorTowerR directory to comply with CRAN policy.
 # Cache is now only loaded/saved when explicitly requested by user functions.
 # Users can call save_id_cache() explicitly to persist the cache.

@@ -1,7 +1,7 @@
 # Test README Examples with Actual API Calls
 # This validates that all examples in the README work correctly
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 library(tidyr)
 

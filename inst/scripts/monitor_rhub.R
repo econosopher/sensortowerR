@@ -7,7 +7,7 @@ monitor_rhub_run <- function(run_id = NULL) {
     # Get latest run
     runs <- system2("gh", 
                     args = c("run", "list", "--workflow=rhub.yaml", 
-                             "--repo", "econosopher/sensortowerR", 
+                             "--repo", "econosopher/SensorTowerR", 
                              "--limit", "1", "--json", "databaseId,status"),
                     stdout = TRUE)
     run_info <- jsonlite::fromJSON(runs)
@@ -18,13 +18,13 @@ monitor_rhub_run <- function(run_id = NULL) {
   }
   
   cat("Monitoring rhub run:", run_id, "\n")
-  cat("View on GitHub: https://github.com/econosopher/sensortowerR/actions/runs/", run_id, "\n\n", sep = "")
+  cat("View on GitHub: https://github.com/econosopher/SensorTowerR/actions/runs/", run_id, "\n\n", sep = "")
   
   # Monitor until complete
   while (TRUE) {
     status <- system2("gh", 
                       args = c("run", "view", run_id, 
-                               "--repo", "econosopher/sensortowerR", 
+                               "--repo", "econosopher/SensorTowerR", 
                                "--json", "status,conclusion,jobs"),
                       stdout = TRUE)
     
@@ -62,7 +62,7 @@ monitor_rhub_run <- function(run_id = NULL) {
         cat("\n✅ All platform checks passed!\n")
       } else {
         cat("\n❌ Some checks failed. Review the logs at:\n")
-        cat("   https://github.com/econosopher/sensortowerR/actions/runs/", run_id, "\n", sep = "")
+        cat("   https://github.com/econosopher/SensorTowerR/actions/runs/", run_id, "\n", sep = "")
       }
       break
     }

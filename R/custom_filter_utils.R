@@ -1,6 +1,6 @@
 #' Custom Filter Utilities
 #' 
-#' Internal functions for handling custom field filters across sensortowerR functions
+#' Internal functions for handling custom field filters across SensorTowerR functions
 #' 
 #' @keywords internal
 #' @name custom_filter_utils

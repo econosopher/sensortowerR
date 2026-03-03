@@ -1,9 +1,9 @@
 # Test internal caching functions
 library(testthat)
-library(sensortowerR)
+library(SensorTowerR)
 
 test_that("ID type detection works correctly", {
-  detect_id_type <- sensortowerR:::detect_id_type
+  detect_id_type <- SensorTowerR:::detect_id_type
   
   expect_equal(detect_id_type("553834731"), "ios")
   expect_equal(detect_id_type("1234567890"), "ios")
@@ -19,14 +19,14 @@ test_that("ID type detection works correctly", {
 
 test_that("cache operations work correctly", {
   # Get internal functions
-  get_id_cache <- sensortowerR:::get_id_cache
-  cache_id_mapping <- sensortowerR:::cache_id_mapping
-  lookup_cached_id <- sensortowerR:::lookup_cached_id
-  save_id_cache <- sensortowerR:::save_id_cache
-  load_id_cache <- sensortowerR:::load_id_cache
+  get_id_cache <- SensorTowerR:::get_id_cache
+  cache_id_mapping <- SensorTowerR:::cache_id_mapping
+  lookup_cached_id <- SensorTowerR:::lookup_cached_id
+  save_id_cache <- SensorTowerR:::save_id_cache
+  load_id_cache <- SensorTowerR:::load_id_cache
 
   # Use tempdir for CRAN compliance
-  test_cache_path <- file.path(tempdir(), "sensortowerR_test_cache.rds")
+  test_cache_path <- file.path(tempdir(), "SensorTowerR_test_cache.rds")
 
   # Clear cache first (memory only for this test)
   st_clear_id_cache(disk = FALSE)
@@ -81,7 +81,7 @@ test_that("cache operations work correctly", {
 
 test_that("st_cache_info displays correct information", {
   # Get internal function
-  cache_id_mapping <- sensortowerR:::cache_id_mapping
+  cache_id_mapping <- SensorTowerR:::cache_id_mapping
 
   # Clear cache first (memory only for CRAN compliance)
   st_clear_id_cache(disk = FALSE)

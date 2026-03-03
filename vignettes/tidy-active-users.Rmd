@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r, purl=FALSE}
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 library(tidyr)
 ```

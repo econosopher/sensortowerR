@@ -1,14 +1,14 @@
-# Comprehensive API Test Suite for sensortowerR
+# Comprehensive API Test Suite for SensorTowerR
 # This script tests all major functions to ensure they work correctly with the API
 # Run this to verify package functionality after changes
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 
 # Initialize test environment
 cat("\n=====================================\n")
-cat("sensortowerR Comprehensive API Tests\n")
-cat("Version:", as.character(packageVersion("sensortowerR")), "\n")
+cat("SensorTowerR Comprehensive API Tests\n")
+cat("Version:", as.character(packageVersion("SensorTowerR")), "\n")
 cat("Date:", Sys.Date(), "\n")
 cat("=====================================\n\n")
 
@@ -341,10 +341,10 @@ cat("\n\nSaving detailed results to:", results_file, "\n")
 
 # Generate markdown report
 report <- c(
-  paste("# sensortowerR API Test Results -", Sys.Date()),
+  paste("# SensorTowerR API Test Results -", Sys.Date()),
   "",
   "## Summary",
-  paste("- **Version**:", packageVersion("sensortowerR")),
+  paste("- **Version**:", packageVersion("SensorTowerR")),
   paste("- **Tests Run**:", total_tests),
   paste("- **Passed**:", passed_tests),
   paste("- **Failed**:", failed_tests),

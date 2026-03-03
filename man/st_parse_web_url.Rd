@@ -14,11 +14,11 @@ Defaults to TRUE.}
 }
 \value{
 List of API-compatible parameters suitable for use with st_top_charts()
-  and other sensortowerR functions
+  and other SensorTowerR functions
 }
 \description{
 Converts a Sensor Tower web interface URL into API-compatible parameters
-that can be used with sensortowerR functions. This is helpful when you want
+that can be used with SensorTowerR functions. This is helpful when you want
 to replicate a web query in R.
 }
 \examples{

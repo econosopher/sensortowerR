@@ -3,7 +3,7 @@
 # This example shows how to get unified daily revenue data
 # using the improved st_sales_report() with proper deduplication
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 library(ggplot2)
 

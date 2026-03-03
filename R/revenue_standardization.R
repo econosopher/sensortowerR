@@ -1,6 +1,6 @@
-#' Standardize Revenue Units Across sensortowerR
+#' Standardize Revenue Units Across SensorTowerR
 #'
-#' Ensures revenue values have consistent units across all sensortowerR functions.
+#' Ensures revenue values have consistent units across all SensorTowerR functions.
 #' The Sensor Tower API returns revenue in cents, but for consistency with other
 #' functions like st_sales_report, this converts to base currency units.
 #'

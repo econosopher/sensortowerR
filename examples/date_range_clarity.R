@@ -1,7 +1,7 @@
 # Example showing the importance of date_start and date_end columns
 # This demonstrates how different time_range values affect the actual period covered
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 
 # Example 1: Monthly data

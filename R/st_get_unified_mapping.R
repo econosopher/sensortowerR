@@ -62,7 +62,7 @@ st_get_unified_mapping <- function(app_ids,
   )
   
   # Initialize result data frame
-  result_df <- data.frame(
+  result_df <- tibble::tibble(
     input_id = app_ids,
     unified_app_id = NA_character_,
     unified_app_name = NA_character_,
@@ -70,7 +70,7 @@ st_get_unified_mapping <- function(app_ids,
     android_app_id = NA_character_,
     publisher_id = NA_character_,
     publisher_name = NA_character_,
-    stringsAsFactors = FALSE
+
   )
   
   # Process each app ID

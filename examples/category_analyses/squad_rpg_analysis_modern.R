@@ -15,7 +15,7 @@ pacman::p_load(
   )
 )
 
-# Load the development version of sensortowerR
+# Load the development version of SensorTowerR
 devtools::load_all()
 
 # Modern color palette inspired by contemporary design systems

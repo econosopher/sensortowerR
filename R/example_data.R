@@ -1,4 +1,4 @@
-#' Example Data for sensortowerR Package
+#' Example Data for SensorTowerR Package
 #'
 #' Creates example data structures that mimic the API responses for testing
 #' and demonstration purposes without requiring actual API calls.

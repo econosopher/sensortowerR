@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Cross-platform CRAN check script for sensortowerR
+# Cross-platform CRAN check script for SensorTowerR
 # This script helps run CRAN checks across multiple platforms
 
 # Load required packages

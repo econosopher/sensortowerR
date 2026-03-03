@@ -41,7 +41,7 @@ test_that("deduplication consolidates apps with same unified_app_id", {
   )
 
   # Apply deduplication using internal function with namespace
-  deduplicated <- sensortowerR:::deduplicate_by_group_id(mock_duplicated_data, "unified_app_id")
+  deduplicated <- SensorTowerR:::deduplicate_by_group_id(mock_duplicated_data, "unified_app_id")
 
   # Should have only one row
   expect_equal(nrow(deduplicated), 1)

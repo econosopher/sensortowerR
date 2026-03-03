@@ -94,7 +94,7 @@ test_that("package passes local CRAN check", {
 test_that("multi-platform check script exists and works", {
   
   script_path <- system.file("scripts", "check_all_platforms.R", 
-                             package = "sensortowerR")
+                             package = "SensorTowerR")
   
   if (file.exists(script_path)) {
     expect_true(file.exists(script_path), 
@@ -103,7 +103,7 @@ test_that("multi-platform check script exists and works", {
     cat("\nTo create a multi-platform check script, save the following as\n")
     cat("inst/scripts/check_all_platforms.R:\n\n")
     cat('#!/usr/bin/env Rscript\n')
-    cat('\n# Cross-platform CRAN check script for sensortowerR\n\n')
+    cat('\n# Cross-platform CRAN check script for SensorTowerR\n\n')
     cat('# Function to run all platform checks\n')
     cat('run_all_checks <- function() {\n')
     cat('  cat("Starting cross-platform CRAN checks...\\n\\n")\n')

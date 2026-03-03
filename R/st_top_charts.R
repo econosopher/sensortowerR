@@ -50,7 +50,7 @@
 #'   using the app IDs since the sales endpoint doesn't provide app names natively.
 #'   
 #'   **Revenue Units**: Revenue values are standardized to base currency units (dollars,
-#'   euros, etc.) for consistency across all sensortowerR functions. The function provides
+#'   euros, etc.) for consistency across all SensorTowerR functions. The function provides
 #'   a `revenue` column in base units alongside the original `revenue_absolute` (in cents).
 #'   
 #'   **Data Cleaning**: Numeric metric values are automatically cleaned of special 

@@ -102,7 +102,7 @@ inspect_tags_processor <- function(resp, ...) {
     }
 
     # Return standard processing to continue script
-    sensortowerR:::process_response(resp, enrich_response = TRUE)
+    SensorTowerR:::process_response(resp, enrich_response = TRUE)
 }
 
 # We need to construct the request manually to use the custom processor
@@ -117,7 +117,7 @@ sales_data <- tryCatch(
             end_date = "2024-01-31"
         )
 
-        sensortowerR:::fetch_data_core(
+        SensorTowerR:::fetch_data_core(
             endpoint = "unified/sales_report_estimates",
             params = params,
             processor = inspect_tags_processor,
@@ -187,7 +187,7 @@ if (!is.null(ios_id)) {
                 time_period = "day"
             )
             # Try fetching monthly active users first as it's less data
-            sensortowerR:::fetch_data_core(
+            SensorTowerR:::fetch_data_core(
                 endpoint = "ios/usage/active_users",
                 params = params,
                 auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN")

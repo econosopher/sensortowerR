@@ -1,7 +1,7 @@
 # Comprehensive Test Suite for Custom Field Filters
 # This script tests the custom_fields_filter_id functionality across different scenarios
 
-library(sensortowerR)
+library(SensorTowerR)
 library(testthat)
 library(dplyr)
 

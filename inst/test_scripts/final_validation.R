@@ -1,7 +1,7 @@
 # Final Validation Test
 # Ensures all functions work correctly with the updated understanding of API limitations
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 
 cat("=== FINAL VALIDATION TEST ===\n")

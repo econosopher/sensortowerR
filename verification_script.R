@@ -1,6 +1,6 @@
 # Verification Script for SensorTowerR
 
-library(sensortowerR)
+library(SensorTowerR)
 
 # Check if auth token is present
 if (Sys.getenv("SENSORTOWER_AUTH_TOKEN") == "") {

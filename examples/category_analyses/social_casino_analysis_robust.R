@@ -18,7 +18,7 @@ pacman::p_load(
   )
 )
 
-# Load the development version of sensortowerR
+# Load the development version of SensorTowerR
 devtools::load_all()
 
 # Helper function for safe column selection

@@ -1,5 +1,5 @@
 # Debug Android columns
-library(sensortowerR)
+library(SensorTowerR)
 
 # Test what st_sales_report returns for Android
 result <- st_sales_report(

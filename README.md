@@ -1,14 +1,14 @@
-# sensortowerR
+# SensorTowerR
 
-<p align="center"><img src="inst/images/sensortowerR_sticker.png" width="200"></p>
+<p align="center"><img src="inst/images/SensorTowerR_sticker.png" width="200"></p>
 
-`sensortowerR` is an R client for Sensor Tower's API with a tidyverse-first workflow:
+`SensorTowerR` is an R client for Sensor Tower's API with a tidyverse-first workflow:
 search apps and publishers, resolve IDs, fetch sales and active-user metrics, and chain everything with `dplyr`/`tidyr`.
 
 ## Installation
 
 ```r
-remotes::install_github("econosopher/sensortowerR")
+remotes::install_github("econosopher/SensorTowerR")
 ```
 
 ## Authentication
@@ -25,7 +25,7 @@ Restart your R session after updating `.Renviron`.
 ## Tidyverse Quick Start
 
 ```r
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 library(tidyr)
 
@@ -173,12 +173,12 @@ load_id_cache()
 st_clear_id_cache()
 ```
 
-Cache location is CRAN-compliant via `tools::R_user_dir("sensortowerR", "cache")`.
+Cache location is CRAN-compliant via `tools::R_user_dir("SensorTowerR", "cache")`.
 
 ## Learn More
 
-- Vignette: `vignette("tidy-active-users", package = "sensortowerR")`
-- Changelog: [NEWS.md](https://github.com/econosopher/sensortowerR/blob/main/NEWS.md)
+- Vignette: `vignette("tidy-active-users", package = "SensorTowerR")`
+- Changelog: [NEWS.md](https://github.com/econosopher/SensorTowerR/blob/main/NEWS.md)
 
 ## License
 

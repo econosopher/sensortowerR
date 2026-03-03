@@ -36,7 +36,7 @@ system.time({
   )
 })
 
-cat("Cache status: Apps in cache:", length(ls(envir = sensortowerR:::.app_name_cache)), "\n")
+cat("Cache status: Apps in cache:", length(ls(envir = SensorTowerR:::.app_name_cache)), "\n")
 
 # Example 2: Batch processing multiple categories efficiently
 cat("\n🔄 Example 2: Efficient Multi-Category Analysis\n")

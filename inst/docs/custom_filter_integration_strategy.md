@@ -1,8 +1,8 @@
-# Custom Filter Integration Strategy for sensortowerR
+# Custom Filter Integration Strategy for SensorTowerR
 
 ## Executive Summary
 
-This document outlines a comprehensive strategy for enhancing custom field filter support across the sensortowerR package, making it easier for users to leverage Sensor Tower's web-based filter creation capabilities in their R workflows.
+This document outlines a comprehensive strategy for enhancing custom field filter support across the SensorTowerR package, making it easier for users to leverage Sensor Tower's web-based filter creation capabilities in their R workflows.
 
 ## Current State
 
@@ -325,7 +325,7 @@ st_test_filter <- function(filter_id, verbose = TRUE) {
 Create a comprehensive vignette covering:
 - What are custom filters
 - How to create them in Sensor Tower
-- Using filters in sensortowerR
+- Using filters in SensorTowerR
 - Managing multiple filters
 - Best practices
 - Troubleshooting
@@ -405,4 +405,4 @@ test_that("Custom filter parameters work in API calls", {
 
 ## Conclusion
 
-This integration strategy will make sensortowerR the most comprehensive R interface for Sensor Tower's custom filter functionality, significantly improving user workflow efficiency and reducing the complexity of working with complex data filters.
+This integration strategy will make SensorTowerR the most comprehensive R interface for Sensor Tower's custom filter functionality, significantly improving user workflow efficiency and reducing the complexity of working with complex data filters.

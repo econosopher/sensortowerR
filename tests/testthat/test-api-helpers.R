@@ -1,28 +1,28 @@
 test_that("endpoint helpers build expected paths", {
   expect_equal(
-    sensortowerR:::st_endpoint_path("usage_active_users", os = "ios"),
+    SensorTowerR:::st_endpoint_path("usage_active_users", os = "ios"),
     "v1/ios/usage/active_users"
   )
 
   expect_equal(
-    sensortowerR:::st_endpoint_relative_path("search_entities", app_store = "unified"),
+    SensorTowerR:::st_endpoint_relative_path("search_entities", app_store = "unified"),
     "unified/search_entities"
   )
 
   expect_error(
-    sensortowerR:::st_endpoint_path("usage_active_users"),
+    SensorTowerR:::st_endpoint_path("usage_active_users"),
     "Missing required endpoint placeholder"
   )
 
   expect_error(
-    sensortowerR:::st_endpoint_path("not_a_real_endpoint"),
+    SensorTowerR:::st_endpoint_path("not_a_real_endpoint"),
     "Unknown endpoint key"
   )
 })
 
 test_that("resolve_auth_token supports direct and env-token resolution", {
   expect_equal(
-    sensortowerR:::resolve_auth_token("  token_123  "),
+    SensorTowerR:::resolve_auth_token("  token_123  "),
     "token_123"
   )
 
@@ -37,13 +37,13 @@ test_that("resolve_auth_token supports direct and env-token resolution", {
 
   Sys.setenv(SENSORTOWER_AUTH_TOKEN = "from_env")
   expect_equal(
-    sensortowerR:::resolve_auth_token(NULL),
+    SensorTowerR:::resolve_auth_token(NULL),
     "from_env"
   )
 
   Sys.setenv(SENSORTOWER_AUTH_TOKEN = "")
   expect_error(
-    sensortowerR:::resolve_auth_token(NULL),
+    SensorTowerR:::resolve_auth_token(NULL),
     "Authentication token not found"
   )
 })

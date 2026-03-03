@@ -1,5 +1,5 @@
 # Test st_metrics fix
-library(sensortowerR)
+library(SensorTowerR)
 
 cat("=== Testing st_metrics Fix ===\n\n")
 

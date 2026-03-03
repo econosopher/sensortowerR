@@ -1,6 +1,6 @@
 # Test script for new functions: st_category_rankings() and st_app_details()
 
-library(sensortowerR)
+library(SensorTowerR)
 library(dplyr)
 
 # Test 1: Category Rankings

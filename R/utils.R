@@ -1,4 +1,4 @@
-# --- Utility Functions for sensortowerR ---
+# --- Utility Functions for SensorTowerR ---
 
 # This file contains helper functions used by the main data-fetching functions
 # in the package. They handle tasks like input validation, query parameter
@@ -241,7 +241,7 @@ prepare_query_params_active_users <- function(auth_token,
 
 build_request <- function(base_url, path_segments, query_params) {
   req <- httr2::request(base_url) %>%
-    httr2::req_user_agent("sensortowerR (https://github.com/ge-data-solutions/sensortowerR)")
+    httr2::req_user_agent("SensorTowerR (https://github.com/ge-data-solutions/SensorTowerR)")
 
   for (segment in path_segments) {
     req <- req %>% httr2::req_url_path_append(segment)
@@ -305,7 +305,7 @@ fetch_data_core <- function(endpoint, params, auth_token, verbose = FALSE, enric
   req <- httr2::request(base_url) %>%
     httr2::req_url_path_append(endpoint) %>%
     httr2::req_url_query(!!!params) %>%
-    httr2::req_user_agent("sensortowerR") %>%
+    httr2::req_user_agent("SensorTowerR") %>%
     httr2::req_retry(max_tries = 3, backoff = function(i) 2^i)
 
   resp <- tryCatch(
@@ -670,7 +670,7 @@ lookup_app_names_by_id <- function(data) {
     return(data)
   }
 
-  verbose_lookup <- getOption("sensortowerR.verbose", FALSE)
+  verbose_lookup <- getOption("SensorTowerR.verbose", FALSE)
 
   # For unified hex IDs, prefer direct /v1/unified/apps lookup.
   # This avoids search-based resolution returning IDs as fallback names.
@@ -754,11 +754,11 @@ lookup_app_names_by_id <- function(data) {
   }
 
   # Build a lookup table from cache results
-  lookup_table <- data.frame(
+  lookup_table <- tibble::tibble(
     lookup_id = candidate_ids,
     resolved_app_name = NA_character_,
     resolved_unified_id = NA_character_,
-    stringsAsFactors = FALSE
+
   )
 
   for (i in seq_along(candidate_ids)) {

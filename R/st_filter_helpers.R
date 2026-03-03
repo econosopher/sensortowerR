@@ -237,7 +237,7 @@ st_build_filter_url <- function(os = "unified",
   message("1. Visit the URL above")
   message("2. Configure your desired filters")
   message("3. Copy the custom_fields_filter_id from the URL")
-  message("4. Use it in sensortowerR functions")
+  message("4. Use it in SensorTowerR functions")
   
   invisible(url)
 }

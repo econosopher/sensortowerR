@@ -1,4 +1,4 @@
-library(sensortowerR)
+library(SensorTowerR)
 
 # Test searching by different name variants
 cat("Testing name-based search for unified IDs:\n\n")

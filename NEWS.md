@@ -1,4 +1,4 @@
-# sensortowerR 0.9.6
+# SensorTowerR 0.9.6
 
 ## New Features
 
@@ -18,7 +18,7 @@
 
 ---
 
-# sensortowerR 0.9.5
+# SensorTowerR 0.9.5
 
 ## Bug Fixes
 
@@ -30,7 +30,7 @@
 
 ---
 
-# sensortowerR 0.9.4
+# SensorTowerR 0.9.4
 
 ## CRAN Policy Compliance
 
@@ -44,7 +44,7 @@
 
 ---
 
-# sensortowerR 0.9.3
+# SensorTowerR 0.9.3
 
 ## New Features
 
@@ -74,7 +74,7 @@ sessions <- st_session_metrics(
 
 ---
 
-# sensortowerR 0.9.2
+# SensorTowerR 0.9.2
 
 ## CRAN Submission Fix
 
@@ -84,13 +84,13 @@ sessions <- st_session_metrics(
 
 ---
 
-# sensortowerR 0.9.1
+# SensorTowerR 0.9.1
 
 ## CRAN Compliance Fix
 
-* **FIXED** Package no longer creates `~/.sensortowerR` directory automatically
+* **FIXED** Package no longer creates `~/.SensorTowerR` directory automatically
   - This was a CRAN policy violation ("archived now" from CRAN team)
-  - Cache location now uses CRAN-compliant `tools::R_user_dir("sensortowerR", "cache")`
+  - Cache location now uses CRAN-compliant `tools::R_user_dir("SensorTowerR", "cache")`
   - Removed automatic cache loading/saving in `.onAttach`/`.onDetach` hooks
   - Cache is now only created when user explicitly calls `save_id_cache()`
 
@@ -109,7 +109,7 @@ sessions <- st_session_metrics(
 
 ---
 
-# sensortowerR 0.9.0
+# SensorTowerR 0.9.0
 
 ## New Features
 
@@ -140,7 +140,7 @@ lilith <- st_publisher_portfolio("Lilith Games")
 
 ---
 
-# sensortowerR 0.8.8
+# SensorTowerR 0.8.8
 
 ## New Features
 
@@ -177,7 +177,7 @@ sales <- st_unified_sales_report(
 )
 ```
 
-# sensortowerR 0.8.3
+# SensorTowerR 0.8.3
 
 ## Internal Refactoring & Robustness
 
@@ -185,7 +185,7 @@ sales <- st_unified_sales_report(
 * **Improved Stability**: Fixed regression in `resolve_ids_for_os` to ensure consistent ID handling across platforms.
 * **Enhanced Testing**: Expanded test suite to cover edge cases in batch processing and ID resolution.
 
-# sensortowerR 0.8.2
+# SensorTowerR 0.8.2
 
 ## Critical Fix
 
@@ -201,7 +201,7 @@ sales <- st_unified_sales_report(
 * Added examples showing how to use custom filter URLs from web interface
 * Clarified that all measures now use the sales endpoint
 
-# sensortowerR 0.8.0
+# SensorTowerR 0.8.0
 
 ## Breaking Changes
 
@@ -217,7 +217,7 @@ sales <- st_unified_sales_report(
   - Clear error messages for invalid ID formats
   - Support for unified IDs with automatic platform resolution
 
-# sensortowerR 0.7.4
+# SensorTowerR 0.7.4
 
 ## New features
 
@@ -228,7 +228,7 @@ sales <- st_unified_sales_report(
   - Handles parameter mapping between web interface and API conventions
   - Automatically converts extensive country lists to "WW" when appropriate
 
-# sensortowerR 0.7.3
+# SensorTowerR 0.7.3
 
 ## New features
 
@@ -238,7 +238,7 @@ sales <- st_unified_sales_report(
   - Added comprehensive example script demonstrating custom filter usage
   - Updated documentation explaining how to obtain filter IDs
 
-# sensortowerR 0.7.2
+# SensorTowerR 0.7.2
 
 ## New features
 
@@ -256,7 +256,7 @@ sales <- st_unified_sales_report(
 * Added comprehensive validation of active user metric relationships (DAU < WAU < MAU)
 * Improved test efficiency to minimize API calls while maintaining coverage
 
-# sensortowerR 0.7.1
+# SensorTowerR 0.7.1
 
 ## Bug fixes
 
@@ -264,7 +264,7 @@ sales <- st_unified_sales_report(
 * Fixed column type mismatch when combining active user results with revenue/download results
 * All 9 major functions now pass comprehensive API tests with 100% success rate
 
-# sensortowerR 0.7.0
+# SensorTowerR 0.7.0
 
 ## BREAKING CHANGES
 
@@ -290,7 +290,7 @@ sales <- st_unified_sales_report(
 * Fixed dplyr compatibility issues with .data pronoun
 * Package now passes R CMD check --as-cran with only acceptable NOTEs
 
-# sensortowerR 0.1.7
+# SensorTowerR 0.1.7
 
 ## Major improvements
 
@@ -322,6 +322,6 @@ sales <- st_unified_sales_report(
 * Added ENDPOINT_REFERENCE.md documenting which endpoints work for daily data
 * Added comprehensive test scripts in tests/ directory
 
-# sensortowerR 0.1.6
+# SensorTowerR 0.1.6
 
 * Previous version changes...

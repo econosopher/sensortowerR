@@ -1,5 +1,5 @@
 # Test MAU endpoint with correct response format
-library(sensortowerR)
+library(SensorTowerR)
 library(httr2)
 library(dplyr)
 library(jsonlite)

@@ -1,4 +1,4 @@
-# --- Constants for sensortowerR ---
+# --- Constants for SensorTowerR ---
 
 #' Metric Mapping for Custom Tags
 #' 

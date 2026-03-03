@@ -18,7 +18,7 @@ pacman::p_load(
   )
 )
 
-# Load the development version of sensortowerR
+# Load the development version of SensorTowerR
 devtools::load_all()
 
 # First, let's find Monopoly Go and its category

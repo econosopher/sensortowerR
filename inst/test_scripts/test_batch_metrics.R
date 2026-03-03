@@ -1,5 +1,5 @@
 # Test script for st_batch_metrics function
-library(sensortowerR)
+library(SensorTowerR)
 
 # Check if auth token is available
 if (nchar(Sys.getenv("SENSORTOWER_AUTH_TOKEN")) == 0) {
