@@ -2,100 +2,92 @@
 % Please edit documentation in R/st_metrics.R
 \name{st_metrics}
 \alias{st_metrics}
-\title{Fetch Sensor Tower Metrics for Apps}
+\title{Fetch Sensor Tower Metrics}
 \usage{
 st_metrics(
-  os,
-  app_id = NULL,
-  ios_app_id = NULL,
-  android_app_id = NULL,
-  unified_app_id = NULL,
-  start_date = NULL,
-  end_date = NULL,
-  countries,
-  date_granularity,
-  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
-  verbose = TRUE
+  app_id,
+  metrics = c("revenue", "downloads"),
+  os = "unified",
+  countries = "WW",
+  date_from = Sys.Date() - 90,
+  date_to = Sys.Date(),
+  granularity = "daily",
+  revenue_unit = c("dollars", "cents"),
+  shape = c("long", "wide"),
+  cache = TRUE,
+  auth_token = NULL
 )
 }
 \arguments{
-\item{os}{Character. Required. Operating system: "ios", "android", or "unified".
-This determines which platform's data is returned.}
+\item{app_id}{Character scalar or vector of app identifiers. Each entry can be
+a Sensor Tower unified app ID, an iOS numeric app ID, or an Android package
+name.}
 
-\item{app_id}{Character string. Can be a unified app ID, iOS app ID, or Android package name.}
+\item{metrics}{Character vector of metrics to return. Supported values are
+`"revenue"` and `"downloads"`.}
 
-\item{ios_app_id}{Character string. iOS app ID (optional).}
+\item{os}{Character scalar. One of `"ios"`, `"android"`, or `"unified"`.}
 
-\item{android_app_id}{Character string. Android package name (optional).}
+\item{countries}{Character vector of 2-letter country codes. Use `"WW"` for
+worldwide aggregates.}
 
-\item{unified_app_id}{Character string. Sensor Tower unified ID (24-char hex).}
+\item{date_from, date_to}{Date bounds for the query. Accept `Date` objects or
+ISO date strings.}
 
-\item{start_date}{Date object or character string (YYYY-MM-DD). Start date.}
+\item{granularity}{Character scalar. One of `"daily"`, `"weekly"`,
+`"monthly"`, or `"quarterly"`.}
 
-\item{end_date}{Date object or character string (YYYY-MM-DD). End date.}
+\item{revenue_unit}{Character scalar. `"dollars"` (default) returns revenue in
+base currency units. `"cents"` returns revenue in cents for compatibility
+with the legacy API surface.}
 
-\item{countries}{Character vector. Country codes (e.g., "US", "GB", "JP", or "WW" for worldwide). Required.}
+\item{shape}{Character scalar. `"long"` returns one row per metric observation.
+`"wide"` returns one row per app/date/country with separate metric columns.}
 
-\item{date_granularity}{Character. One of "daily", "weekly", "monthly", "quarterly". Required.}
+\item{cache}{Logical. If `TRUE`, use a process-local cache keyed on the
+normalized arguments.}
 
-\item{auth_token}{Character string. Sensor Tower API token.}
-
-\item{verbose}{Logical. Print progress messages.}
+\item{auth_token}{Optional Sensor Tower API token. If `NULL`, falls back to
+`SENSORTOWER_AUTH_TOKEN`.}
 }
 \value{
-A tibble with columns: app_id, app_id_type, date, country, revenue, downloads
+If `shape = "long"`, a tibble with columns:
+  - `app_id`: identifier supplied to `st_metrics()`
+  - `os`: normalized operating system
+  - `country`: 2-letter country code
+  - `date`: observation date
+  - `metric`: one of `"revenue"` or `"downloads"`
+  - `value`: metric value; revenue is in dollars by default and cents when
+    `revenue_unit = "cents"`
+
+If `shape = "wide"`, a tibble with columns:
+  - `app_id`
+  - `os`
+  - `country`
+  - `date`
+  - one numeric column per requested metric
 }
 \description{
-Retrieves metrics for apps. The OS parameter controls which platform's data is returned,
-regardless of which app IDs are provided. The function will automatically look up
-the appropriate IDs if needed.
-}
-\details{
-The OS parameter controls what data is returned:
-
-- os = "ios": Returns iOS data only
-- os = "android": Returns Android data only
-- os = "unified": Returns combined iOS + Android data (as separate rows)
-
-The function will automatically look up the appropriate IDs based on the OS parameter.
-For example, if you provide a unified_app_id but set os = "ios", it will look up
-the iOS app ID and return iOS-only data.
+Thin v1.0.0 facade for sales/download metrics. The function validates a
+standardized argument set, dispatches to the legacy implementation that best
+matches the request, and then normalizes the result into a stable schema.
 }
 \examples{
 \dontrun{
-# Get iOS data only
-ios_metrics <- st_metrics(
+st_metrics(
+  app_id = "553834731",
   os = "ios",
-  ios_app_id = "1195621598", # Homescapes iOS
   countries = "US",
-  date_granularity = "daily",
-  start_date = Sys.Date() - 30,
-  end_date = Sys.Date() - 1
+  date_from = Sys.Date() - 30,
+  date_to = Sys.Date() - 1
 )
 
-# Get unified data from a unified ID
-unified_metrics <- st_metrics(
+st_metrics(
+  app_id = c("553834731", "com.supercell.clashofclans"),
   os = "unified",
-  unified_app_id = "5ba4585f539ce75b97db6bcb",
-  countries = "US",
-  date_granularity = "daily"
-)
-
-# Get iOS data from Android ID (automatic lookup)
-ios_from_android <- st_metrics(
-  os = "ios",
-  android_app_id = "com.king.candycrushsaga",
-  countries = "WW",
-  date_granularity = "monthly"
-)
-
-# Get unified data from platform IDs
-unified_from_platforms <- st_metrics(
-  os = "unified",
-  ios_app_id = "1195621598",
-  android_app_id = "com.playrix.homescapes",
-  countries = "US",
-  date_granularity = "daily"
+  shape = "wide",
+  countries = c("US", "GB"),
+  revenue_unit = "cents"
 )
 }
 

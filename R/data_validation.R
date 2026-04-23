@@ -4,11 +4,8 @@
 
 #' Validate top charts data
 #'
-#' @param data Data frame from st_top_charts
-#' @param measure The measure used (revenue, units, DAU, etc.)
-#' @param regions The regions requested
-#' @return Validated and potentially corrected data frame
-#' @export
+#' @keywords internal
+#' @noRd
 validate_top_charts_data <- function(data, measure, regions) {
   if (nrow(data) == 0) {
     return(data)
@@ -114,9 +111,8 @@ validate_top_charts_data <- function(data, measure, regions) {
 
 #' Clean numeric column by removing special characters
 #'
-#' @param x Vector to clean
-#' @return Numeric vector
-#' @export
+#' @keywords internal
+#' @noRd
 clean_numeric_column <- function(x) {
   if (is.numeric(x)) {
     return(x)
@@ -143,12 +139,8 @@ clean_numeric_column <- function(x) {
 
 #' Validate column exists with fallback options
 #'
-#' @param data Data frame
-#' @param primary Primary column name
-#' @param fallbacks Character vector of fallback column names
-#' @param operation Description of operation for error message
-#' @return Column name that exists, or stops with error
-#' @export
+#' @keywords internal
+#' @noRd
 require_column <- function(data, primary, fallbacks = NULL, operation = "operation") {
   all_options <- c(primary, fallbacks)
   found <- intersect(all_options, names(data))
@@ -183,10 +175,8 @@ require_column <- function(data, primary, fallbacks = NULL, operation = "operati
 
 #' Safe column selection with automatic fallbacks
 #'
-#' @param data Data frame
-#' @param ... Column specifications (can be character vectors)
-#' @return Data frame with selected columns
-#' @export
+#' @keywords internal
+#' @noRd
 select_robust <- function(data, ...) {
   cols <- list(...)
   selected <- c()

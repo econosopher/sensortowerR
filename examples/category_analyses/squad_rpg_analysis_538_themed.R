@@ -16,7 +16,7 @@ pacman::p_load(
   )
 )
 
-# Load the development version of SensorTowerR
+# Load the development version of sensortowerR
 devtools::load_all()
 
 # Function to get and cache app icons

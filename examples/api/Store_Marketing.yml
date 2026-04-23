@@ -1014,10 +1014,11 @@ paths:
   '/v1/{os}/review/app_history_summary':
     get:
       tags:
-        - 'RATINGS & REVIEWS: Review Breakdown'
-      description: 'Retrieve a summary of positive and or negative reviews of a particular app by each day, along with the app''s version update information.'
+        - 'RATINGS & REVIEWS: Review Analysis'
+      deprecated: true
+      description: '<strong>⚠️ DEPRECATED:</strong> This endpoint is deprecated and will be removed in a future release. Please use the new `GET /v1/facets/metrics?reviews_by_rating` endpoint instead. <a target=''_blank'' href=''/api/docs/store_marketing#/RATINGS%20%26%20REVIEWS:%20Review%20Analysis/getReviewMetricsByRating''>See API documentation for the new endpoint.</a> <br><br> Retrieve a summary of positive and or negative reviews of a particular app by each day, along with the app''s version update information.'
       operationId: app_history_summary
-      summary: Fetches summary of positive and negative review counts by day.
+      summary: '[DEPRECATED] Fetches summary of positive and negative review counts by day.'
       parameters:
         - description: Operating System
           in: path
@@ -1078,9 +1079,10 @@ paths:
     get:
       tags:
         - 'RATINGS & REVIEWS: Rating Analysis'
-      description: 'Retrieve historical rating count summary for a particular app, ordered by descending date. If the start date and end date parameters are both left blank, this will return a 0 or 1 length array containing the most recent Rating Count Breakdown for the specified app. <br><br> The returned <code>breakdown</code> is the total cumulative ratings for the lifetime and current version (if applicable) of the app sorted from 1 star to 5 stars. The returned <code>average</code> and <code>total</code> values are of the lifetime breakdowns. <br><br> <strong>Note:</strong> Rating count breakdowns may not be available every day for every app. <br><br> <strong>Deprecation:</strong> <code>current_version_breakdown</code> parameter is deprecated and currently returns the same data as in <code>breakdown</code>.'
+      deprecated: true
+      description: '<strong>⚠️ DEPRECATED:</strong> This endpoint is deprecated and will be removed in a future release. Please use the new `GET /v1/facets/metrics?ratings` endpoint instead. <a target=''_blank'' href=''/api/docs/store_marketing#/RATINGS%20%26%20REVIEWS:%20Rating%20Analysis/getRatingMetrics''>See API documentation for the new endpoint.</a> <br><br> Retrieve historical rating count summary for a particular app, ordered by descending date. If the start date and end date parameters are both left blank, this will return a 0 or 1 length array containing the most recent Rating Count Breakdown for the specified app. <br><br> The returned <code>breakdown</code> is the total cumulative ratings for the lifetime and current version (if applicable) of the app sorted from 1 star to 5 stars. The returned <code>average</code> and <code>total</code> values are of the lifetime breakdowns. <br><br> <strong>Note:</strong> Rating count breakdowns may not be available every day for every app. <br><br> <strong>Deprecation:</strong> <code>current_version_breakdown</code> parameter is deprecated and currently returns the same data as in <code>breakdown</code>.'
       operationId: get_ratings
-      summary: Fetches rating count breakdown of a particular app.
+      summary: '[DEPRECATED] Fetches rating count breakdown of a particular app.'
       parameters:
         - description: Operating System
           in: path
@@ -1129,6 +1131,299 @@ paths:
           $ref: '#/paths/~1v1~1ios~1featured~1apps/get/responses/401'
         '403':
           $ref: '#/paths/~1v1~1ios~1featured~1apps/get/responses/403'
+        '422':
+          $ref: '#/paths/~1v1~1ios~1featured~1apps/get/responses/422'
+  /v1/facets/metrics?ratings:
+    get:
+      tags:
+        - 'RATINGS & REVIEWS: Rating Analysis'
+      operationId: getRatingMetrics
+      description: |
+        Get rating metrics for mobile apps including total count, star-level breakdowns, and averages.
+
+        ## Bundles
+
+        ### ratings_incremental
+        Daily or periodic rating metrics for the selected period.
+
+        ### ratings_cumulative
+        Cumulative rating metrics at the end of the period.
+
+        ## Breakdowns
+
+        Specify how to break down the data. Use comma-separated values for multiple breakdowns.
+
+        ### Supported combinations
+
+        - `app_id` - table-like breakdown by app
+        - `app_id,date` - time series data by app
+        - `region` - table-like breakdown by region
+        - `region,date` - time series data by region
+        - `app_version` - breakdown by app version
+      summary: Fetches rating metrics for mobile apps
+      parameters:
+        - description: The bundle of rating metrics to retrieve
+          in: query
+          name: bundle
+          required: true
+          schema:
+            type: string
+            enum:
+              - ratings_incremental
+              - ratings_cumulative
+          example: ratings_incremental
+        - description: How to break down the data
+          in: query
+          name: breakdown
+          required: true
+          schema:
+            type: string
+            enum:
+              - app_id
+              - app_id,date
+              - region
+              - region,date
+              - app_version
+          example: app_id,date
+        - description: How data is aggregated (required when using date breakdown)
+          in: query
+          name: date_granularity
+          required: false
+          schema:
+            type: string
+            enum:
+              - day
+              - week
+              - month
+          example: week
+        - description: App IDs to retrieve data for (comma-separated)
+          in: query
+          name: app_ids
+          required: true
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+            maxItems: 1000
+          example:
+            - '284882215'
+            - '375380948'
+        - description: Regions to filter by (comma-separated)
+          in: query
+          name: regions
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          example:
+            - US
+            - GB
+        - description: Start date for the period (`YYYY-MM-DD` format)
+          in: query
+          name: start_date
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2024-01-01'
+        - description: End date for the period (`YYYY-MM-DD` format)
+          in: query
+          name: end_date
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2024-01-31'
+        - description: Apply estimated country weights to Android ratings counts
+          in: query
+          name: android_localized_estimates
+          required: false
+          schema:
+            type: boolean
+            default: true
+          example: true
+      responses:
+        '200':
+          description: <strong>Success.</strong>
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                required:
+                  - data
+        '401':
+          $ref: '#/paths/~1v1~1ios~1featured~1apps/get/responses/401'
+        '422':
+          $ref: '#/paths/~1v1~1ios~1featured~1apps/get/responses/422'
+  /v1/facets/metrics?reviews_by_rating:
+    get:
+      tags:
+        - 'RATINGS & REVIEWS: Review Analysis'
+      operationId: getReviewMetricsByRating
+      description: |
+        Get review metrics for mobile apps with star rating breakdown including total count, rating averages, and per-rating breakdowns.
+
+        ## Breakdowns
+
+        Specify how to break down the data. Use comma-separated values for multiple breakdowns.
+
+        ### Supported combinations
+
+        - `review_rating`
+        - `date,review_rating`
+        - `region,review_rating`
+        - `language,review_rating`
+        - `app_version,review_rating`
+      summary: Fetches review metrics by rating for mobile apps
+      parameters:
+        - description: The bundle of review metrics to retrieve
+          in: query
+          name: bundle
+          required: true
+          schema:
+            type: string
+            enum:
+              - reviews_by_rating
+          example: reviews_by_rating
+        - description: How to break down the data
+          in: query
+          name: breakdown
+          required: true
+          schema:
+            type: string
+            enum:
+              - review_rating
+              - date,review_rating
+              - region,review_rating
+              - language,review_rating
+              - app_version,review_rating
+          example: date,review_rating
+        - description: How data is aggregated (required when using date breakdown)
+          in: query
+          name: date_granularity
+          required: false
+          schema:
+            type: string
+            enum:
+              - day
+              - week
+              - month
+          example: day
+        - description: Single App ID to retrieve data for
+          in: query
+          name: app_ids
+          required: true
+          schema:
+            type: string
+          example: '284882215'
+        - description: Regions to filter by (comma-separated, iOS only)
+          in: query
+          name: regions
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          example:
+            - US
+            - GB
+        - description: Languages to filter by (comma-separated, Android only)
+          in: query
+          name: languages
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - description: Start date for the period (`YYYY-MM-DD` format)
+          in: query
+          name: start_date
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2024-01-01'
+        - description: End date for the period (`YYYY-MM-DD` format)
+          in: query
+          name: end_date
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2024-01-31'
+        - description: Review keywords to filter by (comma-separated)
+          in: query
+          name: review_keywords
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - description: Review sentiments to filter by (comma-separated)
+          in: query
+          name: review_sentiments
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - description: Review tags to filter by (comma-separated)
+          in: query
+          name: review_tags
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - description: Search terms to filter reviews by content (comma-separated)
+          in: query
+          name: search_terms
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - description: Star ratings to filter by (comma-separated, values 1-5)
+          in: query
+          name: rating_filters
+          required: false
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: <strong>Success.</strong>
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                required:
+                  - data
+        '401':
+          $ref: '#/paths/~1v1~1ios~1featured~1apps/get/responses/401'
         '422':
           $ref: '#/paths/~1v1~1ios~1featured~1apps/get/responses/422'
   /v1/ios/search_ads/apps:
@@ -1291,7 +1586,6 @@ tags:
   - name: 'APP STORE OPTIMIZATION: Keyword Downloads'
   - name: 'APP STORE OPTIMIZATION: Keyword Research'
   - name: 'APP STORE OPTIMIZATION: Traffic Score'
-  - name: 'RATINGS & REVIEWS: Review Analysis and History'
-  - name: 'RATINGS & REVIEWS: Review Breakdown'
+  - name: 'RATINGS & REVIEWS: Review Analysis'
   - name: 'RATINGS & REVIEWS: Rating Analysis'
   - name: 'SEARCH ADS: Apple Search Ads'

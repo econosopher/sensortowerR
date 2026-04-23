@@ -68,8 +68,9 @@
 #' @importFrom jsonlite fromJSON
 #' @importFrom tibble tibble
 #' @importFrom rlang abort
-#' @export
-st_app_info <- function(term,
+#' @keywords internal
+#' @noRd
+st_app_info_impl <- function(term,
                         app_store = "unified",
                         entity_type = "app",
                         limit = 20,

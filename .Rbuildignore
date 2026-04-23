@@ -63,3 +63,8 @@ inst/images/logo_creation.R
 ^exploration_script\.R$
 ^test_name_search\.R$
 ^verification_script\.R$
+^tasks$
+^output$
+^outputs$
+^sensortowerR\.Rcheck$
+^.*\.tar\.gz$

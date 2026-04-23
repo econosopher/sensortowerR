@@ -72,8 +72,9 @@
 #' @importFrom jsonlite fromJSON
 #' @importFrom tibble tibble as_tibble as_tibble_row
 #' @importFrom dplyr rename bind_rows
-#' @export
-st_app_details <- function(app_ids,
+#' @keywords internal
+#' @noRd
+st_app_details_impl <- function(app_ids,
                           os,
                           include_developer_contacts = TRUE,
                           auth_token = NULL) {

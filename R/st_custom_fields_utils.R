@@ -33,8 +33,9 @@ NULL
 #' )
 #' }
 #'
-#' @export
-st_filter_by_genre <- function(
+#' @keywords internal
+#' @noRd
+st_filter_by_genre_impl <- function(
     genres = NULL,
     sub_genres = NULL,
     exclude_genres = FALSE,
@@ -67,7 +68,7 @@ st_filter_by_genre <- function(
     )))
   }
   
-  st_custom_fields_filter(
+  st_custom_fields_filter_impl(
     custom_fields = custom_fields,
     auth_token = auth_token
   )
@@ -95,8 +96,9 @@ st_filter_by_genre <- function(
 #' )
 #' }
 #'
-#' @export
-st_filter_by_monetization <- function(
+#' @keywords internal
+#' @noRd
+st_filter_by_monetization_impl <- function(
     free_only = NULL,
     has_iap = NULL,
     has_ads = NULL,
@@ -142,7 +144,7 @@ st_filter_by_monetization <- function(
     rlang::abort("At least one monetization parameter must be specified")
   }
   
-  st_custom_fields_filter(
+  st_custom_fields_filter_impl(
     custom_fields = custom_fields,
     auth_token = auth_token
   )
@@ -166,8 +168,9 @@ st_filter_by_monetization <- function(
 #' )
 #' }
 #'
-#' @export
-st_filter_by_publisher <- function(
+#' @keywords internal
+#' @noRd
+st_filter_by_publisher_impl <- function(
     publisher_names,
     exclude = FALSE,
     auth_token = NULL
@@ -177,7 +180,7 @@ st_filter_by_publisher <- function(
     rlang::abort("publisher_names is required")
   }
   
-  st_custom_fields_filter(
+  st_custom_fields_filter_impl(
     custom_fields = list(
       list(
         name = "Publisher",
@@ -211,8 +214,9 @@ st_filter_by_publisher <- function(
 #' )
 #' }
 #'
-#' @export
-st_filter_by_sdk <- function(
+#' @keywords internal
+#' @noRd
+st_filter_by_sdk_impl <- function(
     sdk_names,
     exclude = FALSE,
     auth_token = NULL
@@ -233,7 +237,7 @@ st_filter_by_sdk <- function(
     )
   })
   
-  st_custom_fields_filter(
+  st_custom_fields_filter_impl(
     custom_fields = custom_fields,
     auth_token = auth_token
   )
@@ -260,8 +264,9 @@ st_filter_by_sdk <- function(
 #' )
 #' }
 #'
-#' @export
-st_filter_by_date <- function(
+#' @keywords internal
+#' @noRd
+st_filter_by_date_impl <- function(
     released_after = NULL,
     released_before = NULL,
     region = "US",
@@ -299,7 +304,7 @@ st_filter_by_date <- function(
     values <- list(paste("before", released_before))
   }
   
-  st_custom_fields_filter(
+  st_custom_fields_filter_impl(
     custom_fields = list(
       list(
         name = field_name,
@@ -348,46 +353,46 @@ st_get_filter_collection <- function(
   
   filters <- switch(collection,
     "top_genres" = list(
-      puzzle = st_filter_by_genre(genres = "Puzzle", auth_token = auth_token),
-      action = st_filter_by_genre(genres = "Action", auth_token = auth_token),
-      strategy = st_filter_by_genre(genres = "Strategy", auth_token = auth_token),
-      casual = st_filter_by_genre(genres = "Casual", auth_token = auth_token),
-      simulation = st_filter_by_genre(genres = "Simulation", auth_token = auth_token),
-      rpg = st_filter_by_genre(genres = "Role Playing", auth_token = auth_token),
-      word = st_filter_by_genre(sub_genres = "Word", auth_token = auth_token),
-      match3 = st_filter_by_genre(sub_genres = "Match-3", auth_token = auth_token)
+      puzzle = st_filter_by_genre_impl(genres = "Puzzle", auth_token = auth_token),
+      action = st_filter_by_genre_impl(genres = "Action", auth_token = auth_token),
+      strategy = st_filter_by_genre_impl(genres = "Strategy", auth_token = auth_token),
+      casual = st_filter_by_genre_impl(genres = "Casual", auth_token = auth_token),
+      simulation = st_filter_by_genre_impl(genres = "Simulation", auth_token = auth_token),
+      rpg = st_filter_by_genre_impl(genres = "Role Playing", auth_token = auth_token),
+      word = st_filter_by_genre_impl(sub_genres = "Word", auth_token = auth_token),
+      match3 = st_filter_by_genre_impl(sub_genres = "Match-3", auth_token = auth_token)
     ),
     
     "monetization_models" = list(
-      free_with_ads = st_filter_by_monetization(
+      free_with_ads = st_filter_by_monetization_impl(
         free_only = TRUE, has_ads = TRUE, auth_token = auth_token
       ),
-      free_with_iap = st_filter_by_monetization(
+      free_with_iap = st_filter_by_monetization_impl(
         free_only = TRUE, has_iap = TRUE, has_ads = FALSE, auth_token = auth_token
       ),
-      premium = st_filter_by_monetization(
+      premium = st_filter_by_monetization_impl(
         free_only = FALSE, has_iap = FALSE, auth_token = auth_token
       ),
-      subscription = st_filter_by_monetization(
+      subscription = st_filter_by_monetization_impl(
         has_subscription = TRUE, auth_token = auth_token
       ),
-      hybrid = st_filter_by_monetization(
+      hybrid = st_filter_by_monetization_impl(
         has_iap = TRUE, has_ads = TRUE, auth_token = auth_token
       )
     ),
     
     "platform_exclusive" = list(
-      ios_only = st_create_simple_filter(
+      ios_only = st_create_simple_filter_impl(
         field_name = "Platform",
         field_values = "iOS",
         auth_token = auth_token
       ),
-      android_only = st_create_simple_filter(
+      android_only = st_create_simple_filter_impl(
         field_name = "Platform", 
         field_values = "Android",
         auth_token = auth_token
       ),
-      cross_platform = st_create_simple_filter(
+      cross_platform = st_create_simple_filter_impl(
         field_name = "Is Unified",
         field_values = list(),
         auth_token = auth_token
@@ -395,17 +400,17 @@ st_get_filter_collection <- function(
     ),
     
     "market_segments" = list(
-      editors_choice = st_create_simple_filter(
+      editors_choice = st_create_simple_filter_impl(
         field_name = "Editors' Choice",
         field_values = list(),
         auth_token = auth_token
       ),
-      new_releases = st_filter_by_date(
+      new_releases = st_filter_by_date_impl(
         released_after = Sys.Date() - 30,
         region = "US",
         auth_token = auth_token
       ),
-      established = st_filter_by_date(
+      established = st_filter_by_date_impl(
         released_before = Sys.Date() - 365,
         region = "US",
         auth_token = auth_token
@@ -439,8 +444,9 @@ st_get_filter_collection <- function(
 #' )
 #' }
 #'
-#' @export
-st_combine_filters <- function(
+#' @keywords internal
+#' @noRd
+st_combine_filters_impl <- function(
     filter_ids,
     operator = c("AND", "OR"),
     auth_token = NULL
@@ -456,7 +462,7 @@ st_combine_filters <- function(
   all_fields <- list()
   
   for (filter_id in filter_ids) {
-    details <- st_custom_fields_filter_by_id(
+    details <- st_custom_fields_filter_by_id_impl(
       id = filter_id,
       auth_token = auth_token
     )
@@ -488,7 +494,7 @@ st_combine_filters <- function(
   }
   
   # Create combined filter
-  st_custom_fields_filter(
+  st_custom_fields_filter_impl(
     custom_fields = all_fields,
     auth_token = auth_token
   )

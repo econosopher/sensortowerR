@@ -71,7 +71,7 @@ st_batch_app_lookup <- function(app_ids,
     details_list <- lapply(id_chunks, function(chunk) {
         tryCatch(
             {
-                st_app_details(
+                st_app_details_impl(
                     app_ids = chunk,
                     os = "unified",
                     include_developer_contacts = FALSE,

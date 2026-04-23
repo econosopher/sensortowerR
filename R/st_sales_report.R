@@ -82,8 +82,9 @@
 #' 
 #' }
 #'
-#' @export
-st_sales_report <- function(os,
+#' @keywords internal
+#' @noRd
+st_sales_report_impl <- function(os,
                            countries,
                            start_date,
                            end_date,
@@ -151,7 +152,7 @@ st_sales_report <- function(os,
   # For unified OS, we don't support st_sales_report
   if (os == "unified") {
     rlang::abort(paste0(
-      "st_sales_report does not support os='unified'.\n",
+      "st_sales_report_impl does not support os='unified'.\n",
       "Please use platform-specific calls with os='ios' or os='android'.\n",
       "For unified data, consider using st_metrics() instead."
     ))

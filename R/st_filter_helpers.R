@@ -98,7 +98,7 @@ st_test_filter <- function(filter_id,
   # Make test API call
   test_result <- tryCatch(
     {
-      data <- do.call(st_top_charts, test_params)
+      data <- do.call(st_top_charts_impl, test_params)
       list(
         success = TRUE,
         filter_id = filter_id,
@@ -161,14 +161,15 @@ st_test_filter <- function(filter_id,
 #' @param n Integer. Number of example IDs to generate. Defaults to 5.
 #' @param seed Integer. Random seed for reproducibility. Optional.
 #' @return Character vector of example filter IDs
-#' @export
+#' @keywords internal
+#' @noRd
 #' @examples
 #' # Generate example IDs
 #' st_generate_example_filter_ids(3)
 #' 
 #' # Generate with seed for reproducibility
 #' st_generate_example_filter_ids(3, seed = 123)
-st_generate_example_filter_ids <- function(n = 5, seed = NULL) {
+st_generate_example_filter_ids_impl <- function(n = 5, seed = NULL) {
   if (!is.null(seed)) {
     set.seed(seed)
   }
@@ -237,7 +238,7 @@ st_build_filter_url <- function(os = "unified",
   message("1. Visit the URL above")
   message("2. Configure your desired filters")
   message("3. Copy the custom_fields_filter_id from the URL")
-  message("4. Use it in SensorTowerR functions")
+  message("4. Use it in sensortowerR functions")
   
   invisible(url)
 }
@@ -295,8 +296,9 @@ st_extract_filter_id <- function(url) {
 #' @param regions Character string. Region code. Defaults to "US".
 #' @param limit Integer. Number of results to fetch. Defaults to 20.
 #' @return List containing both result sets and comparison statistics
-#' @export
-st_compare_filter_results <- function(filter_id,
+#' @keywords internal
+#' @noRd
+st_compare_filter_results_impl <- function(filter_id,
                                      category = 6014,  # Games
                                      os = "ios",
                                      regions = "US",
@@ -308,7 +310,7 @@ st_compare_filter_results <- function(filter_id,
   
   message("Fetching results with custom filter...")
   filtered_results <- tryCatch(
-    st_top_charts(
+    st_top_charts_impl(
       os = os,
       custom_fields_filter_id = filter_id,
       regions = regions,
@@ -321,7 +323,7 @@ st_compare_filter_results <- function(filter_id,
   
   message("Fetching results with category filter...")
   category_results <- tryCatch(
-    st_top_charts(
+    st_top_charts_impl(
       os = os,
       category = category,
       regions = regions,

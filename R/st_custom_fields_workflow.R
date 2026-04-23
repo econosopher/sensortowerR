@@ -36,8 +36,9 @@ NULL
 #' )
 #' }
 #'
-#' @export
-st_create_simple_filter <- function(
+#' @keywords internal
+#' @noRd
+st_create_simple_filter_impl <- function(
     field_name,
     field_values,
     global = TRUE,
@@ -87,7 +88,7 @@ st_create_simple_filter <- function(
   
   # Create or get filter ID
   filter_id <- tryCatch({
-    st_custom_fields_filter(
+    st_custom_fields_filter_impl(
       custom_fields = custom_fields,
       auth_token = auth_token
     )
@@ -242,7 +243,7 @@ st_get_filtered_apps <- function(
     }
     
     # Create filter
-    filter_id <- st_create_simple_filter(
+    filter_id <- st_create_simple_filter_impl(
       field_name = field_name,
       field_values = field_values,
       auth_token = auth_token
@@ -253,7 +254,7 @@ st_get_filtered_apps <- function(
   
   # Get filter details for logging
   filter_details <- tryCatch({
-    st_custom_fields_filter_by_id(id = filter_id, auth_token = auth_token)
+    st_custom_fields_filter_by_id_impl(id = filter_id, auth_token = auth_token)
   }, error = function(e) NULL)
   
   if (!is.null(filter_details) && !is.null(filter_details$custom_fields)) {
@@ -268,7 +269,7 @@ st_get_filtered_apps <- function(
   }
   
   # Retrieve data using st_top_charts
-  result <- st_top_charts(
+  result <- st_top_charts_impl(
     os = "unified",
     category = 0,  # Use 0 when using custom filter
     custom_fields_filter_id = filter_id,
@@ -310,13 +311,13 @@ st_analyze_filter <- function(
 ) {
   
   # Get filter details
-  filter_details <- st_custom_fields_filter_by_id(
+  filter_details <- st_custom_fields_filter_by_id_impl(
     id = filter_id, 
     auth_token = auth_token
   )
   
   # Get current period data
-  current_data <- st_top_charts(
+  current_data <- st_top_charts_impl(
     os = "unified",
     category = 0,
     custom_fields_filter_id = filter_id,

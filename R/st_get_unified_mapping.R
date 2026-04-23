@@ -82,7 +82,7 @@ st_get_unified_mapping <- function(app_ids,
     if (grepl("^[a-f0-9]{24}$", app_id)) {
       # Use st_app_lookup to get platform IDs for unified ID
       lookup_result <- tryCatch({
-        st_app_lookup(app_id, auth_token = auth_token_val, verbose = FALSE)
+        st_app_lookup_impl(app_id, auth_token = auth_token_val, verbose = FALSE)
       }, error = function(e) NULL)
       
       if (!is.null(lookup_result)) {
@@ -96,7 +96,7 @@ st_get_unified_mapping <- function(app_ids,
     }
     # First attempt: use st_app_lookup on platform IDs as well
     if (!grepl("^[a-f0-9]{24}$", app_id)) {
-      lk <- tryCatch({ st_app_lookup(app_id, auth_token = auth_token_val, verbose = FALSE) }, error = function(e) NULL)
+      lk <- tryCatch({ st_app_lookup_impl(app_id, auth_token = auth_token_val, verbose = FALSE) }, error = function(e) NULL)
       if (!is.null(lk) && !is.null(lk$unified_app_id)) {
         result_df$unified_app_id[i] <- lk$unified_app_id
         result_df$unified_app_name[i] <- lk$app_name %||% NA_character_
@@ -109,7 +109,7 @@ st_get_unified_mapping <- function(app_ids,
 
     # Second attempt: search unified index by the platform ID as term, then match nested platforms exactly
     unified_search <- tryCatch({
-      st_app_info(
+      st_app_info_impl(
         term = app_id,
         app_store = "unified",
         return_all_fields = TRUE,

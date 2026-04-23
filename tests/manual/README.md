@@ -1,6 +1,6 @@
-# SensorTowerR Manual Test Scripts
+# sensortowerR Manual Test Scripts
 
-This directory contains two comprehensive test scripts for validating the SensorTowerR package functionality:
+This directory contains two comprehensive test scripts for validating the sensortowerR package functionality:
 
 ## test-all-api-functions.R
 **Purpose**: Tests all major API functions to ensure they work correctly and return expected data.

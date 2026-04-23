@@ -96,7 +96,7 @@ validate_and_transform_app_ids <- function(app_ids, os,
       if (!lookup_mismatched) {
         rlang::abort(paste0(
           "Unified app ID provided but ", os, " ID required: ", app_id, "\n",
-          "Use st_app_lookup() to get platform-specific IDs."
+          "Use st_app_lookup_impl() to get platform-specific IDs."
         ))
       }
       
@@ -106,7 +106,7 @@ validate_and_transform_app_ids <- function(app_ids, os,
       
       # Use st_app_lookup to get platform IDs
       lookup_result <- tryCatch({
-        st_app_lookup(app_id, auth_token = auth_token, verbose = FALSE)
+        st_app_lookup_impl(app_id, auth_token = auth_token, verbose = FALSE)
       }, error = function(e) {
         NULL
       })
@@ -214,7 +214,7 @@ create_app_id_error_message <- function(app_id, expected_os, detected_type = NUL
     } else "",
     unified = paste0(
       "This appears to be a Sensor Tower unified ID.\n",
-      "Use st_app_lookup() to get platform-specific IDs, or\n",
+      "Use st_app_lookup_impl() to get platform-specific IDs, or\n",
       "use os='unified' with functions that support it.\n"
     ),
     ""

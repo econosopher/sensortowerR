@@ -1,213 +1,386 @@
-#' Fetch Sensor Tower Metrics for Apps
+# Process-local cache for standardized st_metrics() results
+.st_metrics_cache <- new.env(parent = emptyenv())
+
+#' Fetch Sensor Tower Metrics
 #'
-#' Retrieves metrics for apps. The OS parameter controls which platform's data is returned,
-#' regardless of which app IDs are provided. The function will automatically look up
-#' the appropriate IDs if needed.
+#' Thin v1.0.0 facade for sales/download metrics. The function validates a
+#' standardized argument set, dispatches to the legacy implementation that best
+#' matches the request, and then normalizes the result into a stable schema.
 #'
-#' @param os Character. Required. Operating system: "ios", "android", or "unified".
-#'   This determines which platform's data is returned.
-#' @param app_id Character string. Can be a unified app ID, iOS app ID, or Android package name.
-#' @param ios_app_id Character string. iOS app ID (optional).
-#' @param android_app_id Character string. Android package name (optional).
-#' @param unified_app_id Character string. Sensor Tower unified ID (24-char hex).
-#' @param start_date Date object or character string (YYYY-MM-DD). Start date.
-#' @param end_date Date object or character string (YYYY-MM-DD). End date.
-#' @param countries Character vector. Country codes (e.g., "US", "GB", "JP", or "WW" for worldwide). Required.
-#' @param date_granularity Character. One of "daily", "weekly", "monthly", "quarterly". Required.
-#' @param auth_token Character string. Sensor Tower API token.
-#' @param verbose Logical. Print progress messages.
+#' @param app_id Character scalar or vector of app identifiers. Each entry can be
+#'   a Sensor Tower unified app ID, an iOS numeric app ID, or an Android package
+#'   name.
+#' @param metrics Character vector of metrics to return. Supported values are
+#'   `"revenue"` and `"downloads"`.
+#' @param os Character scalar. One of `"ios"`, `"android"`, or `"unified"`.
+#' @param countries Character vector of 2-letter country codes. Use `"WW"` for
+#'   worldwide aggregates.
+#' @param date_from,date_to Date bounds for the query. Accept `Date` objects or
+#'   ISO date strings.
+#' @param granularity Character scalar. One of `"daily"`, `"weekly"`,
+#'   `"monthly"`, or `"quarterly"`.
+#' @param revenue_unit Character scalar. `"dollars"` (default) returns revenue in
+#'   base currency units. `"cents"` returns revenue in cents for compatibility
+#'   with the legacy API surface.
+#' @param shape Character scalar. `"long"` returns one row per metric observation.
+#'   `"wide"` returns one row per app/date/country with separate metric columns.
+#' @param cache Logical. If `TRUE`, use a process-local cache keyed on the
+#'   normalized arguments.
+#' @param auth_token Optional Sensor Tower API token. If `NULL`, falls back to
+#'   `SENSORTOWER_AUTH_TOKEN`.
 #'
-#' @return A tibble with columns: app_id, app_id_type, date, country, revenue, downloads
+#' @return
+#' If `shape = "long"`, a tibble with columns:
+#'   - `app_id`: identifier supplied to `st_metrics()`
+#'   - `os`: normalized operating system
+#'   - `country`: 2-letter country code
+#'   - `date`: observation date
+#'   - `metric`: one of `"revenue"` or `"downloads"`
+#'   - `value`: metric value; revenue is in dollars by default and cents when
+#'     `revenue_unit = "cents"`
 #'
-#' @details
-#' The OS parameter controls what data is returned:
-#'
-#' - os = "ios": Returns iOS data only
-#' - os = "android": Returns Android data only
-#' - os = "unified": Returns combined iOS + Android data (as separate rows)
-#'
-#' The function will automatically look up the appropriate IDs based on the OS parameter.
-#' For example, if you provide a unified_app_id but set os = "ios", it will look up
-#' the iOS app ID and return iOS-only data.
+#' If `shape = "wide"`, a tibble with columns:
+#'   - `app_id`
+#'   - `os`
+#'   - `country`
+#'   - `date`
+#'   - one numeric column per requested metric
 #'
 #' @examples
 #' \dontrun{
-#' # Get iOS data only
-#' ios_metrics <- st_metrics(
+#' st_metrics(
+#'   app_id = "553834731",
 #'   os = "ios",
-#'   ios_app_id = "1195621598", # Homescapes iOS
 #'   countries = "US",
-#'   date_granularity = "daily",
-#'   start_date = Sys.Date() - 30,
-#'   end_date = Sys.Date() - 1
+#'   date_from = Sys.Date() - 30,
+#'   date_to = Sys.Date() - 1
 #' )
 #'
-#' # Get unified data from a unified ID
-#' unified_metrics <- st_metrics(
+#' st_metrics(
+#'   app_id = c("553834731", "com.supercell.clashofclans"),
 #'   os = "unified",
-#'   unified_app_id = "5ba4585f539ce75b97db6bcb",
-#'   countries = "US",
-#'   date_granularity = "daily"
-#' )
-#'
-#' # Get iOS data from Android ID (automatic lookup)
-#' ios_from_android <- st_metrics(
-#'   os = "ios",
-#'   android_app_id = "com.king.candycrushsaga",
-#'   countries = "WW",
-#'   date_granularity = "monthly"
-#' )
-#'
-#' # Get unified data from platform IDs
-#' unified_from_platforms <- st_metrics(
-#'   os = "unified",
-#'   ios_app_id = "1195621598",
-#'   android_app_id = "com.playrix.homescapes",
-#'   countries = "US",
-#'   date_granularity = "daily"
+#'   shape = "wide",
+#'   countries = c("US", "GB"),
+#'   revenue_unit = "cents"
 #' )
 #' }
 #'
-#' @importFrom lubridate floor_date
-#' @importFrom dplyr %>% mutate select bind_rows group_by summarise coalesce
-#' @importFrom tibble tibble
-#' @importFrom rlang %||% .data
 #' @export
-st_metrics <- function(
-  os,
-  app_id = NULL,
-  ios_app_id = NULL,
-  android_app_id = NULL,
-  unified_app_id = NULL,
-  start_date = NULL,
-  end_date = NULL,
-  countries,
-  date_granularity,
-  auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
-  verbose = TRUE
-) {
-  # Validate OS parameter
-  if (missing(os) || is.null(os) || !os %in% c("ios", "android", "unified")) {
-    rlang::abort("'os' parameter is required and must be one of: 'ios', 'android', or 'unified'")
+st_metrics <- function(app_id,
+                       metrics = c("revenue", "downloads"),
+                       os = "unified",
+                       countries = "WW",
+                       date_from = Sys.Date() - 90,
+                       date_to = Sys.Date(),
+                       granularity = "daily",
+                       revenue_unit = c("dollars", "cents"),
+                       shape = c("long", "wide"),
+                       cache = TRUE,
+                       auth_token = NULL) {
+  if (missing(app_id) || is.null(app_id) || !length(app_id)) {
+    rlang::abort("`app_id` must be a non-empty character scalar or vector.")
   }
 
-  # Validate required parameters
-  if (missing(countries) || is.null(countries) || length(countries) == 0) {
-    rlang::abort("'countries' parameter is required. Specify country codes (e.g., 'US', 'GB', 'JP', or 'WW' for worldwide).")
+  app_id <- as.character(app_id)
+  if (any(is.na(app_id) | !nzchar(app_id))) {
+    rlang::abort("`app_id` entries must be non-empty strings.")
   }
 
-  if (missing(date_granularity) || is.null(date_granularity)) {
-    rlang::abort("'date_granularity' parameter is required. Specify one of: 'daily', 'weekly', 'monthly', 'quarterly'.")
-  }
-
-  # Validate date_granularity value
-  valid_granularities <- c("daily", "weekly", "monthly", "quarterly")
-  if (!date_granularity %in% valid_granularities) {
-    rlang::abort(paste0("Invalid date_granularity: '", date_granularity, "'. Must be one of: ", paste(valid_granularities, collapse = ", ")))
-  }
-
-  # Handle app_id parameter - try to determine what type it is
-  if (!is.null(app_id)) {
-    if (grepl("^\\d+$", app_id) && is.null(ios_app_id)) {
-      ios_app_id <- app_id
-      if (verbose) message("Detected iOS app ID format in app_id parameter")
-    } else if (grepl("^(com|net|org|io)\\.", app_id) && is.null(android_app_id)) {
-      android_app_id <- app_id
-      if (verbose) message("Detected Android package name format in app_id parameter")
-    } else if (grepl("^[a-f0-9]{24}$", app_id) && is.null(unified_app_id)) {
-      unified_app_id <- app_id
-      if (verbose) message("Detected unified app ID format in app_id parameter")
-    }
-  }
-
-  # Resolve IDs based on OS parameter
-  id_resolution <- resolve_ids_for_os(
-    unified_app_id = unified_app_id,
-    ios_app_id = ios_app_id,
-    android_app_id = android_app_id,
-    os = os,
-    auth_token = auth_token,
-    verbose = verbose
-  )
-
-  resolved_ids <- id_resolution$resolved_ids
-  app_id_type <- id_resolution$app_id_type
-
-  # Handle dates
-  if (is.null(start_date)) {
-    start_date <- lubridate::floor_date(Sys.Date(), "month")
-  }
-  if (is.null(end_date)) {
-    end_date <- Sys.Date()
-  }
-
-  # Convert dates
-  start_date <- as.Date(start_date)
-  end_date <- as.Date(end_date)
-
-  if (start_date > end_date) {
-    rlang::abort("'start_date' must be earlier than or equal to 'end_date'")
-  }
-
-  auth_token <- resolve_auth_token(
+  os <- normalize_os(os)
+  countries <- normalize_countries(countries)
+  dates <- normalize_dates(date_from, date_to)
+  granularity <- normalize_granularity(granularity)
+  metrics <- normalize_metrics(metrics, allowed = c("revenue", "downloads"))
+  revenue_unit <- match.arg(revenue_unit)
+  shape <- match.arg(shape)
+  cache <- isTRUE(cache)
+  auth_token <- get_auth_token(
     auth_token,
-    error_message = "Authentication token required. Set SENSORTOWER_AUTH_TOKEN environment variable."
+    error_message = paste(
+      "Authentication token is required.",
+      "Set SENSORTOWER_AUTH_TOKEN or pass `auth_token`."
+    )
   )
 
-  # Prepare IDs for unified fetcher
-  final_ios_id <- NULL
-  final_android_id <- NULL
+  cache_key <- .st_metrics_cache_key(
+    app_id = app_id,
+    metrics = metrics,
+    os = os,
+    countries = countries,
+    date_from = dates$date_from,
+    date_to = dates$date_to,
+    granularity = granularity,
+    revenue_unit = revenue_unit,
+    shape = shape
+  )
+
+  if (cache && exists(cache_key, envir = .st_metrics_cache, inherits = FALSE)) {
+    return(get(cache_key, envir = .st_metrics_cache, inherits = FALSE))
+  }
+
+  raw_result <- if (length(app_id) == 1L) {
+    .st_metrics_dispatch_single(
+      app_id = app_id,
+      os = os,
+      countries = countries,
+      date_from = dates$date_from,
+      date_to = dates$date_to,
+      granularity = granularity,
+      auth_token = auth_token
+    )
+  } else {
+    st_batch_metrics_impl(
+      os = os,
+      app_list = app_id,
+      metrics = metrics,
+      date_range = list(
+        start_date = dates$date_from,
+        end_date = dates$date_to
+      ),
+      countries = countries,
+      granularity = granularity,
+      parallel = FALSE,
+      verbose = FALSE,
+      auth_token = auth_token
+    )
+  }
+
+  normalized <- .st_metrics_normalize_output(
+    data = raw_result,
+    requested_ids = app_id,
+    os = os,
+    metrics = metrics,
+    revenue_unit = revenue_unit,
+    shape = shape
+  )
+
+  if (cache) {
+    assign(cache_key, normalized, envir = .st_metrics_cache)
+  }
+
+  normalized
+}
+
+.st_metrics_cache_key <- function(app_id,
+                                  metrics,
+                                  os,
+                                  countries,
+                                  date_from,
+                                  date_to,
+                                  granularity,
+                                  revenue_unit,
+                                  shape) {
+  key_payload <- list(
+    app_id = unname(app_id),
+    metrics = unname(metrics),
+    os = os,
+    countries = unname(countries),
+    date_from = format(date_from, "%Y-%m-%d"),
+    date_to = format(date_to, "%Y-%m-%d"),
+    granularity = granularity,
+    revenue_unit = revenue_unit,
+    shape = shape
+  )
+
+  openssl::sha1(jsonlite::toJSON(key_payload, auto_unbox = TRUE, null = "null"))
+}
+
+.st_metrics_dispatch_single <- function(app_id,
+                                        os,
+                                        countries,
+                                        date_from,
+                                        date_to,
+                                        granularity,
+                                        auth_token) {
+  resolved_id <- .st_metrics_resolve_single_id(
+    app_id = app_id,
+    os = os,
+    auth_token = auth_token
+  )
 
   if (os == "unified") {
-    # For unified, we need both IDs if possible
-    if (!is.null(unified_app_id)) {
-      # Look up platform IDs if we have a unified ID
-      lookup_result <- tryCatch(
-        {
-          resolve_app_id(unified_app_id, auth_token = auth_token, verbose = verbose)
-        },
-        error = function(e) NULL
+    return(
+      st_unified_sales_report_impl(
+        unified_app_id = resolved_id,
+        countries = countries,
+        start_date = date_from,
+        end_date = date_to,
+        date_granularity = granularity,
+        auth_token = auth_token,
+        verbose = FALSE
       )
-
-      if (!is.null(lookup_result)) {
-        final_ios_id <- lookup_result$ios_id
-        final_android_id <- lookup_result$android_id
-      }
-    } else {
-      # Use provided platform IDs
-      final_ios_id <- ios_app_id
-      final_android_id <- android_app_id
-    }
-
-    # Fallback to resolved IDs if still null (though resolve_ids_for_os handles most of this)
-    if (is.null(final_ios_id) && !is.null(resolved_ids$ios_app_id)) final_ios_id <- resolved_ids$ios_app_id
-    if (is.null(final_android_id) && !is.null(resolved_ids$android_app_id)) final_android_id <- resolved_ids$android_app_id
-  } else if (os == "ios") {
-    final_ios_id <- resolved_ids$ios_app_id
-  } else if (os == "android") {
-    final_android_id <- resolved_ids$android_app_id
+    )
   }
 
-  # Fetch data using the unified engine
-  result <- fetch_unified_data(
-    ios_app_id = final_ios_id,
-    android_app_id = final_android_id,
-    start_date = start_date,
-    end_date = end_date,
+  args <- list(
+    os = os,
     countries = countries,
-    date_granularity = date_granularity,
+    start_date = date_from,
+    end_date = date_to,
+    date_granularity = granularity,
     auth_token = auth_token,
-    verbose = verbose,
-    combine_to_unified = FALSE
+    auto_segment = TRUE,
+    verbose = FALSE
   )
 
-  # Add app_id and app_id_type metadata for non-unified paths if not already present
-  if (os != "unified" && !is.null(resolved_ids) && nrow(result) > 0) {
-    # Ensure app_id/app_id_type cols exist and are correct
-    # fetch_unified_data adds them, but let's be safe
-    if (!"app_id" %in% names(result)) result$app_id <- resolved_ids[[1]]
-    if (!"app_id_type" %in% names(result)) result$app_id_type <- app_id_type
+  if (os == "ios") {
+    args$ios_app_id <- resolved_id
+  } else {
+    args$android_app_id <- resolved_id
   }
 
-  return(result)
+  do.call(st_sales_report_impl, args)
+}
+
+.st_metrics_resolve_single_id <- function(app_id, os, auth_token) {
+  app_id <- as.character(app_id[1])
+
+  if (os == "ios" && grepl("^\\d+$", app_id)) {
+    return(app_id)
+  }
+  if (os == "android" && grepl("^(com|net|org|io|app|game)\\.", app_id)) {
+    return(app_id)
+  }
+  if (os == "unified" && grepl("^[a-f0-9]{24}$", app_id)) {
+    return(app_id)
+  }
+
+  resolved <- tryCatch(
+    resolve_app_id(app_id, auth_token = auth_token, use_cache = TRUE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  if (is.null(resolved)) {
+    rlang::abort(
+      sprintf(
+        "Failed to resolve `app_id = '%s'` for `os = '%s'`.",
+        app_id,
+        os
+      )
+    )
+  }
+
+  resolved_id <- switch(
+    os,
+    ios = resolved$ios_app_id,
+    android = resolved$android_app_id,
+    unified = resolved$unified_app_id
+  )
+
+  if (is.null(resolved_id) || is.na(resolved_id) || !nzchar(as.character(resolved_id))) {
+    rlang::abort(
+      sprintf(
+        "Could not resolve a %s app ID for input '%s'.",
+        os,
+        app_id
+      )
+    )
+  }
+
+  as.character(resolved_id)
+}
+
+.st_metrics_normalize_output <- function(data,
+                                         requested_ids,
+                                         os,
+                                         metrics,
+                                         revenue_unit,
+                                         shape) {
+  if (is.null(data) || !nrow(data)) {
+    return(
+      if (shape == "long") {
+        tibble::tibble(
+          app_id = character(),
+          os = character(),
+          country = character(),
+          date = as.Date(character()),
+          metric = character(),
+          value = numeric()
+        )
+      } else {
+        wide <- tibble::tibble(
+          app_id = character(),
+          os = character(),
+          country = character(),
+          date = as.Date(character())
+        )
+        for (metric_name in metrics) {
+          wide[[metric_name]] <- numeric()
+        }
+        wide
+      }
+    )
+  }
+
+  if (all(c("metric", "value") %in% names(data))) {
+    normalized_long <- tibble::as_tibble(data) %>%
+      dplyr::transmute(
+        app_id = as.character(dplyr::coalesce(.data$original_id, .data$app_id)),
+        os = os,
+        country = as.character(.data$country),
+        date = as.Date(.data$date),
+        metric = tolower(as.character(.data$metric)),
+        value = as.numeric(.data$value)
+      ) %>%
+      dplyr::filter(.data$metric %in% metrics)
+  } else {
+    normalized_wide <- .st_metrics_coerce_wide(
+      data = tibble::as_tibble(data),
+      requested_id = requested_ids[1],
+      os = os
+    )
+
+    normalized_long <- normalized_wide %>%
+      tidyr::pivot_longer(
+        cols = dplyr::any_of(metrics),
+        names_to = "metric",
+        values_to = "value"
+      )
+  }
+
+  if (revenue_unit == "cents") {
+    revenue_rows <- normalized_long$metric == "revenue"
+    normalized_long$value[revenue_rows] <- normalized_long$value[revenue_rows] * 100
+  }
+
+  normalized_long <- normalized_long %>%
+    dplyr::arrange(.data$app_id, .data$date, .data$country, .data$metric)
+
+  if (shape == "long") {
+    return(normalized_long)
+  }
+
+  wide <- normalized_long %>%
+    tidyr::pivot_wider(names_from = "metric", values_from = "value") %>%
+    dplyr::select("app_id", "os", "country", "date", dplyr::any_of(metrics)) %>%
+    dplyr::arrange(.data$app_id, .data$date, .data$country)
+
+  wide
+}
+
+.st_metrics_coerce_wide <- function(data, requested_id, os) {
+  revenue <- if ("revenue" %in% names(data)) {
+    data$revenue
+  } else if ("total_revenue" %in% names(data)) {
+    data$total_revenue
+  } else {
+    rep(NA_real_, nrow(data))
+  }
+
+  downloads <- if ("downloads" %in% names(data)) {
+    data$downloads
+  } else if ("total_downloads" %in% names(data)) {
+    data$total_downloads
+  } else {
+    rep(NA_real_, nrow(data))
+  }
+
+  tibble::tibble(
+    app_id = rep(as.character(requested_id), nrow(data)),
+    os = rep(os, nrow(data)),
+    country = as.character(data$country),
+    date = as.Date(data$date),
+    revenue = as.numeric(revenue),
+    downloads = as.numeric(downloads)
+  )
 }

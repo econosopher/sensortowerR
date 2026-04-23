@@ -127,14 +127,8 @@ format_market_share <- function(val, digits = 1) {
 
 #' Create a vector of formatted values
 #'
-#' @param values Numeric vector to format
-#' @param type Type of formatting: "currency", "downloads", "percent", "users"
-#' @param ... Additional arguments passed to formatting function
-#' @return Character vector of formatted values
-#' @export
-#' @examples
-#' format_vector(c(1234567, 2345678), "currency")
-#' format_vector(c(0.234, 0.456), "percent")
+#' @keywords internal
+#' @noRd
 format_vector <- function(values, type = c("currency", "downloads", "percent", "users", "retention", "arpu"), ...) {
   type <- match.arg(type)
   

@@ -1,4 +1,4 @@
-# SensorTowerR v0.7.0 API Test Results
+# sensortowerR v0.7.0 API Test Results
 
 ## Summary
 - **Date**: 2025-07-29

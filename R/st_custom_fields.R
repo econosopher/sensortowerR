@@ -38,12 +38,13 @@ NULL
 #' )
 #' }
 #'
-#' @export
+#' @keywords internal
+#' @noRd
 #' @importFrom httr2 request req_url_path_append req_headers req_body_json
 #' @importFrom httr2 req_perform resp_body_string req_method
 #' @importFrom jsonlite fromJSON toJSON
 #' @importFrom rlang abort %||%
-st_custom_fields_filter <- function(
+st_custom_fields_filter_impl <- function(
     custom_fields,
     auth_token = NULL,
     base_url = "https://api.sensortower.com"
@@ -262,12 +263,13 @@ st_custom_fields_filter <- function(
 #' )
 #' }
 #'
-#' @export
+#' @keywords internal
+#' @noRd
 #' @importFrom httr2 request req_url_path_append req_headers
 #' @importFrom httr2 req_perform resp_body_string
 #' @importFrom jsonlite fromJSON
 #' @importFrom rlang abort %||%
-st_custom_fields_filter_by_id <- function(
+st_custom_fields_filter_by_id_impl <- function(
     id,
     auth_token = NULL,
     base_url = "https://api.sensortower.com"

@@ -66,8 +66,9 @@
 #' )
 #' }
 #'
-#' @export
-st_unified_sales_report <- function(unified_app_id,
+#' @keywords internal
+#' @noRd
+st_unified_sales_report_impl <- function(unified_app_id,
                                     countries,
                                     start_date,
                                     end_date,
@@ -86,7 +87,7 @@ st_unified_sales_report <- function(unified_app_id,
     rlang::abort(paste0(
       "Invalid unified_app_id format. Expected 24-character hex IDs.\n",
       "Invalid IDs: ", paste(invalid_ids, collapse = ", "), "\n",
-      "Use st_app_info() to search for apps and get their unified_app_id."
+      "Use st_app_info_impl() to search for apps and get their unified_app_id."
     ))
   }
 

@@ -7,7 +7,7 @@ pacman::p_load(
   char = c("devtools", "dplyr", "lubridate")
 )
 
-# Load the development version of SensorTowerR
+# Load the development version of sensortowerR
 devtools::load_all()
 
 # Use well-known Role Playing category ID

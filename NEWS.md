@@ -1,4 +1,56 @@
-# SensorTowerR 0.9.6
+# sensortowerR 1.0.0
+
+## Breaking changes
+
+Version 1.0.0 consolidates the public API. 78 exports are reduced to roughly 50 through a small set of unified functions. Removed functions are retained as `.Defunct()` stubs that error with a clear migration hint pointing at the replacement.
+
+* **Revenue is now returned in dollars by default.** The previous behavior returned raw integer cents. Pass `revenue_unit = "cents"` to any new function to restore the old values.
+* **Metrics** (`revenue`, `downloads`): `st_sales_report()`, `st_unified_sales_report()`, `st_batch_metrics()`, `st_smart_metrics()` are defunct. Use [`st_metrics()`].
+* **Rankings**: `st_top_charts()`, `st_top_publishers()`, `st_category_rankings()` are defunct. Use [`st_rankings(entity = ...)`].
+* **App lookup**: `st_app_info()`, `st_app_lookup()`, `st_app_details()` are defunct. Use [`st_app()`] for ID-based lookup or [`st_apps()`] for name/filter discovery.
+* **Filters**: `st_filter_by_date()`, `st_filter_by_genre()`, `st_filter_by_monetization()`, `st_filter_by_publisher()`, `st_filter_by_sdk()`, `st_custom_fields_filter()`, `st_custom_fields_filter_by_id()`, `st_combine_filters()`, `st_create_simple_filter()` are all defunct. Use [`st_filter()`], which returns an `st_filter` S3 object with `print`, `format`, and `c` methods.
+* **Parameter renames** across every retained function:
+  * `ios_app_id` / `android_app_id` / `unified_app_id` / `unified_id` → `app_id`
+  * `app_store` / `platform` → `os`
+  * `region` / `regions` → `country` (scalar) or `countries` (vector)
+  * `start_date` / `end_date` → `date_from` / `date_to`
+  * `date_granularity` → `granularity`
+  * `measure` / `metric` → `metrics`
+  * `token` / `api_key` → `auth_token`
+  * `n` / `max_results` → `limit`
+* **Internal helpers removed from the public API** (no longer exported): `clean_numeric_column()`, `find_column()`, `select_columns_safe()`, `select_robust()`, `try_column_operation()`, `format_vector()`, `require_column()`, `get_column_spec()`, `validate_columns()`, `validate_top_charts_data()`, `map_region_columns()`. These were implementation details; call the relevant formatter (`format_currency()`, `format_downloads()`, etc.) or rely on the new functions' built-in cleaning.
+
+## New features
+
+* [`st_metrics()`] — unified revenue/downloads fetcher. Accepts scalar or vector `app_id`, auto-resolves platform IDs, returns a long-format tibble (`app_id`, `os`, `country`, `date`, `metric`, `value`) by default. Pass `shape = "wide"` for one column per metric. Process-local caching enabled by default.
+* [`st_rankings()`] — unified rankings across entity types. `entity = "app"` queries top charts, `entity = "publisher"` queries top publishers, `entity = "category"` queries category rankings. Consistent schema across all three.
+* [`st_app()`] / [`st_apps()`] — `st_app()` for ID-based lookup (scalar or vector), `st_apps()` for name/filter discovery.
+* [`st_filter()`] — builder for Sensor Tower custom-fields filters. Returns an `st_filter` S3 object accepted by `st_apps()`, `st_rankings()`, and `st_get_filtered_apps()`. Compose with `c()`.
+
+## Migration
+
+See `vignette("migrating-to-1.0", package = "sensortowerR")` for a per-function translation table.
+
+---
+
+# sensortowerR 0.9.7
+
+## New Features
+
+* Added `st_facets_metrics()` as a low-level escape hatch for Sensor Tower's new `/v1/facets/metrics` route while the dedicated ratings, reviews, and retention wrappers are being validated against the gated official docs.
+* Added `st_retention_facets()` for the live `/v1/facets/metrics?facets=retention` contract, including daily, weekly, and monthly retention bundles.
+* Added `st_ratings_facets()` for the live `/v1/facets/metrics?facets=ratings` contract.
+* Added `st_reviews_by_rating_facets()` for the live `/v1/facets/metrics?facets=reviews_by_rating` contract.
+
+## Improvements
+
+* Added endpoint-registry support for the new facets metrics route.
+* `st_facets_metrics()` now accepts regular named query parameters in addition to raw query fragments.
+* Documented the March 17, 2026 migration investigation and updated the reusable probe script with working retention, ratings, and reviews-by-rating facets requests.
+
+---
+
+# sensortowerR 0.9.6
 
 ## New Features
 
@@ -18,7 +70,7 @@
 
 ---
 
-# SensorTowerR 0.9.5
+# sensortowerR 0.9.5
 
 ## Bug Fixes
 
@@ -30,7 +82,7 @@
 
 ---
 
-# SensorTowerR 0.9.4
+# sensortowerR 0.9.4
 
 ## CRAN Policy Compliance
 
@@ -44,7 +96,7 @@
 
 ---
 
-# SensorTowerR 0.9.3
+# sensortowerR 0.9.3
 
 ## New Features
 
@@ -74,7 +126,7 @@ sessions <- st_session_metrics(
 
 ---
 
-# SensorTowerR 0.9.2
+# sensortowerR 0.9.2
 
 ## CRAN Submission Fix
 
@@ -84,13 +136,13 @@ sessions <- st_session_metrics(
 
 ---
 
-# SensorTowerR 0.9.1
+# sensortowerR 0.9.1
 
 ## CRAN Compliance Fix
 
-* **FIXED** Package no longer creates `~/.SensorTowerR` directory automatically
+* **FIXED** Package no longer creates `~/.sensortowerR` directory automatically
   - This was a CRAN policy violation ("archived now" from CRAN team)
-  - Cache location now uses CRAN-compliant `tools::R_user_dir("SensorTowerR", "cache")`
+  - Cache location now uses CRAN-compliant `tools::R_user_dir("sensortowerR", "cache")`
   - Removed automatic cache loading/saving in `.onAttach`/`.onDetach` hooks
   - Cache is now only created when user explicitly calls `save_id_cache()`
 
@@ -109,7 +161,7 @@ sessions <- st_session_metrics(
 
 ---
 
-# SensorTowerR 0.9.0
+# sensortowerR 0.9.0
 
 ## New Features
 
@@ -140,7 +192,7 @@ lilith <- st_publisher_portfolio("Lilith Games")
 
 ---
 
-# SensorTowerR 0.8.8
+# sensortowerR 0.8.8
 
 ## New Features
 
@@ -177,7 +229,7 @@ sales <- st_unified_sales_report(
 )
 ```
 
-# SensorTowerR 0.8.3
+# sensortowerR 0.8.3
 
 ## Internal Refactoring & Robustness
 
@@ -185,7 +237,7 @@ sales <- st_unified_sales_report(
 * **Improved Stability**: Fixed regression in `resolve_ids_for_os` to ensure consistent ID handling across platforms.
 * **Enhanced Testing**: Expanded test suite to cover edge cases in batch processing and ID resolution.
 
-# SensorTowerR 0.8.2
+# sensortowerR 0.8.2
 
 ## Critical Fix
 
@@ -201,7 +253,7 @@ sales <- st_unified_sales_report(
 * Added examples showing how to use custom filter URLs from web interface
 * Clarified that all measures now use the sales endpoint
 
-# SensorTowerR 0.8.0
+# sensortowerR 0.8.0
 
 ## Breaking Changes
 
@@ -217,7 +269,7 @@ sales <- st_unified_sales_report(
   - Clear error messages for invalid ID formats
   - Support for unified IDs with automatic platform resolution
 
-# SensorTowerR 0.7.4
+# sensortowerR 0.7.4
 
 ## New features
 
@@ -228,7 +280,7 @@ sales <- st_unified_sales_report(
   - Handles parameter mapping between web interface and API conventions
   - Automatically converts extensive country lists to "WW" when appropriate
 
-# SensorTowerR 0.7.3
+# sensortowerR 0.7.3
 
 ## New features
 
@@ -238,7 +290,7 @@ sales <- st_unified_sales_report(
   - Added comprehensive example script demonstrating custom filter usage
   - Updated documentation explaining how to obtain filter IDs
 
-# SensorTowerR 0.7.2
+# sensortowerR 0.7.2
 
 ## New features
 
@@ -256,7 +308,7 @@ sales <- st_unified_sales_report(
 * Added comprehensive validation of active user metric relationships (DAU < WAU < MAU)
 * Improved test efficiency to minimize API calls while maintaining coverage
 
-# SensorTowerR 0.7.1
+# sensortowerR 0.7.1
 
 ## Bug fixes
 
@@ -264,7 +316,7 @@ sales <- st_unified_sales_report(
 * Fixed column type mismatch when combining active user results with revenue/download results
 * All 9 major functions now pass comprehensive API tests with 100% success rate
 
-# SensorTowerR 0.7.0
+# sensortowerR 0.7.0
 
 ## BREAKING CHANGES
 
@@ -290,7 +342,7 @@ sales <- st_unified_sales_report(
 * Fixed dplyr compatibility issues with .data pronoun
 * Package now passes R CMD check --as-cran with only acceptable NOTEs
 
-# SensorTowerR 0.1.7
+# sensortowerR 0.1.7
 
 ## Major improvements
 
@@ -322,6 +374,6 @@ sales <- st_unified_sales_report(
 * Added ENDPOINT_REFERENCE.md documenting which endpoints work for daily data
 * Added comprehensive test scripts in tests/ directory
 
-# SensorTowerR 0.1.6
+# sensortowerR 0.1.6
 
 * Previous version changes...

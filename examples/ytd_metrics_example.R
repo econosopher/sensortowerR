@@ -1,7 +1,7 @@
 # Year-to-Date Metrics Example
 # This script demonstrates the st_ytd_metrics function
 
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 library(ggplot2)
 

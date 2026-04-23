@@ -1,7 +1,7 @@
 # Test which Sensor Tower endpoints accept multiple app IDs
 # This will help us optimize API usage across the package
 
-library(SensorTowerR)
+library(sensortowerR)
 library(httr2)
 library(jsonlite)
 library(lubridate)

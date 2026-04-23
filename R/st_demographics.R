@@ -88,7 +88,7 @@ st_demographics <- function(unified_app_id = NULL,
     rlang::abort(c(
       "At least one app ID must be provided.",
       "i" = "Use unified_app_id, ios_app_id, or android_app_id parameter.",
-      "i" = "Use st_app_info('app name') to find app IDs."
+      "i" = "Use st_app_info_impl('app name') to find app IDs."
     ))
   }
 
@@ -121,7 +121,7 @@ st_demographics <- function(unified_app_id = NULL,
     if (verbose) message("Resolving unified app ID to platform IDs...")
 
     app_lookup <- tryCatch({
-      st_app_lookup(unified_app_id, auth_token = auth_token_val, verbose = verbose)
+      st_app_lookup_impl(unified_app_id, auth_token = auth_token_val, verbose = verbose)
     }, error = function(e) {
       if (verbose) message("ID lookup failed: ", e$message)
       NULL

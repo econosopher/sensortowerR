@@ -1,7 +1,7 @@
-# Example: Using Custom Fields Filters with SensorTowerR
+# Example: Using Custom Fields Filters with sensortowerR
 # Demonstrates the new custom fields functionality
 
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 library(ggplot2)
 

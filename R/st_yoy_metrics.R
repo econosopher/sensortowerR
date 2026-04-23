@@ -279,7 +279,7 @@ st_yoy_metrics <- function(
     }
 
     fetched <- tryCatch({
-      st_batch_metrics(
+      st_batch_metrics_impl(
         os = os,
         app_list = app_list,
         metrics = metrics,
@@ -346,7 +346,7 @@ st_yoy_metrics <- function(
       }
       if (verbose) message(sprintf("Fetching data for %d: %s to %s", year, start_date, end_date))
       year_data <- tryCatch({
-        st_batch_metrics(
+        st_batch_metrics_impl(
           os = os,
           app_list = app_list,
           metrics = metrics,

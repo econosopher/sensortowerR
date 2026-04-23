@@ -41,7 +41,7 @@ test_that("deduplication consolidates apps with same unified_app_id", {
   )
 
   # Apply deduplication using internal function with namespace
-  deduplicated <- SensorTowerR:::deduplicate_by_group_id(mock_duplicated_data, "unified_app_id")
+  deduplicated <- sensortowerR:::deduplicate_by_group_id(mock_duplicated_data, "unified_app_id")
 
   # Should have only one row
   expect_equal(nrow(deduplicated), 1)
@@ -83,7 +83,7 @@ test_that("st_top_charts handles all scenarios correctly", {
   )
 
   for (scenario in scenarios) {
-    result <- do.call(st_top_charts, c(
+    result <- do.call(sensortowerR:::st_top_charts_impl, c(
       scenario$params,
       list(enrich_response = TRUE, deduplicate_apps = TRUE)
     ))

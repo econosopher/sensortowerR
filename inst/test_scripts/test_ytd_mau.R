@@ -1,5 +1,5 @@
 # Test YTD MAU functionality
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 library(tidyr)
 

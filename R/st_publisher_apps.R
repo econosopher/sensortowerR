@@ -189,7 +189,7 @@ st_publisher_apps <- function(unified_id = NULL,
 
       # Search for the app by name
       search_result <- tryCatch({
-        st_app_info(
+        st_app_info_impl(
           term = app_name,
           app_store = "unified",
           entity_type = "app",

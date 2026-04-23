@@ -3,12 +3,9 @@
 #' @description Helper functions to handle column name variations and missing columns
 
 #' Get available columns matching a pattern
-#' 
-#' @param data Data frame to check
-#' @param pattern Regular expression pattern to match
-#' @param prefer Character vector of preferred column names (first match wins)
-#' @return First matching column name or NULL
-#' @export
+#'
+#' @keywords internal
+#' @noRd
 find_column <- function(data, pattern, prefer = NULL) {
   cols <- names(data)
   
@@ -27,11 +24,9 @@ find_column <- function(data, pattern, prefer = NULL) {
 }
 
 #' Select columns safely with fallbacks
-#' 
-#' @param data Data frame
-#' @param columns Named list of column specifications
-#' @return Data frame with selected/renamed columns
-#' @export
+#'
+#' @keywords internal
+#' @noRd
 select_columns_safe <- function(data, columns) {
   result <- data
   selected_cols <- c()
@@ -77,11 +72,9 @@ select_columns_safe <- function(data, columns) {
 }
 
 #' Map region-specific columns intelligently
-#' 
-#' @param data Data frame with Sensor Tower data
-#' @param requested_region Region requested (e.g., "US", "WW")
-#' @return Data frame with mapped columns
-#' @export
+#'
+#' @keywords internal
+#' @noRd
 map_region_columns <- function(data, requested_region = "US") {
   # Common patterns for region-specific columns
   metric_patterns <- c("revenue", "download", "dau", "wau", "mau", 
@@ -114,12 +107,9 @@ map_region_columns <- function(data, requested_region = "US") {
 }
 
 #' Validate required columns exist
-#' 
-#' @param data Data frame to check
-#' @param required Character vector of required column names
-#' @param context Context for error message
-#' @return TRUE if all columns exist, otherwise stops with informative error
-#' @export
+#'
+#' @keywords internal
+#' @noRd
 validate_columns <- function(data, required, context = "data") {
   missing <- setdiff(required, names(data))
   
@@ -152,12 +142,9 @@ validate_columns <- function(data, required, context = "data") {
 }
 
 #' Get column specification for common Sensor Tower metrics
-#' 
-#' @param metric_type Type of metric (revenue, downloads, retention, etc.)
-#' @param time_period Time period (30d, 180d, alltime, etc.)
-#' @param region Region (us, ww)
-#' @return List of column specifications
-#' @export
+#'
+#' @keywords internal
+#' @noRd
 get_column_spec <- function(metric_type = NULL, time_period = NULL, region = NULL) {
   specs <- list()
   
@@ -214,12 +201,9 @@ get_column_spec <- function(metric_type = NULL, time_period = NULL, region = NUL
 }
 
 #' Handle column mapping errors gracefully
-#' 
-#' @param expr Expression to evaluate
-#' @param data Data frame being processed
-#' @param context Context for error message
-#' @return Result of expression or NULL with warning
-#' @export
+#'
+#' @keywords internal
+#' @noRd
 try_column_operation <- function(expr, data, context = "operation") {
   tryCatch({
     eval(expr)

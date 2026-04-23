@@ -1,5 +1,5 @@
 # Test MAU endpoint capabilities
-library(SensorTowerR)
+library(sensortowerR)
 library(httr2)
 library(dplyr)
 library(jsonlite)

@@ -2,7 +2,7 @@
 # This script demonstrates the new custom fields API functions
 # for programmatic filter creation without using the web UI
 
-library(SensorTowerR)
+library(sensortowerR)
 
 cat("=== Sensor Tower Custom Filter ID Helper ===\n\n")
 

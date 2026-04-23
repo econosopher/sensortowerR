@@ -131,7 +131,7 @@ st_publisher_portfolio <- function(publisher = NULL,
   if (is.null(publisher_id)) {
     if (verbose) message("Step 1: Finding publisher '", publisher, "'...")
 
-    publisher_search <- st_app_info(
+    publisher_search <- st_app_info_impl(
       term = publisher,
       entity_type = "publisher",
       auth_token = auth_token
@@ -207,7 +207,7 @@ st_publisher_portfolio <- function(publisher = NULL,
         if (verbose) message(glue::glue("  Batch {i}/{n_batches}: apps {start_idx}-{end_idx}"))
 
         result <- tryCatch({
-          st_unified_sales_report(
+          st_unified_sales_report_impl(
             unified_app_id = batch_ids,
             countries = countries,
             start_date = start_date,
@@ -257,7 +257,7 @@ st_publisher_portfolio <- function(publisher = NULL,
       mau_data <- tryCatch({
         # Use parallel=FALSE to avoid race conditions when apps are in
         # different platform groups (both, ios, android)
-        st_batch_metrics(
+        st_batch_metrics_impl(
           os = "unified",
           app_list = app_ids,
           metrics = "mau",
@@ -299,7 +299,7 @@ st_publisher_portfolio <- function(publisher = NULL,
 
     if (is.null(rank_data)) {
       rank_data <- tryCatch({
-        top_games <- st_top_charts(
+        top_games <- st_top_charts_impl(
           measure = "revenue",
           os = "unified",
           category = "6014",  # Games

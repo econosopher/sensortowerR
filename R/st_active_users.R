@@ -65,7 +65,7 @@ st_active_users <- function(os,
     error_message = "Authentication token is required. Set SENSORTOWER_AUTH_TOKEN environment variable."
   )
 
-  results <- st_batch_metrics(
+  results <- st_batch_metrics_impl(
     os = os,
     app_list = app_list,
     metrics = metrics,

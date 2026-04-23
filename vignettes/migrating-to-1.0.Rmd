@@ -1,0 +1,118 @@
+---
+title: "Migrating to sensortowerR 1.0.0"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Migrating to sensortowerR 1.0.0}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE, purl = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE, purl = FALSE)
+```
+
+# Why 1.0.0?
+
+Through versions 0.1 – 0.9 the public surface grew organically to 78 exported functions. Many did the same thing with slightly different argument names (five ways to fetch revenue, three ways to get top charts, two app-lookup paths), and 11 internal helpers had leaked into the namespace. Version 1.0.0 consolidates the API around **four core verbs** — `st_metrics()`, `st_rankings()`, `st_app()` / `st_apps()`, `st_filter()` — and standardizes parameter names across every retained function.
+
+The old names still exist as `.Defunct()` stubs that error with the exact replacement call, so you won't get a cryptic "object not found" — you'll get a one-line migration hint right in your REPL.
+
+## The one rule that affects every script
+
+**Revenue is now returned in dollars by default.** Previously every revenue column was raw integer cents. If you have pipelines that did `revenue / 100` by hand, remove that division. If you have pipelines that rely on integer cents, pass `revenue_unit = "cents"` to restore the old values:
+
+```{r revenue-unit, purl = FALSE}
+# Old behavior (integer cents)
+sales_cents <- st_metrics(app_id = "...", revenue_unit = "cents")
+
+# New default (numeric dollars)
+sales_dollars <- st_metrics(app_id = "...")
+```
+
+## Function-by-function translation
+
+### Metrics (revenue, downloads)
+
+| v0.9.x | v1.0.0 |
+|---|---|
+| `st_sales_report(os = "ios", ios_app_id = id, ...)` | `st_metrics(app_id = id, os = "ios", ...)` |
+| `st_unified_sales_report(unified_app_id = id, ...)` | `st_metrics(app_id = id, os = "unified", ...)` (default) |
+| `st_batch_metrics(app_list = ids, ...)` | `st_metrics(app_id = ids, ...)` |
+| `st_smart_metrics(app_ids = ids, ..., use_cache = TRUE)` | `st_metrics(app_id = ids, ..., cache = TRUE)` (default) |
+
+Argument renames:
+- `start_date` / `end_date` → `date_from` / `date_to`
+- `date_granularity` → `granularity`
+- `measure` → `metrics` (vector)
+- `regions` → `countries`
+- `app_list` / `ios_app_id` / `android_app_id` / `unified_app_id` → `app_id`
+
+### Rankings
+
+| v0.9.x | v1.0.0 |
+|---|---|
+| `st_top_charts(measure = "revenue", category = 6014, ...)` | `st_rankings(entity = "app", category = 6014, ...)` |
+| `st_top_publishers(...)` | `st_rankings(entity = "publisher", ...)` |
+| `st_category_rankings(category = 6014, ...)` | `st_rankings(entity = "category", category = 6014, ...)` |
+
+### App lookup and discovery
+
+| v0.9.x | v1.0.0 |
+|---|---|
+| `st_app_info(term = "Royal Match")` | `st_apps(query = "Royal Match")` |
+| `st_app_lookup(app_id = id)` | `st_app(app_id = id)` |
+| `st_app_details(app_ids = ids, os = "ios")` | `st_app(app_id = ids, os = "ios")` |
+
+### Filters
+
+All nine filter-builder functions collapse into a single `st_filter()`:
+
+| v0.9.x | v1.0.0 |
+|---|---|
+| `st_filter_by_date(start = ..., end = ...)` | `st_filter(date_from = ..., date_to = ...)` |
+| `st_filter_by_genre(genre_id = 123)` | `st_filter(genre = 123)` |
+| `st_filter_by_monetization(model = "free")` | `st_filter(monetization = "free")` |
+| `st_filter_by_publisher(publisher_id = 456)` | `st_filter(publisher = 456)` |
+| `st_filter_by_sdk(sdk_name = "unity")` | `st_filter(sdk = "unity")` |
+| `st_custom_fields_filter(custom_fields = list(...))` | `st_filter(custom_fields = list(...))` |
+| `st_custom_fields_filter_by_id(filter_id = "5f...")` | `st_filter(filter_id = "5f...")` |
+| `st_combine_filters(list(a, b))` | `c(a, b)` (S3 method) |
+| `st_create_simple_filter(field, value)` | `st_filter(custom_fields = setNames(list(value), field))` |
+
+The returned `st_filter` object is accepted everywhere a raw filter ID string was accepted before — `st_apps(filter = ...)`, `st_rankings(filter = ...)`, `st_get_filtered_apps(filter = ...)`.
+
+### Parameter renames in retained functions
+
+Functions that were already clean in 0.9.x (`st_active_users()`, `st_retention()`, `st_publisher_apps()`, `st_publisher_portfolio()`, `st_session_metrics()`, `st_yoy_metrics()`, `st_demographics()`, `st_game_summary()`, `st_app_enriched()`) keep their identities but have their parameters standardized:
+
+| Old | New |
+|---|---|
+| `ios_app_id`, `android_app_id`, `unified_app_id`, `unified_id` | `app_id` |
+| `app_store`, `platform` | `os` |
+| `region`, `regions` | `country` (scalar) / `countries` (vector) |
+| `start_date`, `end_date` | `date_from`, `date_to` |
+| `date_granularity` | `granularity` |
+| `measure`, `metric` | `metrics` |
+| `token`, `api_key` | `auth_token` |
+| `n`, `max_results` | `limit` |
+
+### Removed exports (now internal)
+
+These were implementation details that were accidentally exported. If you were using them externally, they're still accessible via `sensortowerR:::name()` — but the public API replacements are:
+
+| Removed | Replacement |
+|---|---|
+| `clean_numeric_column()`, `format_vector()` | Use typed formatters: `format_currency()`, `format_downloads()`, etc. |
+| `find_column()`, `select_columns_safe()`, `select_robust()`, `require_column()` | Relied on v0.9 column conventions — v1.0 output schemas are stable, so these aren't needed |
+| `validate_columns()`, `validate_top_charts_data()`, `get_column_spec()`, `map_region_columns()`, `try_column_operation()` | Implementation details; no replacement |
+
+## Checking your scripts
+
+The fastest way to find v0.9 calls that need updating:
+
+```{r grep, purl = FALSE}
+# From the terminal
+system("grep -rn 'st_sales_report\\|st_unified_sales_report\\|st_batch_metrics\\|st_smart_metrics' your_project/")
+```
+
+Or just run your script — the `.Defunct()` stubs will error with the exact replacement call for each removed function.

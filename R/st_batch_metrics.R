@@ -30,8 +30,9 @@
 #' @param publisher_ids Character vector. Publisher IDs to fetch data for.
 #'
 #' @return A tibble with all metrics for all apps.
-#' @export
-st_batch_metrics <- function(os,
+#' @keywords internal
+#' @noRd
+st_batch_metrics_impl <- function(os,
                              app_list,
                              metrics = c("revenue", "downloads"),
                              date_range = list(
@@ -71,7 +72,7 @@ st_batch_metrics <- function(os,
 
   # Validate date range
   if (identical(date_range, "ytd")) {
-    rlang::abort("YTD mode is no longer supported in st_batch_metrics. Please specify explicit start_date and end_date.")
+    rlang::abort("YTD mode is no longer supported in st_batch_metrics_impl. Please specify explicit start_date and end_date.")
   }
 
   # Publisher mode
@@ -223,7 +224,7 @@ fetch_publisher_batch <- function(publisher_ids, os, metrics, countries, date_ra
   fetch_publisher_platform <- function(platform_os, pid) {
     tryCatch(
       {
-        st_sales_report(
+        st_sales_report_impl(
           os = platform_os,
           countries = countries,
           start_date = as.character(date_range$start_date),
@@ -721,7 +722,7 @@ fetch_sales_batch <- function(group, group_name, metrics, countries, date_range,
     results_list <- lapply(seq_len(nrow(group)), function(i) {
       ios_res <- tryCatch(
         {
-          res <- st_sales_report(
+          res <- st_sales_report_impl(
             os = "ios",
             ios_app_id = group$ios_id[i],
             countries = countries,
@@ -740,7 +741,7 @@ fetch_sales_batch <- function(group, group_name, metrics, countries, date_range,
 
       android_res <- tryCatch(
         {
-          res <- st_sales_report(
+          res <- st_sales_report_impl(
             os = "android",
             android_app_id = group$android_id[i],
             countries = countries,
@@ -778,7 +779,7 @@ fetch_sales_batch <- function(group, group_name, metrics, countries, date_range,
       res <- process_individual(i, function(idx) {
         tryCatch(
           {
-            st_sales_report(
+            st_sales_report_impl(
               os = "ios",
               ios_app_id = group$ios_id[idx],
               countries = countries,
@@ -805,7 +806,7 @@ fetch_sales_batch <- function(group, group_name, metrics, countries, date_range,
       res <- process_individual(i, function(idx) {
         tryCatch(
           {
-            st_sales_report(
+            st_sales_report_impl(
               os = "android",
               android_app_id = group$android_id[idx],
               countries = countries,
@@ -853,18 +854,17 @@ fetch_sales_batch <- function(group, group_name, metrics, countries, date_range,
         }
       }
 
-      # Last resort: st_metrics with unified ID
+      # Last resort: st_unified_sales_report_impl with unified ID
       tryCatch(
         {
-          res <- st_metrics(
-            os = os,
-            unified_app_id = group$unified_id[i],
+          res <- st_unified_sales_report_impl(
+            unified_app_id   = group$unified_id[i],
+            countries        = countries,
+            start_date       = as.character(date_range$start_date),
+            end_date         = as.character(date_range$end_date),
             date_granularity = granularity,
-            start_date = as.character(date_range$start_date),
-            end_date = as.character(date_range$end_date),
-            countries = countries,
-            auth_token = auth_token,
-            verbose = FALSE
+            auth_token       = auth_token,
+            verbose          = FALSE
           )
           if (nrow(res) > 0) {
             res %>%

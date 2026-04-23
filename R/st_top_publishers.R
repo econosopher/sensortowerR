@@ -128,8 +128,9 @@
 #' @importFrom rlang abort warn %||% .data sym
 #' @importFrom lubridate floor_date ceiling_date
 #' @importFrom purrr map map_int
-#' @export
-st_top_publishers <- function(measure = "revenue",
+#' @keywords internal
+#' @noRd
+st_top_publishers_impl <- function(measure = "revenue",
                              os,
                              category = 0,
                              time_range = "month",

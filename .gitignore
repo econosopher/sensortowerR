@@ -92,3 +92,11 @@ sensortowerR.code-workspace
 CLAUDE.md
 .claude/
 .claude_backup/
+
+# Generated analysis outputs
+outputs/
+output/
+# Scratch planning
+tasks/
+# Client-specific analyses (not for public repo)
+examples/client_analyses/

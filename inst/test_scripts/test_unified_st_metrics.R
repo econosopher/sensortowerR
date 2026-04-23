@@ -1,6 +1,6 @@
 # Test the unified st_metrics function
 
-library(SensorTowerR)
+library(sensortowerR)
 
 cat("=== Testing Unified st_metrics Function ===\n\n")
 

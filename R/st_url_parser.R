@@ -1,14 +1,14 @@
 #' Parse Sensor Tower Web URL to API Parameters
 #' 
 #' Converts a Sensor Tower web interface URL into API-compatible parameters
-#' that can be used with SensorTowerR functions. This is helpful when you want
+#' that can be used with sensortowerR functions. This is helpful when you want
 #' to replicate a web query in R.
 #' 
 #' @param url Character string. A Sensor Tower web interface URL
 #' @param verbose Logical. Whether to print parameter mapping details. 
 #'   Defaults to TRUE.
 #' @return List of API-compatible parameters suitable for use with st_top_charts()
-#'   and other SensorTowerR functions
+#'   and other sensortowerR functions
 #' @export
 #' @examples
 #' \dontrun{
@@ -204,7 +204,7 @@ st_parse_web_url <- function(url, verbose = TRUE) {
       cat("!  custom_fields_filter_id with unified OS requires custom_tags_mode\n")
     }
     
-    cat("\nReady to use with SensorTowerR functions!\n")
+    cat("\nReady to use with sensortowerR functions!\n")
   }
   
   # Return the API parameters

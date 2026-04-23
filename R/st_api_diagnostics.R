@@ -60,7 +60,7 @@ st_api_diagnostics <- function(app_id,
     if (verbose) message("\nResolving platform IDs...")
     
     lookup_result <- tryCatch({
-      st_app_lookup(app_id, verbose = FALSE, auth_token = auth_token)
+      st_app_lookup_impl(app_id, verbose = FALSE, auth_token = auth_token)
     }, error = function(e) NULL)
     
     if (!is.null(lookup_result)) {
@@ -109,7 +109,7 @@ st_api_diagnostics <- function(app_id,
     paste0(toupper(os_type), " Sales Report"),
     function() {
       if (os_type == "ios") {
-        st_sales_report(
+        st_sales_report_impl(
           ios_app_id = app_id,
           os = os_type,
           date_granularity = "monthly",
@@ -119,7 +119,7 @@ st_api_diagnostics <- function(app_id,
           auth_token = auth_token
         )
       } else {
-        st_sales_report(
+        st_sales_report_impl(
           android_app_id = app_id,
           os = os_type,
           date_granularity = "monthly",
@@ -137,7 +137,7 @@ st_api_diagnostics <- function(app_id,
     results$endpoint_results$ios_sales <- test_endpoint(
       "iOS Sales Report",
       function() {
-        st_sales_report(
+        st_sales_report_impl(
           ios_app_id = results$platform_ids$ios,
           os = "ios",
           date_granularity = "monthly",
@@ -154,7 +154,7 @@ st_api_diagnostics <- function(app_id,
     results$endpoint_results$android_sales <- test_endpoint(
       "Android Sales Report",
       function() {
-        st_sales_report(
+        st_sales_report_impl(
           android_app_id = results$platform_ids$android,
           os = "android",
           date_granularity = "monthly",
@@ -173,7 +173,7 @@ st_api_diagnostics <- function(app_id,
     results$endpoint_results$app_details <- test_endpoint(
       paste0(toupper(os), " App Details"),
       function() {
-        st_app_details(
+        st_app_details_impl(
           app_ids = app_id,
           os = os,
           auth_token = auth_token
@@ -196,7 +196,7 @@ st_api_diagnostics <- function(app_id,
     } else {
       results$recommendations <- c(
         "Could not resolve platform IDs",
-        "Try searching by app name using st_app_info()",
+        "Try searching by app name using st_app_info_impl()",
         "Unified endpoints unlikely to work with this ID"
       )
     }

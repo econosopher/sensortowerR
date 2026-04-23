@@ -1,10 +1,10 @@
 # Comprehensive Function Test Suite
 # Tests all major functions with real API calls
 
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 
-cat("=== Testing All SensorTowerR Functions ===\n\n")
+cat("=== Testing All sensortowerR Functions ===\n\n")
 
 # Test 1: st_app_info
 cat("Test 1: st_app_info\n")

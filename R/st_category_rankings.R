@@ -89,8 +89,9 @@
 #' @importFrom jsonlite fromJSON
 #' @importFrom tibble tibble as_tibble
 #' @importFrom dplyr rename
-#' @export
-st_category_rankings <- function(os,
+#' @keywords internal
+#' @noRd
+st_category_rankings_impl <- function(os,
                                 category = NULL,
                                 chart_type = NULL,
                                 country = "US",

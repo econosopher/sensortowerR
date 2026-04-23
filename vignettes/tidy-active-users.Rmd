@@ -17,14 +17,14 @@ knitr::opts_chunk$set(
 ```
 
 ```{r, purl=FALSE}
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 library(tidyr)
 ```
 
 ## Overview
 
-`st_active_users()` is a focused, tidy wrapper around `st_batch_metrics()` that returns DAU/WAU/MAU in long format.
+`st_active_users()` is a focused, tidy wrapper that returns DAU/WAU/MAU in long format, built on the same underlying machinery as `st_metrics()`.
 
 This makes downstream analysis intuitive with standard tidyverse verbs.
 
@@ -57,22 +57,23 @@ active_wide <- active_users %>%
 ## Join With Sales Data
 
 ```{r join-sales, purl=FALSE}
-sales <- st_batch_metrics(
-  os = "unified",
-  app_list = c("5ba4585f539ce75b97db6bcb", "67ec0bf3e540b65904256cc4"),
-  metrics = c("revenue", "downloads"),
-  date_range = list(start_date = "2025-01-01", end_date = "2025-12-31"),
-  countries = c("US", "GB"),
+sales <- st_metrics(
+  app_id      = c("5ba4585f539ce75b97db6bcb", "67ec0bf3e540b65904256cc4"),
+  os          = "unified",
+  metrics     = c("revenue", "downloads"),
+  countries   = c("US", "GB"),
+  date_from   = "2025-01-01",
+  date_to     = "2025-12-31",
   granularity = "monthly"
 )
 
 sales_wide <- sales %>%
-  group_by(original_id, app_name, date, country, metric) %>%
+  group_by(app_id, date, country, metric) %>%
   summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
   pivot_wider(names_from = metric, values_from = value)
 
 combined <- active_wide %>%
-  left_join(sales_wide, by = c("original_id", "app_name", "date", "country"))
+  left_join(sales_wide, by = c("original_id" = "app_id", "date", "country"))
 ```
 
 ## App-Level KPI Aggregation

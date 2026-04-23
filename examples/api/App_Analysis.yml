@@ -1708,7 +1708,9 @@ paths:
     get:
       tags:
         - 'ACQUISITION & CHURN: Retention'
+      deprecated: true
       description: |
+        <b>Sunset date: April 22, 2026</b><br><br>
         Retrieve retention of apps (from day 1 to day 90), along with the baseline retention. <br><br> Mapping between confidence levels and their respective confidence color in the UI: <br> <table>
           <tr>
             <td>UI Color</td>
@@ -4151,6 +4153,275 @@ paths:
                     example:
                       title: Start date must be the first day of the month
                       parameter: start_date
+                required:
+                  - errors
+                type: object
+  /v1/facets/metrics?retention:
+    get:
+      tags:
+        - 'ACQUISITION & CHURN: Retention'
+      operationId: getRetentionMetrics
+      description: |
+        Retrieve retention metrics for apps.
+
+        The following retention periods are available:
+        - daily (D1..D7, D14, D30, D60, D90, D180, D365)
+        - weekly (W1..W10, W20, W52)
+        - monthly (M1..M12)
+
+        Retention is calculated at a monthly granularity, which means the install day
+        (or the start of the install week) must fall within the specified month.
+
+        ## Usage
+        - **Required parameters**:
+          - `bundle`
+          - `breakdown`
+          - `start_date`
+          - `end_date`
+        - **Optional parameters**:
+          - `regions`
+        - Exactly one `bundle` must be provided.
+        - Exactly one entity filter must be provided:
+          - `app_ids`
+          - `unified_app_ids`
+        - Multiple entity filters are not supported.
+
+        ## Retention Period
+        - `bundle`: The bundle determines retention period (`retention_daily`,
+          `retention_weekly`, or `retention_monthly`) and includes all retention
+          metrics relevant to that retention period.
+
+        ## Breakdowns
+
+        Provide a comma-separated list of breakdown fields.
+
+        ### Available breakdowns
+
+        - `date` - time series data
+        - `app_id` - per-app breakdown
+        - `unified_app_id` - per-unified-app breakdown
+
+        ### Supported combinations
+
+        - `date,unified_app_id,app_id` - time series by app
+        - `date,unified_app_id` - time series by unified app
+        - `date,app_id` - time series by app
+        - `unified_app_id,app_id` - table-like breakdown by app
+        - `unified_app_id` - table-like breakdown by unified app
+        - `app_id` - table-like breakdown by app
+        - `date` - time series across all requested apps
+
+        ### Regions
+        - When no `regions` parameter is provided, estimates are returned worldwide.
+        - When one or more `regions` are provided, estimates are filtered to those regions.
+        - Breakdown by region is not supported.
+
+        ## Notes
+
+        **Important:** This API may be updated in the future (see the
+        <a href="/api/docs/changelog">API Changelog</a>). Please integrate with
+        caution and monitor release notes for changes.
+      summary: Fetches retention metric estimates for mobile apps
+      parameters:
+        - description: Bundle determines retention period for the data.
+          in: query
+          required: true
+          name: bundle
+          example: retention_daily
+          schema:
+            type: string
+            enum:
+              - retention_daily
+              - retention_weekly
+              - retention_monthly
+        - description: 'How to break down the data (comma-separated for multiple fields, e.g. `date,app_id`).'
+          in: query
+          name: breakdown
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - date
+                - app_id
+                - unified_app_id
+            minItems: 1
+          style: form
+          explode: false
+          example:
+            - date
+            - app_id
+        - description: Start date for the data range (YYYY-MM-DD).
+          in: query
+          name: start_date
+          required: true
+          example: '2025-12-01'
+          schema:
+            type: string
+            format: date
+        - description: End date for the data range (YYYY-MM-DD).
+          in: query
+          name: end_date
+          required: true
+          example: '2025-12-31'
+          schema:
+            type: string
+            format: date
+        - description: Array of region codes to filter by (comma-separated). See <a target='_blank' href='/api/docs/static/country_ids.json'>Region Codes</a>.
+          in: query
+          name: regions
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            minItems: 1
+          style: form
+          explode: false
+          example:
+            - US
+            - CA
+            - GB
+        - description: Array of app IDs to filter by. Can include iOS numeric IDs or Android bundle IDs.
+          in: query
+          name: app_ids
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            minItems: 1
+          style: form
+          explode: false
+          example:
+            - '297606951'
+            - com.amazon.mShop.android.shopping
+        - description: Array of unified app IDs to filter by (comma-separated). These are cross-platform identifiers.
+          in: query
+          name: unified_app_ids
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            minItems: 1
+          style: form
+          explode: false
+      responses:
+        '200':
+          description: <strong>Success.</strong>
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                          description: Date of the data point (when the breakdown includes date).
+                          example: '2025-01-01'
+                        app_id:
+                          type: string
+                          description: App ID (present when the breakdown includes app_id).
+                          example: '123456789'
+                        unified_app_id:
+                          type: string
+                          description: Unified app ID (present when the breakdown includes unified_app_id).
+                          example: 55c530a702ac64f9c0002dff
+                        est_retention_d1:
+                          type: number
+                          description: Estimated retention 1 day after installation.
+                          example: 0.75
+                        est_retention_d7:
+                          type: number
+                          description: Estimated retention 7 days after installation.
+                          example: 0.45
+                        est_retention_d14:
+                          type: number
+                          description: Estimated retention 14 days after installation.
+                          example: 0.32
+                        est_retention_d30:
+                          type: number
+                          description: Estimated retention 30 days after installation.
+                          example: 0.23
+                        est_retention_d60:
+                          type: number
+                          description: Estimated retention 60 days after installation.
+                          example: 0.11
+                        est_retention_d90:
+                          type: number
+                          description: Estimated retention 90 days after installation.
+                          example: 0.08
+                        est_retention_d180:
+                          type: number
+                          description: Estimated retention 180 days after installation.
+                          example: 0.05
+                        est_retention_d365:
+                          type: number
+                          description: Estimated retention 365 days after installation.
+                          example: 0.03
+                        est_retention_w1:
+                          type: number
+                          description: Estimated retention 1 week after the installation week.
+                          example: 0.75
+                        est_retention_w10:
+                          type: number
+                          description: Estimated retention 10 weeks after the installation week.
+                          example: 0.21
+                        est_retention_w20:
+                          type: number
+                          description: Estimated retention 20 weeks after the installation week.
+                          example: 0.11
+                        est_retention_w52:
+                          type: number
+                          description: Estimated retention 52 weeks after the installation week.
+                          example: null
+                        est_retention_m1:
+                          type: number
+                          description: Estimated retention 1 month after the installation month.
+                          example: 0.83
+                        est_retention_m12:
+                          type: number
+                          description: Estimated retention 12 months after the installation month.
+                          example: null
+                      additionalProperties: true
+                required:
+                  - data
+        '401':
+          $ref: '#/paths/~1v1~1%7Bos%7D~1apps/get/responses/401'
+        '422':
+          description: <strong>Invalid Query Parameter.</strong> <br> Please check that all required params are present and valid.
+          content:
+            application/json:
+              schema:
+                properties:
+                  errors:
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                          description: Human-readable error message
+                        parameter:
+                          type: string
+                          description: Parameter that caused the error
+                        code:
+                          type: string
+                          description: Error code for programmatic handling
+                          enum:
+                            - BLANK
+                            - INVALID
+                            - UNAUTHORIZED
+                      required:
+                        - title
+                        - code
+                    type: array
                 required:
                   - errors
                 type: object

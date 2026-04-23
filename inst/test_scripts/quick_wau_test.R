@@ -1,5 +1,5 @@
 # Quick WAU verification test
-library(SensorTowerR)
+library(sensortowerR)
 
 cat("Testing WAU implementation...\n")
 

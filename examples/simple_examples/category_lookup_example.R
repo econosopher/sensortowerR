@@ -2,7 +2,7 @@
 
 # Load required packages
 library(dplyr)
-library(SensorTowerR)
+library(sensortowerR)
 
 # Since the data is internal, we need to load it differently
 # For now, let's reload it from the source

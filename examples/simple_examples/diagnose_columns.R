@@ -1,7 +1,7 @@
 # Diagnostic script to help understand column availability
 # This helps debug issues with region-specific columns
 
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 
 # Function to diagnose column structure

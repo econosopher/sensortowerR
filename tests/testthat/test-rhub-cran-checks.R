@@ -19,14 +19,14 @@ test_that("package functions exist", {
   # This checks that the functions are available in the current package environment
   
   # Skip if not in package development environment
-  skip_if_not(exists("st_categories", where = asNamespace("SensorTowerR")),
+  skip_if_not(exists("st_categories", where = asNamespace("sensortowerR")),
               "Not in package environment")
   
   # Test that key functions exist
-  expect_true(exists("st_categories", where = asNamespace("SensorTowerR")), 
+  expect_true(exists("st_categories", where = asNamespace("sensortowerR")), 
               "st_categories function should be available")
-  expect_true(exists("st_top_charts", where = asNamespace("SensorTowerR")), 
+  expect_true(exists("st_top_charts", where = asNamespace("sensortowerR")), 
               "st_top_charts function should be available")
-  expect_true(exists("st_game_summary", where = asNamespace("SensorTowerR")), 
+  expect_true(exists("st_game_summary", where = asNamespace("sensortowerR")), 
               "st_game_summary function should be available")
 }) 

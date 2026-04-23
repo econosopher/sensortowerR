@@ -1,7 +1,7 @@
 # Comprehensive test script for st_ytd_metrics function
 # This script validates the function with minimal API calls
 
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 library(tidyr)
 library(testthat)

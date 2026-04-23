@@ -1,7 +1,7 @@
 # Quick validation script for st_ytd_metrics
 # Minimal API calls - uses just 1 week of data
 
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 library(tidyr)
 

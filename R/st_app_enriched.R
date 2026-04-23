@@ -92,7 +92,7 @@ st_app_enriched <- function(unified_app_ids,
       length(unified_app_ids) == 0) {
     rlang::abort(c(
       "'unified_app_ids' parameter is required.",
-      "i" = "Use st_app_info('app name') to search for apps and get their IDs.",
+      "i" = "Use st_app_info_impl('app name') to search for apps and get their IDs.",
       "x" = "Example: st_app_enriched(c('5f16a8019f7b275235017614'))"
     ))
   }
@@ -106,7 +106,7 @@ st_app_enriched <- function(unified_app_ids,
       "i" = "Unified IDs must be 24-character hexadecimal strings.",
       "x" = paste("Invalid IDs:", paste(invalid_ids[1:min(3, length(invalid_ids))],
                                          collapse = ", ")),
-      "i" = "Use st_app_info('app name') to find valid unified IDs."
+      "i" = "Use st_app_info_impl('app name') to find valid unified IDs."
     ))
   }
 

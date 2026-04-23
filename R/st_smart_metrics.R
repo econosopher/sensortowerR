@@ -33,8 +33,9 @@
 #' )
 #' }
 #'
-#' @export
-st_smart_metrics <- function(
+#' @keywords internal
+#' @noRd
+st_smart_metrics_impl <- function(
   app_ids,
   metrics = c("revenue", "downloads"),
   start_date = Sys.Date() - 30,
@@ -48,7 +49,7 @@ st_smart_metrics <- function(
   verbose = TRUE
 ) {
   # Load cache if needed
-  if (use_cache && !exists("id_cache", envir = .SensorTowerR_env)) {
+  if (use_cache && !exists("id_cache", envir = .sensortowerR_env)) {
     load_id_cache()
   }
 
@@ -184,7 +185,7 @@ st_smart_metrics <- function(
     )
 
     result <- switch(group_name,
-      both = st_batch_metrics(
+      both = st_batch_metrics_impl(
         os = "unified",
         app_list = app_list_df,
         metrics = metrics,
@@ -195,7 +196,7 @@ st_smart_metrics <- function(
         auth_token = auth_token,
         verbose = verbose
       ),
-      ios = st_batch_metrics(
+      ios = st_batch_metrics_impl(
         os = "ios",
         app_list = app_list_df,
         metrics = metrics,
@@ -206,7 +207,7 @@ st_smart_metrics <- function(
         auth_token = auth_token,
         verbose = verbose
       ),
-      android = st_batch_metrics(
+      android = st_batch_metrics_impl(
         os = "android",
         app_list = app_list_df,
         metrics = metrics,
@@ -217,7 +218,7 @@ st_smart_metrics <- function(
         auth_token = auth_token,
         verbose = verbose
       ),
-      unified = st_batch_metrics(
+      unified = st_batch_metrics_impl(
         os = "unified",
         app_list = app_list_df,
         metrics = metrics,
@@ -286,7 +287,7 @@ st_smart_metrics <- function(
 #' @export
 st_clear_id_cache <- function(disk = TRUE) {
   # Clear in-memory cache
-  .SensorTowerR_env$id_cache <- list()
+  .sensortowerR_env$id_cache <- list()
 
   # Clear disk cache
   if (disk) {

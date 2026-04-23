@@ -41,8 +41,9 @@
 #' }
 #' }
 #' 
-#' @export
-st_app_lookup <- function(app_id, 
+#' @keywords internal
+#' @noRd
+st_app_lookup_impl <- function(app_id, 
                          auth_token = Sys.getenv("SENSORTOWER_AUTH_TOKEN"),
                          verbose = FALSE) {
   
@@ -74,7 +75,7 @@ st_app_lookup <- function(app_id,
   # For unified IDs, use direct unified apps lookup first.
   if (id_type == "unified") {
     direct_details <- tryCatch({
-      st_app_details(
+      st_app_details_impl(
         app_ids = app_id,
         os = "unified",
         include_developer_contacts = FALSE,
@@ -108,7 +109,7 @@ st_app_lookup <- function(app_id,
 
     # Fallback to search-based lookup for backward compatibility.
     search_results <- tryCatch({
-      st_app_info(
+      st_app_info_impl(
         term = app_id,
         return_all_fields = TRUE,
         limit = 1,
@@ -181,7 +182,7 @@ st_app_lookup <- function(app_id,
       if (verbose) message("Searching for: ", term)
       
       search_results <- tryCatch({
-        st_app_info(
+        st_app_info_impl(
           term = term,
           app_store = search_store,
           return_all_fields = TRUE,

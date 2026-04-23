@@ -1,5 +1,5 @@
 # Test WAU functionality in st_ytd_metrics
-library(SensorTowerR)
+library(sensortowerR)
 library(dplyr)
 library(tidyr)
 

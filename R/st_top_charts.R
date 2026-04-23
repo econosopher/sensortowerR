@@ -50,7 +50,7 @@
 #'   using the app IDs since the sales endpoint doesn't provide app names natively.
 #'   
 #'   **Revenue Units**: Revenue values are standardized to base currency units (dollars,
-#'   euros, etc.) for consistency across all SensorTowerR functions. The function provides
+#'   euros, etc.) for consistency across all sensortowerR functions. The function provides
 #'   a `revenue` column in base units alongside the original `revenue_absolute` (in cents).
 #'   
 #'   **Data Cleaning**: Numeric metric values are automatically cleaned of special 
@@ -114,8 +114,9 @@
 #' )
 #' }
 #'
-#' @export
-st_top_charts <- function(measure = "revenue",
+#' @keywords internal
+#' @noRd
+st_top_charts_impl <- function(measure = "revenue",
                           os,
                           comparison_attribute = "absolute",
                           time_range = "month",
