@@ -148,6 +148,7 @@ st_metrics <- function(app_id,
   normalized <- .st_metrics_normalize_output(
     data = raw_result,
     requested_ids = app_id,
+    requested_countries = countries,
     os = os,
     metrics = metrics,
     revenue_unit = revenue_unit,
@@ -282,6 +283,7 @@ st_metrics <- function(app_id,
 
 .st_metrics_normalize_output <- function(data,
                                          requested_ids,
+                                         requested_countries,
                                          os,
                                          metrics,
                                          revenue_unit,
@@ -338,6 +340,28 @@ st_metrics <- function(app_id,
       )
   }
 
+  if (!"WW" %in% requested_countries) {
+    normalized_long <- normalized_long %>%
+      dplyr::filter(.data$country %in% requested_countries)
+  }
+
+  conflicts <- normalized_long %>%
+    dplyr::distinct(.data$app_id, .data$os, .data$country, .data$date, .data$metric, .data$value) %>%
+    dplyr::count(.data$app_id, .data$os, .data$country, .data$date, .data$metric, name = "n_values") %>%
+    dplyr::filter(.data$n_values > 1)
+  if (nrow(conflicts) > 0) {
+    rlang::abort(sprintf(
+      "st_metrics() returned conflicting duplicate metric values for app_id '%s', country '%s', date '%s', metric '%s'.",
+      conflicts$app_id[[1]],
+      conflicts$country[[1]],
+      format(conflicts$date[[1]], "%Y-%m-%d"),
+      conflicts$metric[[1]]
+    ))
+  }
+
+  normalized_long <- normalized_long %>%
+    dplyr::distinct(.data$app_id, .data$os, .data$country, .data$date, .data$metric, .data$value)
+
   if (revenue_unit == "cents") {
     revenue_rows <- normalized_long$metric == "revenue"
     normalized_long$value[revenue_rows] <- normalized_long$value[revenue_rows] * 100
@@ -352,7 +376,12 @@ st_metrics <- function(app_id,
 
   wide <- normalized_long %>%
     tidyr::pivot_wider(names_from = "metric", values_from = "value") %>%
-    dplyr::select("app_id", "os", "country", "date", dplyr::any_of(metrics)) %>%
+    dplyr::select("app_id", "os", "country", "date", dplyr::any_of(metrics))
+  for (metric_name in setdiff(metrics, names(wide))) {
+    wide[[metric_name]] <- numeric(nrow(wide))
+  }
+  wide <- wide %>%
+    dplyr::select("app_id", "os", "country", "date", dplyr::all_of(metrics)) %>%
     dplyr::arrange(.data$app_id, .data$date, .data$country)
 
   wide
