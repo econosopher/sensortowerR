@@ -26,6 +26,7 @@ st_category_data <- bind_rows(ios_categories, android_categories)
 # Games breakdown API response key for field interpretation
 games_breakdown_key <- list(
   ios = list(
+    ca = "Category",
     aid = "App ID",
     cc = "Country Code", 
     d = "Date",
@@ -35,6 +36,7 @@ games_breakdown_key <- list(
     ar = "iPad Revenue"
   ),
   android = list(
+    ca = "Category",
     aid = "App ID",
     cc = "Country Code",
     d = "Date", 

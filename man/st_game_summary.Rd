@@ -46,11 +46,12 @@ in "YYYY-MM-DD" format, inclusive. Required.}
 the response with readable column names and processes the data.}
 }
 \value{
-A [tibble][tibble::tibble] with game market summary data including:
+A [tibble][tibble::tibble] with aggregate game market summary data including:
   - **Category information**: Game category details
   - **Geographic data**: Country-level breakdowns
   - **Downloads**: iOS (iPhone + iPad combined) and Android download estimates
-  - **Revenue**: iOS (iPhone + iPad combined) and Android revenue estimates
+  - **Revenue**: iOS (iPhone + iPad combined) and Android revenue estimates,
+    expressed in dollars when `enrich_response = TRUE`
   - **Totals (unified only)**: `Total Downloads`, `Total Revenue`
   - **Time series**: Data broken down by specified granularity
   
@@ -59,14 +60,23 @@ A [tibble][tibble::tibble] with game market summary data including:
   columns for simplified analysis.
 }
 \description{
-Retrieves aggregated download and revenue estimates by game categories, 
-countries, and date ranges. This provides a market overview of game 
-performance across different segments.
+Retrieves aggregate download and revenue estimates by game categories,
+countries, and date ranges from Sensor Tower's `games_breakdown` endpoint.
+Use this for market/category denominator series; do not approximate market
+totals by batching top charts, rankings, or large app rosters.
 }
 \section{API Endpoint Used}{
 
   - **Game Summary**: `GET /v1/\{os\}/games_breakdown`
     (API only supports `os = "ios"` or `os = "android"`; unified is synthesized)
+}
+
+\section{Revenue Units}{
+
+  The raw `games_breakdown` endpoint returns revenue in cents. With
+  `enrich_response = TRUE`, this function converts revenue fields to dollars
+  before combining devices or platforms. With `enrich_response = FALSE`, raw
+  endpoint fields are returned unchanged.
 }
 
 \section{Field Mappings and Processing}{
@@ -75,21 +85,23 @@ performance across different segments.
   descriptive names and processed:
   - **iOS**: `iu` + `au` = iOS Downloads (combined), `ir` + `ar` = iOS Revenue (combined)
   - **Android**: `u` = Android Downloads, `r` = Android Revenue
-  - **Common**: `cc` = Country Code, `d` = Date, `aid` = App ID
+  - **Common**: `ca` = Category, `cc` = Country Code, `d` = Date
   
   iPhone and iPad data are automatically combined for simplified analysis.
+  For `os = "unified"`, iOS and Android aggregate rows are summed by date and
+  country across the requested category basket.
 }
 
 \examples{
 \dontrun{
-# Basic game market summary (last 30 days, worldwide)
-game_summary <- st_game_summary()
-
 # Specific categories and countries
 rpg_summary <- st_game_summary(
   categories = c(7001, 7002),
   countries = c("US", "GB", "DE"),
-  date_granularity = "weekly"
+  os = "ios",
+  date_granularity = "weekly",
+  start_date = "2024-01-01",
+  end_date = "2024-03-31"
 )
 
 # Monthly summary for iOS games in the US
@@ -104,5 +116,5 @@ ios_monthly <- st_game_summary(
 
 }
 \seealso{
-[st_categories()], [st_top_charts()], [st_metrics()]
+[st_categories()], [st_rankings()], [st_metrics()]
 }

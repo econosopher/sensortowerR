@@ -102,6 +102,25 @@ as.character(us_rpgs_2025)  # Server-side filter ID
 combined <- c(us_rpgs_2025, st_filter(sdk = "unity"))
 ```
 
+### `st_game_summary()` — aggregate game market totals
+
+Use `st_game_summary()` when the analysis needs market/category/genre denominator series rather than title-level cohorts. It calls Sensor Tower's aggregate `/v1/{os}/games_breakdown` endpoint for `os = "ios"` or `os = "android"`; `os = "unified"` fetches the iOS and Android aggregate rows and sums them by date/country.
+
+```r
+market <- st_game_summary(
+  categories        = 7001,
+  countries         = c("US", "JP", "GB"),
+  os                = "unified",
+  date_granularity  = "monthly",
+  start_date        = "2025-01-01",
+  end_date          = "2025-12-31"
+)
+
+# Enriched revenue columns are in dollars. Raw endpoint revenue is cents.
+```
+
+Do not build denominator time series by batching top-N rankings, top charts, or 1,500-app rosters. Those are title cohorts, not market totals, and they will drift with roster selection and chart cutoffs.
+
 ## Function index
 
 ### Core (4 unified verbs)
@@ -126,7 +145,7 @@ combined <- c(us_rpgs_2025, st_filter(sdk = "unity"))
 | `st_demographics()` | Age / gender breakdowns |
 | `st_app_enriched()` | Multi-metric enrichment for known apps |
 | `st_yoy_metrics()` | Year-over-year comparison helper |
-| `st_game_summary()` | Game-specific genre / subgenre summary |
+| `st_game_summary()` | Aggregate game category / market summary from `games_breakdown` |
 
 ### Publishers
 

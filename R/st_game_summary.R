@@ -1,8 +1,9 @@
 #' Fetch Game Market Summary Data
 #'
-#' Retrieves aggregated download and revenue estimates by game categories, 
-#' countries, and date ranges. This provides a market overview of game 
-#' performance across different segments.
+#' Retrieves aggregate download and revenue estimates by game categories,
+#' countries, and date ranges from Sensor Tower's `games_breakdown` endpoint.
+#' Use this for market/category denominator series; do not approximate market
+#' totals by batching top charts, rankings, or large app rosters.
 #'
 #' @param categories Character string or numeric vector. Game category IDs to 
 #'   analyze. Defaults to 7001 (a popular game category). Use `st_categories()` 
@@ -24,11 +25,12 @@
 #' @param enrich_response Optional. Logical. If `TRUE` (default), enriches
 #'   the response with readable column names and processes the data.
 #'
-#' @return A [tibble][tibble::tibble] with game market summary data including:
+#' @return A [tibble][tibble::tibble] with aggregate game market summary data including:
 #'   - **Category information**: Game category details
 #'   - **Geographic data**: Country-level breakdowns
 #'   - **Downloads**: iOS (iPhone + iPad combined) and Android download estimates
-#'   - **Revenue**: iOS (iPhone + iPad combined) and Android revenue estimates
+#'   - **Revenue**: iOS (iPhone + iPad combined) and Android revenue estimates,
+#'     expressed in dollars when `enrich_response = TRUE`
 #'   - **Totals (unified only)**: `Total Downloads`, `Total Revenue`
 #'   - **Time series**: Data broken down by specified granularity
 #'   
@@ -40,25 +42,33 @@
 #'   - **Game Summary**: `GET /v1/\{os\}/games_breakdown`
 #'     (API only supports `os = "ios"` or `os = "android"`; unified is synthesized)
 #'
+#' @section Revenue Units:
+#'   The raw `games_breakdown` endpoint returns revenue in cents. With
+#'   `enrich_response = TRUE`, this function converts revenue fields to dollars
+#'   before combining devices or platforms. With `enrich_response = FALSE`, raw
+#'   endpoint fields are returned unchanged.
+#'
 #' @section Field Mappings and Processing:
 #'   The API returns abbreviated field names which are automatically mapped to 
 #'   descriptive names and processed:
 #'   - **iOS**: `iu` + `au` = iOS Downloads (combined), `ir` + `ar` = iOS Revenue (combined)
 #'   - **Android**: `u` = Android Downloads, `r` = Android Revenue
-#'   - **Common**: `cc` = Country Code, `d` = Date, `aid` = App ID
+#'   - **Common**: `ca` = Category, `cc` = Country Code, `d` = Date
 #'   
 #'   iPhone and iPad data are automatically combined for simplified analysis.
+#'   For `os = "unified"`, iOS and Android aggregate rows are summed by date and
+#'   country across the requested category basket.
 #'
 #' @examples
 #' \dontrun{
-#' # Basic game market summary (last 30 days, worldwide)
-#' game_summary <- st_game_summary()
-#'
 #' # Specific categories and countries
 #' rpg_summary <- st_game_summary(
 #'   categories = c(7001, 7002),
 #'   countries = c("US", "GB", "DE"),
-#'   date_granularity = "weekly"
+#'   os = "ios",
+#'   date_granularity = "weekly",
+#'   start_date = "2024-01-01",
+#'   end_date = "2024-03-31"
 #' )
 #'
 #' # Monthly summary for iOS games in the US
@@ -71,7 +81,7 @@
 #' )
 #' }
 #'
-#' @seealso [st_categories()], [st_top_charts()], [st_metrics()]
+#' @seealso [st_categories()], [st_rankings()], [st_metrics()]
 #' @export
 st_game_summary <- function(categories = 7001,
                             countries,
@@ -135,7 +145,6 @@ st_game_summary <- function(categories = 7001,
   
   # If unified requested, fetch iOS + Android and combine
   if (os == "unified") {
-    message("Note: games_breakdown does not support os='unified'; combining iOS + Android results.")
     ios_res <- tryCatch(
       st_game_summary(
         categories = categories,
@@ -169,21 +178,38 @@ st_game_summary <- function(categories = 7001,
       return(tibble::tibble())
     }
 
-    # Join on shared keys to keep a single row per date/country/category
-    shared_keys <- intersect(names(ios_res), names(android_res))
-    joined <- dplyr::full_join(ios_res, android_res, by = shared_keys)
+    if (!enrich_response) {
+      return(dplyr::bind_rows(
+        dplyr::mutate(ios_res, os = "ios"),
+        dplyr::mutate(android_res, os = "android")
+      ))
+    }
+
+    unified_keys <- game_summary_unified_keys(ios_res, android_res)
+    ios_res <- summarize_game_summary_platform(
+      ios_res,
+      metric_cols = c("iOS Downloads", "iOS Revenue"),
+      keys = unified_keys
+    )
+    android_res <- summarize_game_summary_platform(
+      android_res,
+      metric_cols = c("Android Downloads", "Android Revenue"),
+      keys = unified_keys
+    )
+
+    joined <- dplyr::full_join(ios_res, android_res, by = unified_keys)
 
     # Add total columns when platform-specific metrics exist
     if ("iOS Downloads" %in% names(joined) || "Android Downloads" %in% names(joined)) {
-      joined$`Total Downloads` <- rowSums(
-        joined[, intersect(c("iOS Downloads", "Android Downloads"), names(joined)), drop = FALSE],
-        na.rm = TRUE
+      joined$`Total Downloads` <- row_sum_metric_columns(
+        joined,
+        intersect(c("iOS Downloads", "Android Downloads"), names(joined))
       )
     }
     if ("iOS Revenue" %in% names(joined) || "Android Revenue" %in% names(joined)) {
-      joined$`Total Revenue` <- rowSums(
-        joined[, intersect(c("iOS Revenue", "Android Revenue"), names(joined)), drop = FALSE],
-        na.rm = TRUE
+      joined$`Total Revenue` <- row_sum_metric_columns(
+        joined,
+        intersect(c("iOS Revenue", "Android Revenue"), names(joined))
       )
     }
 
@@ -259,16 +285,21 @@ process_game_summary_response <- function(resp, os) {
     result_tbl$Date <- as.Date(substr(result_tbl$Date, 1, 10))
   }
   
-  # Convert numeric fields from character if needed
-  numeric_patterns <- c("Downloads", "Revenue", "_downloads", "_revenue")
-  numeric_cols <- names(result_tbl)[
-    sapply(names(result_tbl), function(x) any(grepl(paste(numeric_patterns, collapse = "|"), x, ignore.case = TRUE)))
-  ]
-  
-  for (col in numeric_cols) {
-    if (is.character(result_tbl[[col]])) {
-      result_tbl[[col]] <- as.numeric(result_tbl[[col]])
-    }
+  download_cols <- intersect(
+    c("iPhone Downloads", "iPad Downloads", "Android Downloads"),
+    names(result_tbl)
+  )
+  revenue_cols <- intersect(
+    c("iPhone Revenue", "iPad Revenue", "Android Revenue"),
+    names(result_tbl)
+  )
+
+  for (col in download_cols) {
+    result_tbl[[col]] <- as.numeric(result_tbl[[col]])
+  }
+
+  for (col in revenue_cols) {
+    result_tbl[[col]] <- as.numeric(result_tbl[[col]]) / 100
   }
   
   # Automatically combine iPad and iPhone data into unified iOS totals
@@ -280,19 +311,23 @@ process_game_summary_response <- function(resp, os) {
     has_ipad_revenue <- "iPad Revenue" %in% names(result_tbl)
     
     if (has_iphone_downloads && has_ipad_downloads) {
-      result_tbl$`iOS Downloads` <- result_tbl$`iPhone Downloads` + result_tbl$`iPad Downloads`
+      result_tbl$`iOS Downloads` <- row_sum_metric_columns(
+        result_tbl,
+        c("iPhone Downloads", "iPad Downloads")
+      )
       # Remove individual device columns
       result_tbl$`iPhone Downloads` <- NULL
       result_tbl$`iPad Downloads` <- NULL
-      message("Combined iPhone and iPad downloads into 'iOS Downloads'")
     }
     
     if (has_iphone_revenue && has_ipad_revenue) {
-      result_tbl$`iOS Revenue` <- result_tbl$`iPhone Revenue` + result_tbl$`iPad Revenue`
+      result_tbl$`iOS Revenue` <- row_sum_metric_columns(
+        result_tbl,
+        c("iPhone Revenue", "iPad Revenue")
+      )
       # Remove individual device columns
       result_tbl$`iPhone Revenue` <- NULL
       result_tbl$`iPad Revenue` <- NULL
-      message("Combined iPhone and iPad revenue into 'iOS Revenue'")
     }
   }
   
@@ -321,6 +356,11 @@ map_game_summary_fields <- function(data, os) {
   } else {
     field_mappings <- games_breakdown_key[[os]]
   }
+
+  field_mappings <- c(
+    list(ca = "Category"),
+    field_mappings
+  )
   
   if (is.null(field_mappings)) {
     warning("Unknown OS: ", os, ". Field names will not be mapped.")
@@ -341,3 +381,59 @@ map_game_summary_fields <- function(data, os) {
   names(data) <- new_names
   return(data)
 } 
+
+game_summary_unified_keys <- function(ios_data, android_data) {
+  candidate_keys <- c("Country Code", "Date")
+  intersect(candidate_keys, intersect(names(ios_data), names(android_data)))
+}
+
+summarize_game_summary_platform <- function(data, metric_cols, keys) {
+  if (nrow(data) == 0) {
+    return(data)
+  }
+
+  metric_cols <- intersect(metric_cols, names(data))
+  keep_cols <- c(keys, metric_cols)
+  data <- data[, keep_cols, drop = FALSE]
+
+  if (length(metric_cols) == 0) {
+    return(data)
+  }
+
+  if (length(keys) == 0) {
+    return(tibble::as_tibble(stats::setNames(
+      lapply(metric_cols, function(col) sum_metric_column(data[[col]])),
+      metric_cols
+    )))
+  }
+
+  data %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(keys))) %>%
+    dplyr::summarise(
+      dplyr::across(
+        dplyr::all_of(metric_cols),
+        sum_metric_column
+      ),
+      .groups = "drop"
+    )
+}
+
+sum_metric_column <- function(x) {
+  x <- as.numeric(x)
+  if (all(is.na(x))) {
+    return(NA_real_)
+  }
+  sum(x, na.rm = TRUE)
+}
+
+row_sum_metric_columns <- function(data, cols) {
+  cols <- intersect(cols, names(data))
+  if (length(cols) == 0) {
+    return(rep(NA_real_, nrow(data)))
+  }
+
+  values <- as.data.frame(lapply(data[, cols, drop = FALSE], as.numeric))
+  out <- rowSums(values, na.rm = TRUE)
+  out[rowSums(!is.na(values)) == 0] <- NA_real_
+  out
+}
