@@ -1,24 +1,43 @@
 {
-  "checked_at": "2026-09-21T10:43:25.929330+00:00",
-  "archive_sha256": "883145e5ecb90152aa346eaac44df6b9d854cac104f88722f69df040b5906d35",
+  "checked_at": "2026-09-21T11:14:56.999071+00:00",
+  "archive_sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254",
+  "linux": {
+    "status": "passed",
+    "r": "4.6.1",
+    "platform": "Ubuntu 24.04 aarch64, local VM",
+    "arguments": [
+      "--as-cran"
+    ],
+    "errors": 0,
+    "warnings": 0,
+    "notes": 0,
+    "assertions": 191
+  },
   "mac_builder": {
     "status": "passed",
     "r": "4.6.1 Patched",
-    "url": "https://mac.R-project.org/macbuilder/results/1789987201-fa38cc2215b2b034/",
+    "url": "https://mac.R-project.org/macbuilder/results/1789988203-aaf71eeb3d404b34/",
     "errors": 0,
     "warnings": 0,
     "notes": 0
   },
+  "windows_r_release": {
+    "status": "passed",
+    "uploaded_at": "2026-09-21T10:56:57Z",
+    "r": "4.6.1",
+    "url": "https://win-builder.r-project.org/52bM7NP88Q04/",
+    "errors": 0,
+    "warnings": 0,
+    "notes": 0,
+    "source_packaged": "2026-09-21 10:55:55 UTC",
+    "readme_matches": true
+  },
   "windows_r_devel": {
     "status": "uploaded_results_pending",
-    "upload_transport": "FTP successful",
-    "destination": "ftp://win-builder.r-project.org/R-devel/sensortowerR_2.0.0.tar.gz",
-    "maintainer_email": "pblack@gameeconomistconsulting.com"
-  },
-  "linux": {
-    "status": "not_run"
+    "uploaded_at": "2026-09-21T11:04:58Z"
   },
   "cran_publication": {
-    "status": "not_submitted"
+    "status": "not_submitted",
+    "authorized": true
   }
 }

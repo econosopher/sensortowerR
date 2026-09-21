@@ -1,53 +1,55 @@
-# CRAN readiness: 2.0.0 candidate
+# CRAN readiness: 2.0.0 update
 
-The candidate is pushed on `codex/sensortower-v2`. GitHub Actions remains
-disabled. The package has not been submitted to CRAN or installed over v1.0.1.
+The user authorized submission as an update to existing CRAN package
+sensortowerR 1.0.1. The maintainer and MIT license are unchanged. GitHub Actions
+is disabled. Publication has not yet been submitted; the additional Windows R-devel check is
+in progress. All three release-platform checks passed.
 
-## Verified on 2026-09-21
+## Final source archive
 
-| Check | Result | Evidence |
+Built with R 4.6.1 on a temporary local Ubuntu 24.04.4 arm64 VM from package
+source commit 3ae6f1c997f2f2c4fc6f9aa849e616c32bc4eaa7. The exact archive is
+sensortowerR_2.0.0.tar.gz, SHA-256:
+
+`62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254`
+
+The archive contains 60 entries and is 42,766 bytes. Its package source files
+match the checkout. It contains no raw live API receipts or credential patterns.
+
+## Verified checks
+
+| Environment or check | Result | Evidence |
 |---|---|---|
-| Offline tests | 37 tests, 191 assertions pass | offline-tests.csv |
-| Local macOS R 4.2.2, --as-cran with manual | 0 errors, 0 warnings, 1 environment note: unable to verify current time | cran-local-check.log, cran-local-check.json |
-| Mac Builder R 4.6.1 Patched, arm64 | 0 errors, 0 warnings, 0 notes | cran-mac-builder-check.log |
-| Documentation URLs | All three passed urlchecker | Local urlchecker::url_check() |
+| Ubuntu 24.04.4 arm64, R 4.6.1, R CMD check --as-cran | 0 errors, 0 warnings, 0 notes | cran-linux-check.log |
+| Mac Builder arm64, R 4.6.1 Patched | 0 errors, 0 warnings, 0 notes | cran-mac-builder-check.log |
+| Windows R-release 4.6.1 | 0 errors, 0 warnings, 0 notes | cran-windows-release-check.log |
+| Offline assertions | 191 passed, 0 failed, 0 warned, 0 skipped | Linux test log and offline-tests.csv |
+| README and documentation URLs | All five external URLs passed | urlchecker::url_check() |
 | CRAN reverse dependencies | None, including optional dependencies | cran-reverse-dependencies.json |
-| Source archive | 42 KB; no raw live receipts or credential patterns | cran-candidate.json |
 | Live API audit | 24 verified cases; legacy retention HTTP 404 | live-audit.csv |
 
-The Mac Builder check included installation, examples, tests, vignette rebuilding
-and the PDF manual. Its arguments were `--no-clean-on-error`; the local check
-separately exercised `--as-cran`. Builder results:
-https://mac.R-project.org/macbuilder/results/1789987201-fa38cc2215b2b034/
+Linux checked the examples, rebuilt vignettes, PDF manual and HTML manual.
+Mac Builder also checked the PDF manual; its arguments were --no-clean-on-error.
+The local Linux VM is stopped. Dependency versions are recorded in
+cran-linux-dependencies.csv.
 
-The stricter check found an unnecessary data-raw directory in the archive and
-an unusable Intel-only TeX installation on the development Mac. The directory is
-now excluded. The manual passed with an isolated native TinyTeX runtime, and on
-Mac Builder. Runnable offline examples were added. Historical 0.9.7 submission
-metadata was moved to the audit directory; submission comments now describe 2.0.
+Initial Windows checks passed the code but noted a possible spelling issue in
+DESCRIPTION and two README file links excluded from the archive. These are fixed
+in the final source. Historical Windows and R 4.2.2 logs refer to earlier
+archives and do not replace the final Windows checks. The current status and
+builder URLs are recorded in cran-builder-status.json.
 
-## Remaining gates
+## Before submission
 
-1. Receive the Windows R-devel check result. The upload succeeded; no result
-   has arrived yet. It is not a verified pass. The builder sends results to
-   pblack@gameeconomistconsulting.com.
-2. Run a Linux check to satisfy the original three-platform release plan.
-   No Linux runtime is installed locally; no paid runners have been enabled.
-3. Build the final archive with current R-release or R-patched. The currently
-   checked archive was built with R 4.2.2, although current Mac Builder checked
-   it successfully. Recheck the exact final archive and record its hash.
-4. Update cran-comments.md with final results and resolve significant notes.
-5. Submit the source tarball through the CRAN submission form when release is
-   approved. CRAN sends a maintainer confirmation email. Do not submit a second
-   copy while the first is pending.
-
-The current public CRAN release is 1.0.1; its listed platform checks are all OK.
-Those results do not validate 2.0.0. The candidate's exact archive hash and remote
-check status are in cran-candidate.json and cran-builder-status.json.
+Receive and verify the additional Windows R-devel result, merge the
+validated candidate, then submit this exact archive through CRAN's submission
+form and complete the maintainer email confirmation. No duplicate submission
+should be made while one is pending. The installed v1.0.1 package and original
+checkout edits remain unchanged.
 
 ## Primary guidance
 
-- [CRAN policies](https://cran.r-project.org/web/packages/policies.html): current-R source builds, --as-cran checks, reverse dependencies and submission procedure.
-- [Submission checklist](https://stat.ethz.ch/CRAN/web/packages/submission_checklist.html): current R-devel checks and Windows builder.
-- [Windows builder](https://win-builder.r-project.org/): R-devel upload and result delivery to the maintainer.
-- [Mac Builder](https://mac.r-project.org/macbuilder/submit.html): current macOS package checks.
+- [CRAN policies](https://cran.r-project.org/web/packages/policies.html)
+- [Submission checklist](https://stat.ethz.ch/CRAN/web/packages/submission_checklist.html)
+- [Windows builder](https://win-builder.r-project.org/)
+- [Mac Builder](https://mac.r-project.org/macbuilder/submit.html)

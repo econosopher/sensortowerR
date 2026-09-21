@@ -13,9 +13,8 @@ installed user-library package. It needs R, the package dependencies, roxygen2,
 pkgload and Pandoc available locally; ordinary checks use no API credentials.
 
 The same command can run on a local Linux or Windows machine with these
-dependencies. A macOS pass establishes macOS coverage only. Linux and Windows
-remain unverified until checks actually run on those systems; no hosted CI
-subscription is required. No extra environments are provisioned automatically.
+dependencies. Platform coverage requires checks on each target system; no hosted
+CI subscription is required. No extra environments are provisioned automatically.
 
 Run `SENSORTOWER_RUN_LIVE=true Rscript tools/live-audit.R` separately with a token
 available. Live reads are bounded. Filter creation is tested offline only.
@@ -43,4 +42,4 @@ not CRAN publication. Windows results go to the maintainer email in DESCRIPTION;
 wait for those results rather than interpreting upload success as a pass.
 
 See `audit/CRAN-READINESS.md` for the current release gates and `cran-comments.md`
-for draft submission notes. No package has been submitted for CRAN publication.
+for submission notes. Publication status is recorded in the audit ledger.
