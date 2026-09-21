@@ -1,0 +1,11 @@
+# Offline gate. Use a subprocess so tests cannot accidentally use a live token.
+Sys.setenv(SENSORTOWER_AUTH_TOKEN = "", SENSORTOWER_RUN_LIVE = "false", NOT_CRAN = "true")
+roxygen2::roxygenise()
+pkgload::load_all(quiet = TRUE)
+testthat::test_local(reporter = "summary", stop_on_failure = TRUE)
+status <- system2(file.path(R.home("bin"), "R"), c("CMD", "build", ".", "--no-manual"))
+if (status != 0L) stop("Package build failed")
+status <- system2(file.path(R.home("bin"), "R"), c("CMD", "check", "sensortowerR_2.0.0.tar.gz", "--no-manual"))
+if (status != 0L) stop("Package check failed")
+log <- readLines("sensortowerR.Rcheck/00check.log")
+if (any(grepl("WARNING|ERROR", log))) stop("Package check reported warnings or errors")

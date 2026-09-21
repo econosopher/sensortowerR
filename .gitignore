@@ -100,3 +100,6 @@ output/
 tasks/
 # Client-specific analyses (not for public repo)
 examples/client_analyses/
+
+# Local live responses may contain licensed estimates; do not publish.
+audit/live-responses.json

@@ -1,0 +1,12 @@
+{
+  "filename": "sensortowerR_2.0.0.tar.gz",
+  "sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254",
+  "bytes": 42766,
+  "source_commit": "3ae6f1c997f2f2c4fc6f9aa849e616c32bc4eaa7",
+  "build_r": "4.6.1",
+  "build_platform": "Ubuntu 24.04 aarch64 (local Lima VM)",
+  "archive_files": 60,
+  "credential_scan": "passed",
+  "raw_live_receipts": "excluded",
+  "source_files_match_checkout": true
+}

@@ -1,0 +1,43 @@
+---
+title: "Reports with tidyverse tools"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Reports with tidyverse tools}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(dplyr)
+source(system.file("recipes", "reports.R", package = "sensortowerR"))
+```
+
+The package fetches and normalizes data. Standard tidyverse tools handle analysis
+and presentation. These executable examples use synthetic data, not API estimates.
+
+```{r}
+data <- tibble::tibble(
+  app_id = "example", os = "unified", country = "US",
+  date = as.Date(c("2025-01-01", "2026-01-01")),
+  metric = "revenue", value = c(100, 150), unit = "USD", period = "month"
+)
+recipe_yoy(data)
+recipe_portfolio(data)
+```
+
+YoY matches the same period one year earlier. Missing or zero baselines produce
+missing growth. Portfolio totals reject duplicate observations and audience
+metrics, whose users can overlap. Missing sales values keep totals missing.
+Check coverage before interpreting complete totals; a successful response can
+still omit small apps or unavailable periods.
+
+```{r, eval=FALSE}
+recipe_plot(data)
+recipe_dashboard(data)
+scales::label_dollar()(data$value)
+```
+
+For launch curves, add your chosen launch date and derive the day offset with
+`mutate(day = as.integer(date - launch_date))`. Arrange within app and country
+before `cumsum()`. Do not use `na.rm = TRUE` to hide missing launch observations.

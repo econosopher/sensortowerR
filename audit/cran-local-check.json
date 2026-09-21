@@ -1,0 +1,10 @@
+{
+  "checked_at": "2026-09-21 10:42:55 UTC",
+  "archive": "sensortowerR_2.0.0.tar.gz",
+  "sha256": "883145e5ecb90152aa346eaac44df6b9d854cac104f88722f69df040b5906d35",
+  "r": "R version 4.2.2 (2022-10-31)",
+  "platform": "aarch64-apple-darwin20",
+  "errors": [],
+  "warnings": [],
+  "notes": "checking for future file timestamps ... NOTE\nunable to verify current time"
+}
