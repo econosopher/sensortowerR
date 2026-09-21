@@ -30,17 +30,19 @@ bounded retries (including Retry-After), expiring credential-scoped caching,
 AND/OR filter request plans, specialist schemas, and reporting recipes.
 
 `tools/check.R` runs the suite, builds vignettes, installs into R's temporary check
-library and runs R CMD check. The GitHub Actions matrix runs checks on Linux,
-macOS and Windows. Check receipts, rather than workflow configuration alone,
-determine whether those platform gates passed.
+library and runs R CMD check locally. See `TESTING.md` for the local workflow.
 
-The three-platform gate is **blocked**, not passed. GitHub rejected all three
-jobs before any steps executed: "The job was not started because your account
-is locked due to a billing issue." `ci-status.json` records the exact tested
-commit, job URLs and annotations for [run 35587873923](https://github.com/econosopher/sensortowerR/actions/runs/35587873923).
-Linux, Windows and R-release macOS therefore remain unverified. The local macOS
-R 4.2.2 check passed independently. Resolve the GitHub account billing lock and
-rerun the latest candidate's workflow before approving a release.
+GitHub Actions was initially attempted for Linux, Windows and R-release macOS,
+but no steps executed: GitHub reported an account billing lock.
+`ci-status.json` preserves that historical receipt. At the user's request,
+both remote workflows (R package checks and R-hub) were disabled, and their
+configuration files were removed from this local candidate. No additional
+GitHub compute is part of validation. These local changes have not been pushed.
+
+Local macOS R 4.2.2 passed. Linux, Windows and R-release macOS remain unverified;
+run the same local check command on those environments if cross-platform
+release qualification is needed. The historical GitHub lock is not a dependency
+of building or using the package.
 
 ## Live evidence
 
