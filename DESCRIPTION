@@ -1,49 +1,36 @@
 Package: sensortowerR
-Title: Interface to 'Sensor Tower' Mobile App Intelligence API
-Version: 1.0.0
-Description: Interface to the 'Sensor Tower' API <https://app.sensortower.com/api/docs/app_analysis>
-    for mobile app analytics and market intelligence. Provides a small, consistent
-    set of functions to retrieve app metadata, publisher information, download and
-    revenue estimates, active user metrics, category rankings, and market trends.
-    Four core verbs ('st_metrics', 'st_rankings', 'st_app'/'st_apps', 'st_filter')
-    cover the common workflows with standardized parameters and tidyverse-friendly
-    output. Supports both iOS and Android app ecosystems with unified data structures
-    for cross-platform analysis.
+Title: Tidy Pipelines for the 'Sensor Tower' API
+Version: 2.0.0
+Authors@R: person("Phillip", "Black", email = "pblack@gameeconomistconsulting.com", role = c("aut", "cre"))
+Description: Retrieves mobile app intelligence from the 'Sensor Tower' API
+    <https://app.sensortower.com/api/docs/app_analysis>. Composes discovery,
+    metadata, rankings, sales, audience and specialist estimates through
+    ordinary tibbles with explicit identifiers, units and error handling.
 License: MIT + file LICENSE
 Encoding: UTF-8
-RoxygenNote: 7.3.2
+Depends: R (>= 4.1.0)
 Imports:
-    dplyr,
-    glue,
-    httr,
-    httr2,
+    dplyr (>= 1.1.1),
+    httr2 (>= 1.2.0),
     jsonlite,
     lubridate,
     openssl,
-    purrr,
+    purrr (>= 1.0.0),
     rlang,
-    stats,
-    stringr,
     tibble,
     tidyr,
-    utils
-Suggests: 
+    vctrs
+Suggests:
+    ggplot2,
     gt,
-    gtExtras,
     knitr,
-    pkgbuild,
-    rcmdcheck,
     rmarkdown,
-    rhub,
-    testthat (>= 3.0.0)
+    scales,
+    testthat (>= 3.2.0),
+    withr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-Authors@R:
-    person("Phillip", "Black",
-           email = "pblack@gameeconomistconsulting.com",
-           role = c("aut", "cre"))
-Author: Phillip Black [aut, cre]
-Maintainer: Phillip Black <pblack@gameeconomistconsulting.com>
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
 URL: https://github.com/econosopher/sensortowerR
 BugReports: https://github.com/econosopher/sensortowerR/issues
-Depends: R (>= 4.1.0)

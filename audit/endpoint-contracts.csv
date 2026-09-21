@@ -1,0 +1,23 @@
+family,endpoint,platforms,batch_or_pagination,unit_or_shape,live_status
+search,{os}/search_entities,ios/android/unified,limit up to 250,identity tibble,live_verified
+metadata,{os}/apps,ios/android/unified,exact ID lookups,metadata and explicit namespace conversion,live_verified
+publisher_apps,unified/publishers/apps,unified,one publisher,identity tibble,live_verified
+publisher_apps_store,{os}/publisher/publisher_apps,ios/android,offset pages up to 100,identity tibble,live_verified
+sales,{os}/sales_report_estimates,ios/android/unified,ID batches of 100,cents to USD at parser boundary,live_verified
+active_users,{os}/usage/active_users,ios/android/unified,ID batches of 100,native day/week/month audience windows,live_verified
+sales_rankings,{os}/sales_report_estimates_comparison_attributes,ios/android/unified,offset pages,explicit measure and comparison,live_verified
+active_rankings,{os}/top_and_trending/active_users,ios/android/unified,offset pages,native ranking period,live_verified
+publisher_rankings,{os}/top_and_trending/publishers,ios/android/unified,offset pages up to 10,explicit sales measure,live_verified
+charts,{os}/ranking,ios/android,provider bounded chart,positions rather than sales estimates,live_verified
+market,{os}/games_breakdown,ios/android,category request,cents to USD,live_verified
+retention_facets,facets/metrics,ios/android/unified,per app and country,horizon fractions,live_verified
+retention_legacy,{os}/usage/retention,ios/android,per app and country,legacy corrected retention curves,unavailable_HTTP_404
+demographics,{os}/usage/demographics,ios/android,per app and country,shares and ages with age bands,live_verified
+sessions,apps/timeseries and apps/timeseries/unified_apps,ios/android/unified,per app and country,native session measures,live_verified
+ratings,facets/metrics,ios/android,per app and country,counts and stars,live_verified
+reviews,facets/metrics,ios/android,per app and country or language,counts and provider percentages,live_verified
+tags,app_tag/tags_for_apps,ios/android,per app; repeated field parameters,tag list-column,live_verified
+fields,custom_fields_filter/fields_values,all,search,values list-column,live_verified
+filter_create,custom_fields_filter,all,POST without retries,server IDs only,offline_tested
+filter_read,custom_fields_filter/{id},all,per filter ID,field predicate records,offline_tested
+filtered_apps,app_tag/apps,ios/android/unified,cursor pages,union OR results by identity,offline_tested

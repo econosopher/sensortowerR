@@ -1,0 +1,38 @@
+"file","test","failed","error","warning","skipped","passed"
+"test-metrics.R","missing metrics and components remain NA in both shapes",0,FALSE,0,FALSE,6
+"test-metrics.R","duplicate conflict protection survives the rewrite",0,FALSE,0,FALSE,2
+"test-metrics.R","unified sales never fall back to incomplete platform totals",0,FALSE,0,FALSE,10
+"test-metrics.R","partial mode retains successful endpoints with visible failures",0,FALSE,0,FALSE,4
+"test-metrics.R","platform units and native audience windows are explicit",0,FALSE,0,FALSE,6
+"test-metrics.R","date and country bounds do not silently include extra observations",0,FALSE,0,FALSE,6
+"test-metrics.R","market output converts cents and retains categories",0,FALSE,0,FALSE,3
+"test-metrics.R","multi-row active-user responses preserve all observations",0,FALSE,0,FALSE,2
+"test-metrics.R","large requests chunk without changing results",0,FALSE,0,FALSE,6
+"test-pipelines.R","search, filter, metadata and metrics compose with both pipes",0,FALSE,0,FALSE,10
+"test-pipelines.R","publisher search and portfolio retrieval feed metrics",0,FALSE,0,FALSE,3
+"test-pipelines.R","single, vector and tibble calls share normalization and deduplicate requests",0,FALSE,0,FALSE,7
+"test-pipelines.R","metadata conversion expands all regional SKUs, never name-matches",0,FALSE,0,FALSE,8
+"test-pipelines.R","empty data is typed and makes no requests",0,FALSE,0,FALSE,8
+"test-pipelines.R","store metadata retains its store ID when unified_app_id is also present",0,FALSE,0,FALSE,2
+"test-pipelines.R","numeric provider IDs never become scientific notation",0,FALSE,0,FALSE,1
+"test-recipes.R","report recipes preserve missingness and avoid audience totals",0,FALSE,0,FALSE,4
+"test-requests-filters.R","rankings honor measure and charts use their own endpoint",0,FALSE,0,FALSE,6
+"test-requests-filters.R","active rankings reject unsupported periods and request native measure",0,FALSE,0,FALSE,5
+"test-requests-filters.R","filter construction is local; AND and OR have different verified payloads",0,FALSE,0,FALSE,18
+"test-requests-filters.R","failed filter creation never fabricates an ID or retries a POST",0,FALSE,0,FALSE,2
+"test-requests-filters.R","OR discovery unions IDs and cursor pagination detects repetition",0,FALSE,0,FALSE,2
+"test-requests-filters.R","publisher offset pagination uses bounded pages",0,FALSE,0,FALSE,3
+"test-requests-filters.R","schema and request errors redact secrets and retain status",0,FALSE,0,FALSE,7
+"test-requests-filters.R","GET retry policy is bounded and obeys transient classifications",0,FALSE,0,FALSE,12
+"test-requests-filters.R","cache is opt-in, expires, scopes credentials and never stores failures",0,FALSE,0,FALSE,8
+"test-requests-filters.R","URLs round-trip without network and never expose credentials",0,FALSE,0,FALSE,3
+"test-requests-filters.R","array query parameters are repeated while ID lists use commas",0,FALSE,0,FALSE,2
+"test-requests-filters.R","actual httr2 retries 429 and 503 but not authentication failures",0,FALSE,0,FALSE,4
+"test-requests-filters.R","filter definitions can be retrieved without creation",0,FALSE,0,FALSE,3
+"test-specialists.R","facets retention preserves horizons and identity",0,FALSE,0,FALSE,5
+"test-specialists.R","legacy retention and demographics keep their source scales",0,FALSE,0,FALSE,5
+"test-specialists.R","sessions, ratings, reviews and tags return composable typed tables",0,FALSE,0,FALSE,5
+"test-specialists.R","specialist error modes and empty input are consistent",0,FALSE,0,FALSE,7
+"test-specialists.R","current demographic age bands are retained",0,FALSE,0,FALSE,1
+"test-specialists.R","tags fail early without a field selection",0,FALSE,0,FALSE,1
+"test-specialists.R","partial specialist results preserve successful countries",0,FALSE,0,FALSE,4

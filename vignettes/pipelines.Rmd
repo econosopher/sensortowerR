@@ -1,0 +1,49 @@
+---
+title: "Tibble pipelines"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Tibble pipelines}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(sensortowerR)
+library(dplyr)
+```
+
+Discovery returns explicit identifiers. Pass that table to metadata or metrics;
+the package handles batching and preserves your columns.
+
+```{r, eval=FALSE}
+st_publishers("Supercell") |>
+  st_publisher_apps() |>
+  mutate(cohort = "Supercell portfolio") |>
+  st_metrics(date_from = "2026-01-01", date_to = "2026-03-31",
+             countries = "US", granularity = "monthly")
+```
+
+Character IDs require `os`. Tables require `app_id` and `os`. Both native pipes
+and magrittr pipes work. To change ID namespaces, use explicit provider mappings:
+
+```{r, eval=FALSE}
+st_apps("Clash of Clans") |>
+  st_app(target_os = "ios") |>
+  st_demographics(date_from = "2026-04-01", date_to = "2026-06-30")
+```
+
+There is no name-based merge. All mapped regional store IDs remain visible.
+The `input_app_id` and `input_os` columns trace each mapping to its input.
+
+Empty data stays typed and needs no token:
+
+```{r}
+tibble(app_id = character(), os = character(), cohort = character()) |>
+  st_metrics(date_from = "2026-01-01", date_to = "2026-01-31")
+```
+
+Long metrics have explicit units and periods. DAU, WAU and MAU use native windows;
+`granularity` changes sales aggregation only. Missing values are not zero. A
+failed endpoint aborts unless you explicitly request `errors = "partial"`.
+In partial mode, inspect `status`, `error` and `endpoint` before analysis.
