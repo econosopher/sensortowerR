@@ -94,7 +94,7 @@ and errors are not cached. Use `st_cache_clear()` to clear entries.
 
 Portfolio totals, YoY comparisons, charts, formatting and dashboards now use
 recipes built from dplyr, ggplot2, scales and gt. See `vignette("recipes")` and
-`inst/recipes/reports.R`. See [MIGRATION.md](MIGRATION.md) for every v1.x export.
+`inst/recipes/reports.R`. See [the migration table](https://github.com/econosopher/sensortowerR/blob/02daa2174cf36a002bfab265c98f37d6cdde3040/MIGRATION.md) for every v1.x export.
 This is a breaking 2.0.0 candidate; existing scripts need migration.
 
 ## Verification
@@ -102,6 +102,6 @@ This is a breaking 2.0.0 candidate; existing scripts need migration.
 Run `Rscript tools/check.R` for offline tests, build and package checks. Run
 `SENSORTOWER_RUN_LIVE=true Rscript tools/live-audit.R` separately for bounded
 read-only checks. Live results, unavailable entitlements and empty responses are
-recorded separately in [audit/README.md](audit/README.md). Filter creation is tested
+recorded separately in [the audit directory](https://github.com/econosopher/sensortowerR/tree/codex/sensortower-v2/audit). Filter creation is tested
 offline. A successful package check is not a claim that every API entitlement is
 available.

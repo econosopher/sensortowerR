@@ -5,7 +5,7 @@ Authors@R: person("Phillip", "Black", email = "pblack@gameeconomistconsulting.co
 Description: Retrieves mobile app intelligence from the 'Sensor Tower' API
     <https://app.sensortower.com/api/docs/app_analysis>. Composes discovery,
     metadata, rankings, sales, audience and specialist estimates through
-    ordinary tibbles with explicit identifiers, units and error handling.
+    ordinary data frames with explicit identifiers, units and error handling.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
