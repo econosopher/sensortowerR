@@ -10,7 +10,7 @@ result <- rcmdcheck::rcmdcheck(
   error_on = "never", quiet = FALSE
 )
 dir.create("audit", showWarnings = FALSE)
-writeLines(result$stdout, "audit/cran-local-check.log")
+writeLines(sub("[\r\n]+$", "", result$stdout), "audit/cran-local-check.log")
 jsonlite::write_json(list(
   checked_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
   archive = basename(archive),
