@@ -13,7 +13,9 @@ regional store mappings, strict duplicate checks and revenue conversion. It
 removes name-based identity guesses, swallowed failures, fabricated filter IDs,
 zero-filled missing metrics, and separate single/batch retrieval paths.
 
-This is a release candidate, not an installed update or published release.
+The 2.0.0 candidate is merged and submitted to CRAN. Submission is confirmed
+and in pretest; publication remains pending. See CRAN-SUBMISSION.md.
+The installed package has not been updated.
 Existing local edits in the original v0.1.0 checkout remain untouched.
 
 ## Offline verification

@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-09-21T11:21:04.915885+00:00",
+  "checked_at": "2026-09-21T11:23:20.396801+00:00",
   "archive_sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254",
   "linux": {
     "status": "passed",
@@ -44,7 +44,15 @@
     "readme_matches": true
   },
   "cran_publication": {
-    "status": "not_submitted",
-    "authorized": true
+    "status": "submitted_confirmed_pretest",
+    "authorized": true,
+    "submitted_at": "2026-09-21T11:21:21Z",
+    "confirmed_verified_at": "2026-09-21T11:23:20.396801+00:00",
+    "version": "2.0.0",
+    "updates_version": "1.0.1",
+    "incoming_stage": "pretest",
+    "received_archive_sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254",
+    "archive_matches_tested_candidate": true,
+    "published": false
   }
 }

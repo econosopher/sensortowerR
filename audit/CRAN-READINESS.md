@@ -3,7 +3,8 @@
 The user authorized submission as an update to existing CRAN package
 sensortowerR 1.0.1. The maintainer and MIT license are unchanged. GitHub Actions
 is disabled. All three release-platform checks and Windows R-devel passed. The candidate
-was merged in PR #7; CRAN submission is the next step.
+was merged in PR #7. CRAN submission is confirmed and in pretest; publication
+is pending. See CRAN-SUBMISSION.md for the receipt and archive readback.
 
 ## Final source archive
 
@@ -40,12 +41,13 @@ in the final source. Historical Windows and R 4.2.2 logs refer to earlier
 archives and do not replace the final Windows checks. The current status and
 builder URLs are recorded in cran-builder-status.json.
 
-## Before submission
+## Submission status
 
-Submit this exact tested archive through CRAN's submission
-form and complete the maintainer email confirmation. No duplicate submission
-should be made while one is pending. The installed v1.0.1 package and original
-checkout edits remain unchanged.
+The exact tested archive was submitted and confirmed on 2026-09-21. Its SHA-256
+matches the archive downloaded back from CRAN incoming/pretest. Acceptance and
+publication remain pending CRAN processing. No duplicate submission should be
+made while one is pending. The installed v1.0.1 package and original checkout
+edits remain unchanged.
 
 ## Primary guidance
 
