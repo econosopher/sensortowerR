@@ -53,3 +53,8 @@ union OR results by ID. Values inside a field use the provider's semantics.
 \description{
 Construct a local filter, then explicitly create it on the server
 }
+\examples{
+# Construction is local. Only st_filter_create() writes to the server.
+st_filter(genre = "RPG", publisher = "Supercell", combine = "and")
+st_filter(genre = "RPG", publisher = "Supercell", combine = "or")
+}

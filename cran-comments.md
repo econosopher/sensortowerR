@@ -1,33 +1,33 @@
-## Resubmission — major version bump
+## Update from 1.0.1 to 2.0.0
 
-This is an update to the existing CRAN package `sensortowerR` (currently `0.9.4` on CRAN). Version `1.0.0` is a major API simplification: the public surface is reduced from 78 exports to roughly 50 through four new unified functions (`st_metrics()`, `st_rankings()`, `st_app()` / `st_apps()`, `st_filter()`). Redundant and inconsistently-named predecessors are retained as `.Defunct()` stubs that error with a clear migration message pointing at the replacement, so users see exactly what to change.
+This is a breaking update to the existing CRAN package. It replaces 73 exports
+with 25 consistent functions for data-first tibble pipelines. NEWS.md describes
+the changes, and MIGRATION.md in the source repository maps every previous
+export. The maintainer and license are unchanged.
 
-### Breaking changes documented in NEWS.md
+## Checks completed
 
-* Revenue is returned in dollars by default (was raw cents). Opt back in via `revenue_unit = "cents"`.
-* 21 functions are now defunct — each one errors with a one-line migration hint.
-* Parameters are standardized across all retained functions (for example, `ios_app_id`/`unified_app_id` → `app_id`; `date_granularity` → `granularity`; `measure` → `metrics`; `regions` → `countries`).
-* Eleven internal helpers that had been accidentally exported in earlier releases are now properly internal.
+* Local macOS arm64, R 4.2.2: R CMD check --as-cran, including PDF manual,
+  examples, tests and rebuilt vignettes: 0 errors, 0 warnings, 1 note.
+  The note is "unable to verify current time". It is an environment check;
+  no package code or documentation issue was reported.
+* R Mac Builder, macOS arm64, R 4.6.1 Patched: 0 errors, 0 warnings, 0 notes.
+  This service ran R CMD check with --no-clean-on-error, not --as-cran.
+* URL checks: all three external URLs passed.
+* CRAN package index checked on 2026-09-21: no reverse dependencies in
+  Depends, Imports, LinkingTo, Suggests or Enhances.
 
-### Reverse dependency impact
+## Pending before submission
 
-No reverse dependencies on CRAN (verified before submission via `tools::package_dependencies("sensortowerR", reverse = TRUE, db = available.packages())`). Users of the 0.9.x API will see defunct errors with replacement hints on their next run — no silent misbehavior.
+Windows R-devel was uploaded to win-builder; its result is pending. Linux has
+not been checked. Build the final submission archive using current R-release or
+R-patched and check that exact archive before uploading to CRAN. This document
+is a draft and must be updated with final receipts before submission.
 
-## Test environments
+## API access
 
-* local macOS (ARM64), R 4.2.2
-  - `testthat::test_local()` — all tests pass
-  - live authenticated smoke tests against the Sensor Tower API for `st_metrics`, `st_rankings`, `st_app`, `st_apps`, `st_filter`, `st_active_users`, `st_retention`
-  - `rcmdcheck::rcmdcheck(args = c("--as-cran", "--no-manual"))`
-
-## R CMD check results
-
-0 errors | 0 warnings | 1 note:
-* `unable to verify current time` — environmental, unrelated to package
-
-## Notes
-
-* All examples that require API authentication remain wrapped in `\dontrun{}`
-* The package requires a user-supplied Sensor Tower API token (env var `SENSORTOWER_AUTH_TOKEN`) and does not hardcode credentials
-* No writes to the user's home filespace; cache is process-local by default
-* New `st_filter` S3 class has `print`, `format`, `c`, and `as.character` methods
+Ordinary tests and runnable examples require no API token or network access.
+Live retrieval requires the user's Sensor Tower subscription and API token.
+The optional live audit is excluded from the source package. HTTP and response
+errors produce informative conditions. Caching is opt-in and session-only;
+package use does not write into the user's home directory.

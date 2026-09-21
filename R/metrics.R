@@ -139,6 +139,11 @@
 #'   Unified sales use the unified endpoint including regional SKUs. No fuzzy
 #'   name matching or platform fallback occurs. Use st_app(target_os = ...) to
 #'   convert identifiers explicitly. HTTP/schema failures are never no-data.
+#' @examples
+#' # Empty input returns a typed tibble without authentication or network calls.
+#' apps <- tibble::tibble(app_id = character(), os = character())
+#' apps |>
+#'   st_metrics(date_from = "2026-01-01", date_to = "2026-01-31")
 #' @export
 st_metrics <- function(data, date_from, date_to, metrics = c("revenue", "downloads"), os = NULL,
                        countries = "WW", granularity = "daily", revenue_unit = c("dollars", "cents"),

@@ -10,6 +10,10 @@
 #'   st_filter_create() returns the same object with verified server IDs. AND
 #'   sends all fields in one request; OR creates one filter per field. Consumers
 #'   union OR results by ID. Values inside a field use the provider's semantics.
+#' @examples
+#' # Construction is local. Only st_filter_create() writes to the server.
+#' st_filter(genre = "RPG", publisher = "Supercell", combine = "and")
+#' st_filter(genre = "RPG", publisher = "Supercell", combine = "or")
 #' @export
 st_filter <- function(genre = NULL, monetization = NULL, publisher = NULL, sdk = NULL,
                       custom_fields = NULL, filter_id = NULL, date_from = NULL, date_to = NULL, combine = c("and", "or")) {

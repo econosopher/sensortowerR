@@ -36,13 +36,13 @@ GitHub Actions was initially attempted for Linux, Windows and R-release macOS,
 but no steps executed: GitHub reported an account billing lock.
 `ci-status.json` preserves that historical receipt. At the user's request,
 both remote workflows (R package checks and R-hub) were disabled, and their
-configuration files were removed from this local candidate. No additional
-GitHub compute is part of validation. These local changes have not been pushed.
+configuration files were removed from the candidate and pushed. No additional
+GitHub compute is part of validation.
 
-Local macOS R 4.2.2 passed. Linux, Windows and R-release macOS remain unverified;
-run the same local check command on those environments if cross-platform
-release qualification is needed. The historical GitHub lock is not a dependency
-of building or using the package.
+Local macOS R 4.2.2 and Mac Builder R 4.6.1 Patched passed. Windows R-devel
+was uploaded to win-builder and awaits results. Linux remains unverified.
+See `CRAN-READINESS.md` for the stricter CRAN checks and remaining release gates.
+The historical GitHub lock is not a dependency of building or using the package.
 
 ## Live evidence
 

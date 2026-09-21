@@ -1,0 +1,24 @@
+{
+  "checked_at": "2026-09-21T10:43:25.929330+00:00",
+  "archive_sha256": "883145e5ecb90152aa346eaac44df6b9d854cac104f88722f69df040b5906d35",
+  "mac_builder": {
+    "status": "passed",
+    "r": "4.6.1 Patched",
+    "url": "https://mac.R-project.org/macbuilder/results/1789987201-fa38cc2215b2b034/",
+    "errors": 0,
+    "warnings": 0,
+    "notes": 0
+  },
+  "windows_r_devel": {
+    "status": "uploaded_results_pending",
+    "upload_transport": "FTP successful",
+    "destination": "ftp://win-builder.r-project.org/R-devel/sensortowerR_2.0.0.tar.gz",
+    "maintainer_email": "pblack@gameeconomistconsulting.com"
+  },
+  "linux": {
+    "status": "not_run"
+  },
+  "cran_publication": {
+    "status": "not_submitted"
+  }
+}
