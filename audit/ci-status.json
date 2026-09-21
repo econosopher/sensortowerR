@@ -1,0 +1,47 @@
+{
+  "conclusion": "failure",
+  "headSha": "2fbf3da05b4bd7624c1c069a682811fd5f37ce4d",
+  "jobs": [
+    {
+      "completedAt": "2026-09-21T10:16:36Z",
+      "conclusion": "failure",
+      "databaseId": 106295322414,
+      "name": "ubuntu-latest / R release",
+      "startedAt": "2026-09-21T10:16:34Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/econosopher/sensortowerR/actions/runs/35587873923/job/106295322414",
+      "annotations": [
+        "The job was not started because your account is locked due to a billing issue."
+      ]
+    },
+    {
+      "completedAt": "2026-09-21T10:16:42Z",
+      "conclusion": "failure",
+      "databaseId": 106295322549,
+      "name": "macos-latest / R release",
+      "startedAt": "2026-09-21T10:16:34Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/econosopher/sensortowerR/actions/runs/35587873923/job/106295322549",
+      "annotations": [
+        "The job was not started because your account is locked due to a billing issue."
+      ]
+    },
+    {
+      "completedAt": "2026-09-21T10:16:36Z",
+      "conclusion": "failure",
+      "databaseId": 106295322684,
+      "name": "windows-latest / R release",
+      "startedAt": "2026-09-21T10:16:34Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/econosopher/sensortowerR/actions/runs/35587873923/job/106295322684",
+      "annotations": [
+        "The job was not started because your account is locked due to a billing issue."
+      ]
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/econosopher/sensortowerR/actions/runs/35587873923"
+}

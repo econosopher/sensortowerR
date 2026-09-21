@@ -34,6 +34,14 @@ library and runs R CMD check. The GitHub Actions matrix runs checks on Linux,
 macOS and Windows. Check receipts, rather than workflow configuration alone,
 determine whether those platform gates passed.
 
+The three-platform gate is **blocked**, not passed. GitHub rejected all three
+jobs before any steps executed: "The job was not started because your account
+is locked due to a billing issue." `ci-status.json` records the exact tested
+commit, job URLs and annotations for [run 35587873923](https://github.com/econosopher/sensortowerR/actions/runs/35587873923).
+Linux, Windows and R-release macOS therefore remain unverified. The local macOS
+R 4.2.2 check passed independently. Resolve the GitHub account billing lock and
+rerun the latest candidate's workflow before approving a release.
+
 ## Live evidence
 
 `live-audit.csv` records each check, its timestamp, request count and outcome.
