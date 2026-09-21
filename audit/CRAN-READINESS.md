@@ -2,8 +2,8 @@
 
 The user authorized submission as an update to existing CRAN package
 sensortowerR 1.0.1. The maintainer and MIT license are unchanged. GitHub Actions
-is disabled. Publication has not yet been submitted; the additional Windows R-devel check is
-in progress. All three release-platform checks passed.
+is disabled. All three release-platform checks and Windows R-devel passed. The candidate
+was merged in PR #7; CRAN submission is the next step.
 
 ## Final source archive
 
@@ -23,6 +23,7 @@ match the checkout. It contains no raw live API receipts or credential patterns.
 | Ubuntu 24.04.4 arm64, R 4.6.1, R CMD check --as-cran | 0 errors, 0 warnings, 0 notes | cran-linux-check.log |
 | Mac Builder arm64, R 4.6.1 Patched | 0 errors, 0 warnings, 0 notes | cran-mac-builder-check.log |
 | Windows R-release 4.6.1 | 0 errors, 0 warnings, 0 notes | cran-windows-release-check.log |
+| Windows R-devel 2026-09-20 r90574 | 0 errors, 0 warnings, 0 notes | cran-windows-devel-check.log |
 | Offline assertions | 191 passed, 0 failed, 0 warned, 0 skipped | Linux test log and offline-tests.csv |
 | README and documentation URLs | All five external URLs passed | urlchecker::url_check() |
 | CRAN reverse dependencies | None, including optional dependencies | cran-reverse-dependencies.json |
@@ -41,8 +42,7 @@ builder URLs are recorded in cran-builder-status.json.
 
 ## Before submission
 
-Receive and verify the additional Windows R-devel result, merge the
-validated candidate, then submit this exact archive through CRAN's submission
+Submit this exact tested archive through CRAN's submission
 form and complete the maintainer email confirmation. No duplicate submission
 should be made while one is pending. The installed v1.0.1 package and original
 checkout edits remain unchanged.

@@ -11,6 +11,7 @@ The final source archive was built with R 4.6.1 on Ubuntu 24.04 arm64.
 R CMD check --as-cran on that environment: 0 errors, 0 warnings, 0 notes.
 R Mac Builder, R 4.6.1 Patched, arm64: 0 errors, 0 warnings, 0 notes.
 Windows R-release 4.6.1: 0 errors, 0 warnings, 0 notes.
+Windows R-devel (2026-09-20 r90574): 0 errors, 0 warnings, 0 notes.
 All 191 test assertions pass without credentials or API network access.
 The examples, rebuilt vignettes, PDF manual and HTML manual were checked.
 URL checks pass.

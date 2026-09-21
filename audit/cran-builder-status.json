@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-09-21T11:14:56.999071+00:00",
+  "checked_at": "2026-09-21T11:21:04.915885+00:00",
   "archive_sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254",
   "linux": {
     "status": "passed",
@@ -33,8 +33,15 @@
     "readme_matches": true
   },
   "windows_r_devel": {
-    "status": "uploaded_results_pending",
-    "uploaded_at": "2026-09-21T11:04:58Z"
+    "status": "passed",
+    "uploaded_at": "2026-09-21T11:04:58Z",
+    "r": "R-devel 2026-09-20 r90574 ucrt",
+    "url": "https://win-builder.r-project.org/9791Q14eChZu/",
+    "errors": 0,
+    "warnings": 0,
+    "notes": 0,
+    "source_packaged": "2026-09-21 10:55:55 UTC",
+    "readme_matches": true
   },
   "cran_publication": {
     "status": "not_submitted",

@@ -42,7 +42,7 @@ GitHub compute is part of validation.
 The final archive was built with R 4.6.1 on a local Ubuntu 24.04 VM. Linux
 `R CMD check --as-cran` and Mac Builder R 4.6.1 Patched passed with no errors,
 warnings or notes. Windows R-release 4.6.1 also passed with no errors, warnings
-or notes. The additional Windows R-devel check is in progress. Historical R 4.2.2
+or notes. Windows R-devel also passed with no errors, warnings or notes. Historical R 4.2.2
 receipts remain available but do not identify the final source archive.
 See `CRAN-READINESS.md` for the stricter CRAN checks and remaining release gates.
 The historical GitHub lock is not a dependency of building or using the package.
