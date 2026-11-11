@@ -26,7 +26,7 @@ archive with the manual enabled:
 
 ```sh
 R CMD build .
-Rscript --vanilla tools/check-cran.R sensortowerR_2.0.0.tar.gz
+Rscript --vanilla tools/check-cran.R sensortowerR_2.1.0.tar.gz
 ```
 
 The preflight script requires rcmdcheck and a working TeX installation. It writes

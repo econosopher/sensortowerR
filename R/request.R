@@ -15,7 +15,7 @@
     httr2::req_url_path_append("v1", path) |>
     httr2::req_url_query(!!!.st_query(params), .multi = "explode") |>
     httr2::req_headers(Accept = "application/json") |>
-    httr2::req_user_agent("sensortowerR/2.0.0") |>
+    httr2::req_user_agent("sensortowerR/2.1.0") |>
     httr2::req_timeout(30)
   if (method == "GET") {
     req <- req |>
