@@ -1,3 +1,9 @@
+# sensortowerR (development version)
+
+* `st_filter_create()` now sends named `custom_fields` as a JSON array of field records.
+  A named list was serialized as an object and the API answered HTTP 422, so filters such as
+  `st_filter(custom_fields = list(`Game Sub-genre` = "Card Battler"))` could not be created.
+
 # sensortowerR 2.0.0
 
 * Breaking redesign around eager, data-first tibble pipelines with explicit IDs.

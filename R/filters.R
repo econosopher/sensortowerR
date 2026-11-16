@@ -43,7 +43,8 @@ st_filter <- function(genre = NULL, monetization = NULL, publisher = NULL, sdk =
   if (!is.null(custom_fields)) {
     if (!is.list(custom_fields)) .st_abort("`custom_fields` must be a list.")
     if (!is.null(names(custom_fields))) {
-      fields <- c(fields, purrr::imap(custom_fields, function(value, name) add(name, value)))
+      # unname(): a named list would serialize as a JSON object, which the API rejects (HTTP 422).
+      fields <- c(fields, unname(purrr::imap(custom_fields, function(value, name) add(name, value))))
     } else {
       fields <- c(fields, purrr::map(custom_fields, function(x) add(x$name, unlist(x$values), x$global %||% TRUE, x$exclude %||% FALSE)))
     }
