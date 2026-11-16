@@ -280,3 +280,73 @@ st_app_tags <- function(data, os = NULL, fields = NULL, field_categories = NULL,
     .st_unwrap(.st_get("app_tag/tags_for_apps", list(app_ids = id, `fields[]` = fields, `field_categories[]` = field_categories), auth_token), c("apps", "data"))
   }, proto, errors, "app_tag/tags_for_apps")
 }
+#' Fetch ad monetization estimates
+#' @inheritParams st_metrics
+#' @param data Unified IDs, as a data frame with `app_id` and `os` columns or a
+#'   character vector with `os = "unified"`. Store IDs are rejected; convert them
+#'   with st_app(target_os = "unified").
+#' @param countries Country codes, or WW alone (default). WW sends no region
+#'   filter and returns the provider total over its ad-monetization regions,
+#'   labeled `covered_regions` in the country column. Coverage is a limited set
+#'   of countries, not worldwide; see Details.
+#' @param granularity Time series period: weekly, monthly (default) or quarterly.
+#' @param breakdown Optional extra dimensions: network, region, or both. Region
+#'   breakdowns return one row per covered country in the country column; network
+#'   adds a network column.
+#' @param revenue_unit Ad revenue in dollars (USD, default) or cents.
+#' @return A long tibble with app_id, os, country, date, metric, value, unit and
+#'   period, plus network when requested. Metrics keep provider names:
+#'   est_ad_monetization_impressions (unit impressions) and
+#'   est_ad_monetization_revenue (unit USD or USD_cents). period is week, month
+#'   or quarter.
+#' @details Estimates start on 2024-01-01; earlier dates are clamped by the
+#'   provider. The provider has no worldwide row: with WW, values are the sum of
+#'   the covered regions it reports (about 20 countries), so they are not
+#'   comparable with WW sales from st_metrics(). Apps without ad monetization
+#'   return no rows rather than zeros. Each app and country is requested
+#'   separately, and every page of results is retrieved.
+#' @examples
+#' # Empty input returns a typed tibble without authentication or network calls.
+#' apps <- tibble::tibble(app_id = character(), os = character())
+#' st_ad_monetization(apps, date_from = "2026-01-01", date_to = "2026-03-31")
+#' @export
+st_ad_monetization <- function(data, date_from, date_to, os = NULL, countries = "WW", granularity = "monthly",
+                               breakdown = NULL, revenue_unit = c("dollars", "cents"), errors = c("abort", "partial"),
+                               auth_token = NULL) {
+  input <- .st_inputs(data, os)
+  dates <- .st_dates(date_from, date_to)
+  countries <- .st_countries(countries)
+  .st_choice(granularity, c("weekly", "monthly", "quarterly"), "granularity")
+  if (!is.null(breakdown)) breakdown <- .st_names(breakdown, c("network", "region"), "breakdown")
+  revenue_unit <- match.arg(revenue_unit)
+  errors <- match.arg(errors)
+  if (any(input$os != "unified")) .st_abort("Ad monetization estimates require unified IDs. Use st_app(target_os = 'unified').")
+  # The provider allows two dimensions plus date. Network by region is requested
+  # without the app dimension and restricted to one app by the ID filter.
+  dims <- if (setequal(breakdown, c("network", "region"))) "network,region" else paste(c("unified_app_id", breakdown), collapse = ",")
+  base <- c(list(
+    bundle = "mobile_ad_monetization_estimates", breakdown = paste0(dims, ",date"),
+    date_granularity = switch(granularity,
+      weekly = "week",
+      monthly = "month",
+      quarterly = "quarter"
+    )
+  ), dates)
+  revenue <- "est_ad_monetization_revenue"
+  units <- function(metric) ifelse(metric == revenue, if (revenue_unit == "dollars") "USD" else "USD_cents", "impressions")
+  keys <- c("app_id", "os", "country", "date", "metric", if ("network" %in% breakdown) "network")
+  proto <- .st_metric_ptype()
+  if ("network" %in% breakdown) proto$network <- character()
+  labels <- ifelse(countries == "WW", "covered_regions", countries)
+  .st_special(input, function(id, platform) {
+    .st_country_results(labels, id, platform, errors, function(country) {
+      params <- c(base, list(unified_app_ids = id, regions = if (country != "covered_regions") country))
+      raw <- .st_pages("facets/metrics", params, auth_token, Inf, 200L, "data")
+      x <- .st_facet_long(raw, id, platform, country, "^est_ad_monetization_(impressions|revenue)$", units)
+      if (revenue_unit == "dollars") x$value[x$metric == revenue] <- x$value[x$metric == revenue] / 100
+      x$period <- rep(base$date_granularity, nrow(x))
+      x$region <- NULL # carried by country
+      .st_unique(x, intersect(keys, names(x)))
+    }) |> purrr::list_rbind()
+  }, proto, errors, "facets/ad_monetization")
+}

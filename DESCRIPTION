@@ -1,6 +1,6 @@
 Package: sensortowerR
 Title: Tidy Pipelines for the 'Sensor Tower' API
-Version: 2.0.0.9000
+Version: 2.1.0
 Authors@R: person("Phillip", "Black", email = "pblack@gameeconomistconsulting.com", role = c("aut", "cre"))
 Description: Retrieves mobile app intelligence from the 'Sensor Tower' API
     <https://app.sensortower.com/api/docs/app_analysis>. Composes discovery,

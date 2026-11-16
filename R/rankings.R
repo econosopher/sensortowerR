@@ -70,6 +70,72 @@ st_rankings <- function(measure, os, date_from, date_to, countries = "WW", granu
   }) |> purrr::list_rbind()
   out
 }
+#' Rank unified apps by ad monetization
+#' @param measure ad_revenue, ad_impressions or ad_impression_share (share of
+#'   ad impressions among publishers).
+#' @param countries Country codes, or WW alone (default). WW sends no region
+#'   filter and ranks over the provider's ad-monetization regions, labeled
+#'   `covered_regions`; coverage is not worldwide.
+#' @param networks Optional ad networks: Admob, Applovin, Digital Turbine,
+#'   InMobi, Meta Audience Network, Mintegral, Supersonic, Unity, Other.
+#' @param categories,game_categories Optional iOS primary category IDs (such as
+#'   6014) and iOS game category IDs (such as 7012), applied to unified apps.
+#' @param limit Maximum apps per country.
+#' @param filter Created filter or server ID.
+#' @inheritParams st_metrics
+#' @return A tibble like st_rankings(): app_id (unified), os, country, date,
+#'   rank, measure, value, unit and period. Revenue is USD, impressions use
+#'   impressions and share uses fraction. date is date_from; values cover the
+#'   whole date_from to date_to range, so period is range.
+#' @details Rankings are separate for each requested country. Estimates start on
+#'   2024-01-01. Multiple filter IDs are unioned before ranking.
+#' @export
+st_ad_rankings <- function(measure, date_from, date_to, countries = "WW", networks = NULL, categories = NULL,
+                           game_categories = NULL, limit = 100, filter = NULL, auth_token = NULL) {
+  measure <- .st_choice(measure, c("ad_revenue", "ad_impressions", "ad_impression_share"), "measure")
+  dates <- .st_dates(date_from, date_to)
+  countries <- .st_countries(countries)
+  if (!is.null(networks)) {
+    networks <- .st_names(networks, c("Admob", "Applovin", "Digital Turbine", "InMobi", "Meta Audience Network", "Mintegral", "Supersonic", "Unity", "Other"), "networks")
+  }
+  for (x in list(categories, game_categories)) if (!is.null(x) && (!is.character(x) || !length(x) || anyNA(x) || any(!nzchar(x)))) .st_abort("Category IDs must be non-empty character vectors.")
+  limit <- .st_int(limit, "limit")
+  filters <- .st_filter_ids(filter)
+  metric <- switch(measure,
+    ad_revenue = "est_ad_monetization_revenue",
+    ad_impressions = "est_ad_monetization_impressions",
+    ad_impression_share = "est_ad_monetization_impression_share"
+  )
+  unit <- switch(measure,
+    ad_revenue = "USD",
+    ad_impressions = "impressions",
+    ad_impression_share = "fraction"
+  )
+  purrr::map(countries, function(country) {
+    results <- purrr::map(if (is.null(filters)) list(NULL) else as.list(filters), function(filter_id) {
+      params <- c(list(
+        bundle = if (measure == "ad_impression_share") "mobile_ad_monetization_impression_share" else "mobile_ad_monetization",
+        breakdown = "unified_app_id", order_by = paste0(metric, ":desc"), regions = if (country != "WW") country,
+        networks = networks, unified_app_primary_categories = categories, unified_app_game_categories = game_categories,
+        custom_fields_filter_id = filter_id
+      ), dates)
+      x <- .st_pages("facets/metrics", params, auth_token, limit, 250L, "data")
+      if (!nrow(x)) {
+        return(tibble::tibble(app_id = character(), value = double()))
+      }
+      values <- .st_numeric(.st_column(x, metric, TRUE))
+      if (measure == "ad_revenue") values <- values / 100
+      tibble::tibble(app_id = .st_ids(.st_column(x, "unified_app_id", TRUE)), value = values)
+    }) |> purrr::list_rbind()
+    results <- .st_unique(results, "app_id") |>
+      dplyr::arrange(dplyr::desc(.data$value), .data$app_id) |>
+      dplyr::slice_head(n = limit)
+    results |> dplyr::mutate(
+      os = "unified", country = if (country == "WW") "covered_regions" else country, date = dates$start_date,
+      rank = dplyr::row_number(), measure = measure, unit = unit, period = "range"
+    )
+  }) |> purrr::list_rbind()
+}
 #' Retrieve store chart positions
 #' @param category Store category ID.
 #' @param chart_type Provider store-chart identifier, such as topfreeapplications.

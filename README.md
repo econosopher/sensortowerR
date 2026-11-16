@@ -1,4 +1,4 @@
-# sensortowerR 2.0
+# sensortowerR 2.1
 
 Sensor Tower data through ordinary tibble pipelines. Search for apps, retain your
 analysis context, and fetch sales and audiences with one function.
@@ -55,15 +55,17 @@ does not infer identities from names or merge related publishers.
 | Find apps and publishers | `st_apps()`, `st_publishers()` |
 | Metadata and ID mapping | `st_app()`, `st_publisher_apps()` |
 | Time series and market totals | `st_metrics()`, `st_market_metrics()` |
-| Ranked estimates and store positions | `st_rankings()`, `st_charts()` |
-| Specialist data | `st_retention()`, `st_demographics()`, `st_sessions()`, `st_ratings()`, `st_reviews()`, `st_app_tags()` |
+| Ranked estimates and store positions | `st_rankings()`, `st_ad_rankings()`, `st_charts()` |
+| Specialist data | `st_retention()`, `st_demographics()`, `st_sessions()`, `st_ratings()`, `st_reviews()`, `st_app_tags()`, `st_ad_monetization()` |
 | Filters and reference data | `st_filter()`, `st_filter_create()`, `st_filter_read()`, `st_fields()`, `st_categories()` |
 | Advanced access and utilities | `st_facets()`, `st_parse_url()`, `st_build_url()`, `st_diagnostics()`, `st_cache_info()`, `st_cache_clear()` |
 
 Metadata conversion is explicit: `st_app(data, target_os = "ios")` expands all
 mapped iOS SKUs; `target_os = "unified"` uses provider mappings. Conversions retain
 `input_app_id` and `input_os`. Demographics, legacy retention, ratings, reviews and
-tags require store IDs; convert first when starting with unified IDs.
+tags require store IDs; convert first when starting with unified IDs. Ad
+monetization requires unified IDs. Its coverage is a limited set of countries:
+the default total is labeled `covered_regions`, not `WW`.
 
 ## Filters and failures
 
@@ -95,7 +97,7 @@ and errors are not cached. Use `st_cache_clear()` to clear entries.
 Portfolio totals, YoY comparisons, charts, formatting and dashboards now use
 recipes built from dplyr, ggplot2, scales and gt. See `vignette("recipes")` and
 `inst/recipes/reports.R`. See [the migration table](https://github.com/econosopher/sensortowerR/blob/02daa2174cf36a002bfab265c98f37d6cdde3040/MIGRATION.md) for every v1.x export.
-This is a breaking 2.0.0 candidate; existing scripts need migration.
+Version 2.0.0 was a breaking release; v1.x scripts need migration.
 
 ## Verification
 
