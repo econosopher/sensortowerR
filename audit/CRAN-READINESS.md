@@ -1,8 +1,8 @@
 # CRAN readiness: 2.1.0 update
 
 2.1.0 adds st_ad_monetization() and st_ad_rankings(), the st_rankings() `tags` argument, and fixes st_filter_create() for
-named custom fields (PRs #8, #9 and #10; main at 6c6b949). CRAN has 2.0.0. Nothing has been submitted; submission
-needs Phillip's OK.
+named custom fields (PRs #8, #9 and #10; main at 6c6b949). CRAN has 2.0.0. 2.1.0 was submitted and confirmed on
+2026-11-16 (see CRAN-SUBMISSION.md); publication pending.
 
 ## Final source archive (2.1.0)
 

@@ -68,9 +68,18 @@
     "checked": 5
   },
   "cran_publication": {
-    "status": "not_submitted",
-    "authorized": false,
-    "note": "Submission needs Phillip's explicit OK."
+    "status": "submitted_confirmed_pretest",
+    "authorized": true,
+    "authorized_by": "Phillip, 16 Nov 2026 ('Yes, submit it')",
+    "submitted_at": "2026-11-16T11:07:52Z",
+    "confirmed_at": "2026-11-16T11:17:40Z",
+    "version": "2.1.0",
+    "updates_version": "2.0.0",
+    "incoming_stage": "pretest",
+    "observed_in_incoming_at": "2026-11-16T11:18:12Z",
+    "received_archive_sha256": "609155412b53a6f0d608524f6b71ef99727634c88ccb33b0bbd212e93bc50e55",
+    "archive_matches_tested_candidate": true,
+    "published": false
   },
   "previous_release": {
     "version": "2.0.0",
