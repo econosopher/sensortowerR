@@ -1,16 +1,16 @@
 * using log directory 'd:/RCompile/CRANguest/R-devel/sensortowerR.Rcheck'
-* using R Under development (unstable) (2026-09-20 r90574 ucrt)
+* using R Under development (unstable) (2026-11-14 r90890 ucrt)
 * using platform: x86_64-w64-mingw32
 * R was compiled by
     gcc.exe (GCC) 14.3.0
     GNU Fortran (GCC) 14.3.0
 * running under: Windows Server 2022 x64 (build 20348)
 * using session charset: UTF-8
-* current time: 2026-09-21 11:19:06 UTC
+* current time: 2026-11-16 10:19:11 UTC
 * checking for file 'sensortowerR/DESCRIPTION' ... OK
-* this is package 'sensortowerR' version '2.0.0'
+* this is package 'sensortowerR' version '2.1.0'
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... OK
+* checking CRAN incoming feasibility ... [10s] OK
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
@@ -40,7 +40,7 @@
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... OK
+* checking R code for possible problems ... [11s] OK
 * checking Rd files ... OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -60,7 +60,7 @@
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
 * checking re-building of vignette outputs ... OK
-* checking PDF version of manual ... [12s] OK
+* checking PDF version of manual ... [19s] OK
 * checking HTML version of manual ... OK
 * DONE
 Status: OK
