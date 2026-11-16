@@ -1,17 +1,17 @@
-* using log directory ‘/home/phillip.guest/sensortower-release/sensortowerR.Rcheck’
-* using R version 4.6.1 (2026-06-24)
+* using log directory ‘/tmp/Rtmp5caV1I/sensortower-cran-3a5b797ccc22/sensortowerR.Rcheck’
+* using R version 4.6.2 (2026-10-29)
 * using platform: aarch64-unknown-linux-gnu
 * R was compiled by
     aarch64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
     GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 * running under: Ubuntu 24.04.4 LTS
 * using session charset: UTF-8
-* current time: 2026-09-21 10:55:55 UTC
+* current time: 2026-11-16 09:58:58 UTC
 * using option ‘--as-cran’
 * checking for file ‘sensortowerR/DESCRIPTION’ ... OK
-* this is package ‘sensortowerR’ version ‘2.0.0’
+* this is package ‘sensortowerR’ version ‘2.1.0’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... OK
+* checking CRAN incoming feasibility ... [4s/12s] OK
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
@@ -58,8 +58,9 @@
 * checking files in ‘vignettes’ ... OK
 * checking examples ... OK
 * checking for unstated dependencies in ‘tests’ ... OK
-* checking tests ... OK
+* checking tests ...
   Running ‘testthat.R’
+ OK
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
 * checking re-building of vignette outputs ... OK
@@ -68,4 +69,5 @@
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
+
 Status: OK

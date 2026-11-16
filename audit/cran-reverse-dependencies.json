@@ -1,5 +1,6 @@
 {
-  "checked_at": "2026-09-21 11:00:20 UTC",
-  "version": "1.0.1",
-  "reverse_dependencies": []
+  "checked_at": "2026-11-16 08:40:00 UTC",
+  "version": "2.0.0",
+  "reverse_dependencies": [],
+  "which": "all (Depends, Imports, LinkingTo, Suggests, Enhances)"
 }

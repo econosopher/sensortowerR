@@ -1,58 +1,80 @@
 {
-  "checked_at": "2026-09-21T11:23:20.396801+00:00",
-  "archive_sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254",
+  "checked_at": "2026-11-16",
+  "version": "2.1.0",
+  "source_commit": "6c6b949",
+  "archive_sha256": "609155412b53a6f0d608524f6b71ef99727634c88ccb33b0bbd212e93bc50e55",
+  "archive_bytes": 48547,
+  "superseded_candidate": {
+    "source_commit": "4b509f9",
+    "archive_sha256": "2bb87b4be9e68afd18943eb01f74ce05da7dd2930564cc32d0f03df286f96475",
+    "reason": "PR #10 (st_rankings tags) merged at 09:28 UTC after that archive was built; all checks re-run on 6c6b949"
+  },
   "linux": {
     "status": "passed",
-    "r": "4.6.1",
-    "platform": "Ubuntu 24.04 aarch64, local VM",
+    "r": "4.6.2",
+    "platform": "Ubuntu 24.04.4 aarch64, temporary local Lima VM (deleted after the check)",
     "arguments": [
       "--as-cran"
     ],
-    "errors": 0,
-    "warnings": 0,
-    "notes": 0,
-    "assertions": 191
-  },
-  "mac_builder": {
-    "status": "passed",
-    "r": "4.6.1 Patched",
-    "url": "https://mac.R-project.org/macbuilder/results/1789988203-aaf71eeb3d404b34/",
+    "manual": true,
     "errors": 0,
     "warnings": 0,
     "notes": 0
   },
-  "windows_r_release": {
+  "macos_local": {
     "status": "passed",
-    "uploaded_at": "2026-09-21T10:56:57Z",
-    "r": "4.6.1",
-    "url": "https://win-builder.r-project.org/52bM7NP88Q04/",
+    "r": "4.2.2",
+    "platform": "aarch64-apple-darwin20",
+    "script": "tools/check.R",
+    "arguments": [
+      "--no-manual"
+    ],
+    "assertions": 272,
     "errors": 0,
     "warnings": 0,
-    "notes": 0,
-    "source_packaged": "2026-09-21 10:55:55 UTC",
-    "readme_matches": true
+    "notes": 0
+  },
+  "mac_builder": {
+    "status": "unavailable",
+    "attempts": 6,
+    "window": "2026-11-16T08:54Z to 09:59Z",
+    "detail": "POST /macbuilder/v1/submit returned the nginx 'currently unavailable' page each time; the form offers only rflavor=r-devel"
+  },
+  "windows_r_release": {
+    "status": "passed",
+    "uploaded_at": "2026-11-16T09:59:48Z",
+    "r": "4.6.2 (2026-10-29 ucrt)",
+    "url": "https://win-builder.r-project.org/BAUCl6AZQMZY/",
+    "errors": 0,
+    "warnings": 0,
+    "notes": 0
   },
   "windows_r_devel": {
     "status": "passed",
-    "uploaded_at": "2026-09-21T11:04:58Z",
-    "r": "R-devel 2026-09-20 r90574 ucrt",
-    "url": "https://win-builder.r-project.org/9791Q14eChZu/",
+    "uploaded_at": "2026-11-16T09:59:49Z",
+    "r": "R-devel 2026-11-14 r90890 ucrt",
+    "url": "https://win-builder.r-project.org/Ahqc9pUkIGPe/",
     "errors": 0,
     "warnings": 0,
-    "notes": 0,
-    "source_packaged": "2026-09-21 10:55:55 UTC",
-    "readme_matches": true
+    "notes": 0
+  },
+  "reverse_dependencies": {
+    "checked_at": "2026-11-16",
+    "cran_version": "2.0.0",
+    "count": 0
+  },
+  "urls": {
+    "status": "passed",
+    "checked": 5
   },
   "cran_publication": {
-    "status": "submitted_confirmed_pretest",
-    "authorized": true,
-    "submitted_at": "2026-09-21T11:21:21Z",
-    "confirmed_verified_at": "2026-09-21T11:23:20.396801+00:00",
+    "status": "not_submitted",
+    "authorized": false,
+    "note": "Submission needs Phillip's explicit OK."
+  },
+  "previous_release": {
     "version": "2.0.0",
-    "updates_version": "1.0.1",
-    "incoming_stage": "pretest",
-    "received_archive_sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254",
-    "archive_matches_tested_candidate": true,
-    "published": false
+    "status": "published",
+    "archive_sha256": "62b23c5ac94847776a2c1652fac86634d85f1c9983fe36f5328b2dac576f9254"
   }
 }

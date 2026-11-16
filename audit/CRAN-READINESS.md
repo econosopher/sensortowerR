@@ -1,4 +1,33 @@
-# CRAN readiness: 2.0.0 update
+# CRAN readiness: 2.1.0 update
+
+2.1.0 adds st_ad_monetization() and st_ad_rankings(), the st_rankings() `tags` argument, and fixes st_filter_create() for
+named custom fields (PRs #8, #9 and #10; main at 6c6b949). CRAN has 2.0.0. Nothing has been submitted; submission
+needs Phillip's OK.
+
+## Final source archive (2.1.0)
+
+Built with R 4.6.2 on a temporary Ubuntu 24.04.4 arm64 Lima VM from commit 6c6b949. sensortowerR_2.1.0.tar.gz,
+48,547 bytes, 63 entries, SHA-256 `609155412b53a6f0d608524f6b71ef99727634c88ccb33b0bbd212e93bc50e55`. An earlier candidate built from 4b509f9 (SHA-256 2bb87b4b...f96475)
+is superseded: PR #10 merged after it was built.
+
+## Verified checks (2.1.0, 16 Nov 2026)
+
+| Environment or check | Result | Evidence |
+|---|---|---|
+| Ubuntu 24.04.4 arm64, R 4.6.2, R CMD check --as-cran, PDF manual | 0 errors, 0 warnings, 0 notes | cran-linux-check.log |
+| Windows R-release (4.6.2 (2026-10-29 ucrt)) | 0 errors, 0 warnings, 0 notes | cran-windows-release-check.log |
+| Windows R-devel (R-devel 2026-11-14 r90890 ucrt) | 0 errors, 0 warnings, 0 notes | cran-windows-devel-check.log |
+| macOS arm64, R 4.2.2, tools/check.R (no manual) | Status OK | macos-local-check.log |
+| Mac Builder | Unavailable (6 attempts, nginx error) | cran-builder-status.json |
+| Offline assertions | 272 passed, 0 failed, 0 warned, 0 skipped | macOS test run |
+| README and documentation URLs | All five passed | urlchecker::url_check() |
+| CRAN reverse dependencies | None, including optional dependencies | cran-reverse-dependencies.json |
+
+The VM was deleted after the check. Windows checks used the exact archive above.
+
+---
+
+# Previous release: 2.0.0
 
 The user authorized submission as an update to existing CRAN package
 sensortowerR 1.0.1. The maintainer and MIT license are unchanged. GitHub Actions
