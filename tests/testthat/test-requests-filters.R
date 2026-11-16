@@ -48,6 +48,16 @@ test_that("filter construction is local; AND and OR have different verified payl
   expect_length(calls$requests, 3L)
 })
 
+test_that("named custom_fields are sent as a JSON array of field records", {
+  calls <- local_api(function(path, q, req) list(custom_fields_filter_id = strrep("c", 24)))
+  f <- st_filter_create(st_filter(custom_fields = list(`Game Sub-genre` = "Card Battler", `Game Genre` = "Strategy")))
+  sent <- calls$requests[[1]]$body$data$custom_fields
+  expect_null(names(sent))
+  expect_equal(vapply(sent, `[[`, "", "name"), c("Game Sub-genre", "Game Genre"))
+  json <- jsonlite::toJSON(calls$requests[[1]]$body$data, auto_unbox = TRUE)
+  expect_match(json, '"custom_fields":\\[', perl = TRUE)
+})
+
 test_that("failed filter creation never fabricates an ID or retries a POST", {
   calls <- local_api(function(...) httr2::response(422L, body = charToRaw('{"error":"invalid"}')))
   expect_error(st_filter_create(st_filter(monetization = "iap")), class = "st_http_error")
