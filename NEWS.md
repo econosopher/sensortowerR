@@ -1,5 +1,9 @@
 # sensortowerR 2.1.0
 
+* `st_rankings()` gains `tags`, returning requested custom tags (such as
+  `"Game Genre"` and `"Game Sub-genre"`) as columns for app sales rankings. One
+  unfiltered ranking can then be split by genre locally instead of one filtered
+  call per genre.
 * New `st_ad_monetization()` returns estimated ad impressions and ad revenue for
   unified apps from 2024 onward, weekly, monthly or quarterly, optionally by ad
   network and/or country. Revenue is converted from cents to USD by default.
