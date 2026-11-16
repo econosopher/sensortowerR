@@ -6,16 +6,21 @@
 #' @param comparison absolute, delta or transformed_delta.
 #' @param limit Maximum entities per country.
 #' @param filter Created filter or server ID; supported for app rankings.
+#' @param tags Optional custom tag names to return as character columns for app
+#'   sales rankings, such as `c("Game Genre", "Game Sub-genre")`. Values come
+#'   from the app's aggregate tags, else its first platform entity carrying the
+#'   tag; missing tags are NA. One unfiltered ranking then splits by genre.
 #' @inheritParams st_metrics
 #' @return A tibble with entity ID, os, country, date, rank, measure, value and
-#'   unit. Rankings are separate for each requested country.
+#'   unit, plus one column per requested tag. Rankings are separate for each
+#'   requested country.
 #' @details Active rankings support weekly, monthly and quarterly periods; MAU
 #'   does not support weekly. Active rankings cover one period beginning on
 #'   date_from; date_to must be its last day. Sales may span multiple periods.
 #' @export
 st_rankings <- function(measure, os, date_from, date_to, countries = "WW", granularity = "monthly",
                         entity = c("app", "publisher"), category = "0", comparison = c("absolute", "delta", "transformed_delta"),
-                        limit = 100, filter = NULL, auth_token = NULL) {
+                        limit = 100, filter = NULL, tags = NULL, auth_token = NULL) {
   measure <- .st_choice(measure, c("revenue", "downloads", "dau", "wau", "mau"), "measure")
   entity <- match.arg(entity)
   comparison <- match.arg(comparison)
@@ -28,6 +33,10 @@ st_rankings <- function(measure, os, date_from, date_to, countries = "WW", granu
   filters <- .st_filter_ids(filter)
   active <- measure %in% c("dau", "wau", "mau")
   if (entity == "publisher" && (active || !is.null(filter))) .st_abort("Publisher rankings support sales measures without custom filters.")
+  if (!is.null(tags)) {
+    if (!is.character(tags) || !length(tags) || anyNA(tags) || any(!nzchar(tags))) .st_abort("tags must be non-empty tag names.")
+    if (entity == "publisher" || active) .st_abort("tags are supported for app sales rankings only.")
+  }
   time_range <- switch(granularity,
     daily = "day",
     weekly = "week",
@@ -54,11 +63,15 @@ st_rankings <- function(measure, os, date_from, date_to, countries = "WW", granu
       params[[if (entity == "publisher") "country" else "regions"]] <- country
       x <- .st_pages(path, params, auth_token, limit, if (entity == "publisher") 10 else 100, c("data", "publishers"))
       if (!nrow(x)) {
-        return(tibble::tibble(!!id_col := character(), value = double()))
+        empty <- tibble::tibble(!!id_col := character(), value = double())
+        for (tag in tags) empty[[tag]] <- character()
+        return(empty)
       }
       values <- .st_numeric(.st_column(x, c(paste0(if (active) "users" else api_measure, "_", comparison), comparison, paste0("current_", api_measure, "_value")), TRUE))
       if (measure == "revenue" && comparison != "transformed_delta") values <- values / 100
-      tibble::tibble(!!id_col := .st_ids(.st_column(x, c(id_col, paste0("unified_", id_col)), TRUE)), value = values)
+      res <- tibble::tibble(!!id_col := .st_ids(.st_column(x, c(id_col, paste0("unified_", id_col)), TRUE)), value = values)
+      for (tag in tags) res[[tag]] <- .st_row_tags(x, tag)
+      res
     }) |> purrr::list_rbind()
     results <- .st_unique(results, id_col) |>
       dplyr::arrange(dplyr::desc(.data$value), .data[[id_col]]) |>
@@ -166,4 +179,24 @@ st_charts <- function(os, category, chart_type, date, countries = "US", limit = 
       rank = seq_along(ids), category_id = rep(category, length(ids)), chart_type = rep(chart_type, length(ids))
     )
   }) |> purrr::list_rbind()
+}
+
+# One tag value per ranking row: the row's aggregate_tags, else the first platform
+# entity whose custom_tags carry it. Returns a character vector (NA when absent).
+.st_row_tags <- function(x, tag) {
+  pick <- function(t) {
+    v <- if (is.list(t) || is.data.frame(t)) t[[tag]] else NULL
+    if (is.null(v) || !length(v) || is.na(v[[1]]) || !nzchar(as.character(v[[1]]))) NA_character_ else as.character(v[[1]])
+  }
+  agg <- if ("aggregate_tags" %in% names(x)) x$aggregate_tags else vector("list", nrow(x))
+  ent <- if ("entities" %in% names(x)) x$entities else vector("list", nrow(x))
+  vapply(seq_len(nrow(x)), function(i) {
+    a <- if (is.data.frame(agg)) agg[i, , drop = FALSE] else agg[[i]]
+    v <- pick(a)
+    if (!is.na(v)) return(v)
+    e <- ent[[i]]
+    rows <- if (is.data.frame(e)) lapply(seq_len(nrow(e)), function(k) e$custom_tags[[k]] %||% (if (is.data.frame(e$custom_tags)) e$custom_tags[k, , drop = FALSE])) else lapply(e, function(z) z$custom_tags)
+    for (ct in rows) { v <- pick(ct); if (!is.na(v)) return(v) }
+    NA_character_
+  }, character(1))
 }

@@ -16,6 +16,7 @@ st_rankings(
   comparison = c("absolute", "delta", "transformed_delta"),
   limit = 100,
   filter = NULL,
+  tags = NULL,
   auth_token = NULL
 )
 }
@@ -41,11 +42,17 @@ revenue and downloads only.}
 
 \item{filter}{Created filter or server ID; supported for app rankings.}
 
+\item{tags}{Optional custom tag names to return as character columns for app
+sales rankings, such as \code{c("Game Genre", "Game Sub-genre")}. Values come
+from the app's aggregate tags, else its first platform entity carrying the
+tag; missing tags are NA. One unfiltered ranking then splits by genre.}
+
 \item{auth_token}{API token; defaults to SENSORTOWER_AUTH_TOKEN.}
 }
 \value{
 A tibble with entity ID, os, country, date, rank, measure, value and
-unit. Rankings are separate for each requested country.
+unit, plus one column per requested tag. Rankings are separate for each
+requested country.
 }
 \description{
 Rank apps or publishers by an explicit measure

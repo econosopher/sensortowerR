@@ -183,3 +183,20 @@ test_that("filter definitions can be retrieved without creation", {
   expect_equal(x$filter_id, strrep("a", 24))
   expect_equal(st_filter(date_from = "2026-01-01", date_to = "2026-01-31")$fields[[1]]$values[[1]], "2026-01-01 to 2026-01-31")
 })
+
+test_that("rankings return requested tags from aggregate or entity tags", {
+  local_api(function(path, q, req) {
+    list(
+      list(app_id = "a", revenue_absolute = 500, aggregate_tags = list(`Game Sub-genre` = "4X Strategy")),
+      list(app_id = "b", revenue_absolute = 300, aggregate_tags = list(Free = "true"),
+           entities = list(list(app_id = "b1", custom_tags = list(Free = "true")),
+                           list(app_id = "b2", custom_tags = list(`Game Sub-genre` = "Squad RPG")))),
+      list(app_id = "c", revenue_absolute = 100)
+    )
+  })
+  out <- st_rankings("revenue", "unified", "2026-01-01", "2026-01-31", tags = "Game Sub-genre")
+  expect_equal(out$`Game Sub-genre`, c("4X Strategy", "Squad RPG", NA))
+  expect_equal(out$value, c(5, 3, 1))
+  expect_error(st_rankings("mau", "unified", "2026-01-01", "2026-01-31", tags = "Game Genre"), "app sales")
+  expect_error(st_rankings("revenue", "unified", "2026-01-01", "2026-01-31", tags = ""), "non-empty")
+})
