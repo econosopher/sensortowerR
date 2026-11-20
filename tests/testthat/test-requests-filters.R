@@ -200,3 +200,17 @@ test_that("rankings return requested tags from aggregate or entity tags", {
   expect_error(st_rankings("mau", "unified", "2026-01-01", "2026-01-31", tags = "Game Genre"), "app sales")
   expect_error(st_rankings("revenue", "unified", "2026-01-01", "2026-01-31", tags = ""), "non-empty")
 })
+
+test_that("unified sales ranking details retain downloads and per-entity tags", {
+  local_api(function(path, q, req) list(
+    list(app_id = "a", revenue_absolute = 500, units_absolute = 13,
+         aggregate_tags = list(`Earliest Release Date` = "2020-01-01", `All Time Downloads (WW)` = "123"),
+         entities = list(list(app_id = "a1", revenue_absolute = 400,
+                              custom_tags = list(`Game Sub-genre` = "Shooter"))))
+  ))
+  x <- st_rankings("revenue", "unified", "2026-01-01", "2026-01-31", details = TRUE)
+  expect_equal(x$value, 5)
+  expect_equal(x$units_absolute, 13)
+  expect_equal(x$aggregate_tags[[1]][["All Time Downloads (WW)"]], "123")
+  expect_equal(x$entities[[1]][[1]]$custom_tags[["Game Sub-genre"]], "Shooter")
+})
