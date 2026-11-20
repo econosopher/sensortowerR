@@ -10,6 +10,7 @@
 #'   sales rankings, such as `c("Game Genre", "Game Sub-genre")`. Values come
 #'   from the app's aggregate tags, else its first platform entity carrying the
 #'   tag; missing tags are NA. One unfiltered ranking then splits by genre.
+#' @param details Retain source downloads and nested aggregate and entity tags for unified app sales rankings.
 #' @inheritParams st_metrics
 #' @return A tibble with entity ID, os, country, date, rank, measure, value and
 #'   unit, plus one column per requested tag. Rankings are separate for each
@@ -20,7 +21,7 @@
 #' @export
 st_rankings <- function(measure, os, date_from, date_to, countries = "WW", granularity = "monthly",
                         entity = c("app", "publisher"), category = "0", comparison = c("absolute", "delta", "transformed_delta"),
-                        limit = 100, filter = NULL, tags = NULL, auth_token = NULL) {
+                        limit = 100, filter = NULL, tags = NULL, details = FALSE, auth_token = NULL) {
   measure <- .st_choice(measure, c("revenue", "downloads", "dau", "wau", "mau"), "measure")
   entity <- match.arg(entity)
   comparison <- match.arg(comparison)
@@ -32,6 +33,8 @@ st_rankings <- function(measure, os, date_from, date_to, countries = "WW", granu
   limit <- .st_int(limit, "limit")
   filters <- .st_filter_ids(filter)
   active <- measure %in% c("dau", "wau", "mau")
+  .st_flag(details, "details")
+  if (details && (os != "unified" || entity != "app" || active || comparison != "absolute")) .st_abort("details requires unified app sales rankings with absolute comparison.")
   if (entity == "publisher" && (active || !is.null(filter))) .st_abort("Publisher rankings support sales measures without custom filters.")
   if (!is.null(tags)) {
     if (!is.character(tags) || !length(tags) || anyNA(tags) || any(!nzchar(tags))) .st_abort("tags must be non-empty tag names.")
@@ -65,12 +68,18 @@ st_rankings <- function(measure, os, date_from, date_to, countries = "WW", granu
       if (!nrow(x)) {
         empty <- tibble::tibble(!!id_col := character(), value = double())
         for (tag in tags) empty[[tag]] <- character()
+        if (details) { empty$units_absolute <- double(); empty$aggregate_tags <- list(); empty$entities <- list() }
         return(empty)
       }
       values <- .st_numeric(.st_column(x, c(paste0(if (active) "users" else api_measure, "_", comparison), comparison, paste0("current_", api_measure, "_value")), TRUE))
       if (measure == "revenue" && comparison != "transformed_delta") values <- values / 100
       res <- tibble::tibble(!!id_col := .st_ids(.st_column(x, c(id_col, paste0("unified_", id_col)), TRUE)), value = values)
       for (tag in tags) res[[tag]] <- .st_row_tags(x, tag)
+      if (details) {
+        res$units_absolute <- .st_numeric(.st_column(x, "units_absolute"))
+        for (field in c("aggregate_tags", "entities"))
+          res[[field]] <- if (field %in% names(x)) x[[field]] else rep(list(NULL), nrow(x))
+      }
       res
     }) |> purrr::list_rbind()
     results <- .st_unique(results, id_col) |>

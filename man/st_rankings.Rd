@@ -17,6 +17,7 @@ st_rankings(
   limit = 100,
   filter = NULL,
   tags = NULL,
+  details = FALSE,
   auth_token = NULL
 )
 }
@@ -46,6 +47,8 @@ revenue and downloads only.}
 sales rankings, such as \code{c("Game Genre", "Game Sub-genre")}. Values come
 from the app's aggregate tags, else its first platform entity carrying the
 tag; missing tags are NA. One unfiltered ranking then splits by genre.}
+
+\item{details}{Retain source downloads and nested aggregate and entity tags for unified app sales rankings.}
 
 \item{auth_token}{API token; defaults to SENSORTOWER_AUTH_TOKEN.}
 }
