@@ -17,7 +17,11 @@ st_app_metadata(data, os, country = NULL, auth_token = NULL)
 }
 \value{
 A tibble of provider metadata records, retaining nested mappings.
-Returned IDs are checked against the requested IDs.
+The returned app ID and canonical store ID (\code{canonical_app_id}, when
+present) are character columns. Returned app IDs are checked against the
+requested IDs. Other fields use atomic vectors for a single scalar JSON
+type and list columns for mixed or nested values. Missing values are \code{NA}
+in atomic columns and \code{NULL} in list columns.
 }
 \description{
 Retrieve provider metadata for explicitly identified apps without name-based
